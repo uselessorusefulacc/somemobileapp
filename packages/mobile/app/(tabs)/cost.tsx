@@ -15,19 +15,6 @@ import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type Analytics, type BudgetConfig, type ModelBreakdown } from "../../lib/api";
 
-const BG = "#0c0c0e";
-const CARD = "#0e0e11";
-const BORDER = "#1a1a20";
-const SURFACE = "#13131a";
-const TEXT = "#f0f0f0";
-const TEXT_MUTED = "#555566";
-const TEXT_DIM = "#888899";
-const ACCENT = "#f97316";
-const ACCENT_DIM = "#f9731614";
-const GREEN = "#22c55e";
-const YELLOW = "#eab308";
-const RED = "#ef4444";
-
 const MODEL_INPUT_COSTS: Record<string, number> = {
   "claude-opus-4-5": 15,
   "claude-sonnet-4-5": 3,
@@ -53,10 +40,6 @@ function formatCost(costUsd: number): string {
   if (costUsd < 0.0001) return "<$0.0001";
   if (costUsd < 1) return `$${costUsd.toFixed(4)}`;
   return `$${costUsd.toFixed(2)}`;
-}
-
-function ScanLine() {
-  return <View style={styles.scanLine} />;
 }
 
 function BudgetModal({
@@ -87,52 +70,45 @@ function BudgetModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalCard}>
-          {/* header bar */}
-          <View style={styles.modalTopBar}>
-            <View style={styles.modalPill} />
-          </View>
-          <View style={styles.modalHeaderRow}>
-            <Text style={styles.modalSysLabel}>SYS://BUDGET.CONFIG</Text>
-            <View style={styles.statusDot} />
-          </View>
-          <ScanLine />
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Budget Settings</Text>
 
-          <Text style={styles.modalFieldLabel}>// monthly limit (USD)</Text>
+          <Text style={styles.fieldLabel}>Monthly limit (USD)</Text>
           <TextInput
-            style={styles.modalInput}
+            style={styles.fieldInput}
             value={monthly}
             onChangeText={setMonthly}
             placeholder="50.00"
-            placeholderTextColor={TEXT_MUTED}
+            placeholderTextColor="#444"
             keyboardType="decimal-pad"
           />
 
-          <Text style={styles.modalFieldLabel}>// daily limit (USD, optional)</Text>
+          <Text style={styles.fieldLabel}>Daily limit (optional)</Text>
           <TextInput
-            style={styles.modalInput}
+            style={styles.fieldInput}
             value={daily}
             onChangeText={setDaily}
             placeholder="5.00"
-            placeholderTextColor={TEXT_MUTED}
+            placeholderTextColor="#444"
             keyboardType="decimal-pad"
           />
 
-          <Text style={styles.modalFieldLabel}>// alert threshold (%)</Text>
+          <Text style={styles.fieldLabel}>Alert threshold (%)</Text>
           <TextInput
-            style={styles.modalInput}
+            style={styles.fieldInput}
             value={alertPct}
             onChangeText={setAlertPct}
             placeholder="80"
-            placeholderTextColor={TEXT_MUTED}
+            placeholderTextColor="#444"
             keyboardType="number-pad"
           />
 
-          <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.modalCancel} onPress={onClose}>
-              <Text style={styles.modalCancelText}>ABORT</Text>
+          <View style={styles.modalBtns}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSave} onPress={save}>
-              <Text style={styles.modalSaveText}>WRITE</Text>
+            <TouchableOpacity style={styles.saveBtn} onPress={save}>
+              <Text style={styles.saveBtnText}>Save</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -170,11 +146,7 @@ export default function CostScreen() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load(true);
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { load(true); }, [load]));
 
   const saveBudget = async (cfg: BudgetConfig) => {
     try {
@@ -191,71 +163,61 @@ export default function CostScreen() {
   const modelBreakdown: ModelBreakdown[] = analytics?.modelBreakdown || [];
   const maxCost = Math.max(...modelBreakdown.map((m) => parseFloat(m.totalCost)), 0.0001);
   const overBudget = budget.monthlyLimitUsd !== null && monthlyProj > budget.monthlyLimitUsd;
-  const warnBudget =
-    budget.monthlyLimitUsd !== null && monthlyProj > budget.monthlyLimitUsd * 0.8;
-  const budgetPct =
-    budget.monthlyLimitUsd !== null
-      ? Math.min(100, Math.round((monthlyProj / budget.monthlyLimitUsd) * 100))
-      : 0;
-  const budgetColor = overBudget ? RED : warnBudget ? YELLOW : GREEN;
+  const warnBudget = budget.monthlyLimitUsd !== null && monthlyProj > budget.monthlyLimitUsd * 0.8;
+  const budgetPct = budget.monthlyLimitUsd !== null
+    ? Math.min(100, Math.round((monthlyProj / budget.monthlyLimitUsd) * 100))
+    : 0;
+  const budgetColor = overBudget ? "#ef4444" : warnBudget ? "#f59e0b" : "#22c55e";
 
   return (
     <>
       <ScrollView
-        style={[styles.root]}
+        style={styles.root}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load(true);
-            }}
-            tintColor={ACCENT}
+            onRefresh={() => { setRefreshing(true); load(true); }}
+            tintColor="#555"
           />
         }
       >
         {/* Header */}
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.sysLabel}>SYS://COST.MONITOR</Text>
-            <Text style={styles.headerTitle}>TOKEN SPEND</Text>
-          </View>
-          <TouchableOpacity style={styles.budgetBtn} onPress={() => setShowModal(true)}>
-            <Text style={styles.budgetBtnText}>⚙ BUDGET</Text>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Costs</Text>
+          <TouchableOpacity style={styles.budgetBtn} onPress={() => setShowModal(true)} activeOpacity={0.7}>
+            <Text style={styles.budgetBtnText}>Budget</Text>
           </TouchableOpacity>
         </View>
 
-        <ScanLine />
-
         {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color={ACCENT} size="large" />
-            <Text style={styles.loadingText}>QUERYING TELEMETRY...</Text>
+          <View style={styles.loadWrap}>
+            <ActivityIndicator color="#888" size="large" />
           </View>
         ) : (
           <>
-            {/* Hero cost grid */}
-            <View style={styles.heroGrid}>
-              <View style={[styles.heroCard, styles.heroCardLarge]}>
-                <Text style={styles.heroLabel}>TODAY</Text>
-                <Text style={styles.heroCostMain}>{formatCost(totalCost)}</Text>
-                <View style={[styles.heroBadge, { backgroundColor: GREEN + "22" }]}>
-                  <Text style={[styles.heroBadgeText, { color: GREEN }]}>● LIVE</Text>
+            {/* Metric cards */}
+            <View style={styles.metricRow}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Today</Text>
+                <Text style={styles.metricValue}>{formatCost(totalCost)}</Text>
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>Live</Text>
                 </View>
               </View>
-              <View style={styles.heroCardSmallCol}>
-                <View style={[styles.heroCard, styles.heroCardSmall]}>
-                  <Text style={styles.heroLabel}>PROJECTED</Text>
-                  <Text style={[styles.heroCostSm, { color: budgetColor }]}>
+              <View style={styles.metricCardSmallCol}>
+                <View style={styles.metricCardSmall}>
+                  <Text style={styles.metricLabel}>Projected</Text>
+                  <Text style={[styles.metricValueSm, { color: budgetColor }]}>
                     {formatCost(monthlyProj)}
                   </Text>
-                  <Text style={styles.heroSubLabel}>/mo</Text>
+                  <Text style={styles.metricUnit}>/mo</Text>
                 </View>
-                <View style={[styles.heroCard, styles.heroCardSmall]}>
-                  <Text style={styles.heroLabel}>SESSIONS</Text>
-                  <Text style={styles.heroCostSm}>{analytics?.totalSessions ?? 0}</Text>
-                  <Text style={styles.heroSubLabel}>total</Text>
+                <View style={styles.metricCardSmall}>
+                  <Text style={styles.metricLabel}>Sessions</Text>
+                  <Text style={styles.metricValueSm}>{analytics?.totalSessions ?? 0}</Text>
+                  <Text style={styles.metricUnit}>total</Text>
                 </View>
               </View>
             </View>
@@ -264,101 +226,79 @@ export default function CostScreen() {
             {budget.monthlyLimitUsd !== null && (
               <View style={styles.budgetCard}>
                 <View style={styles.budgetCardHeader}>
-                  <Text style={styles.budgetCardLabel}>MONTHLY BUDGET ALLOCATION</Text>
+                  <Text style={styles.budgetCardLabel}>Monthly budget</Text>
                   <Text style={[styles.budgetPct, { color: budgetColor }]}>{budgetPct}%</Text>
                 </View>
                 <View style={styles.barTrack}>
                   <View
                     style={[
                       styles.barFill,
-                      { width: `${Math.max(2, budgetPct)}%`, backgroundColor: budgetColor },
+                      { width: `${Math.max(2, budgetPct)}%` as any, backgroundColor: budgetColor },
                     ]}
                   />
                 </View>
-                <View style={styles.budgetCardFooter}>
-                  <Text style={styles.budgetCardSub}>
-                    {formatCost(monthlyProj)} / ${budget.monthlyLimitUsd} limit
+                <View style={styles.budgetFooter}>
+                  <Text style={styles.budgetSub}>
+                    {formatCost(monthlyProj)} of ${budget.monthlyLimitUsd}
                   </Text>
-                  {overBudget && (
-                    <Text style={[styles.budgetCardWarn, { color: RED }]}>⚠ OVER LIMIT</Text>
-                  )}
-                  {!overBudget && warnBudget && (
-                    <Text style={[styles.budgetCardWarn, { color: YELLOW }]}>⚠ APPROACHING</Text>
-                  )}
+                  {overBudget && <Text style={styles.budgetWarn}>Over limit</Text>}
+                  {!overBudget && warnBudget && <Text style={[styles.budgetWarn, { color: "#f59e0b" }]}>Approaching</Text>}
                 </View>
               </View>
             )}
 
             {/* Model breakdown */}
             {modelBreakdown.length > 0 && (
-              <>
-                <Text style={styles.sectionLabel}>// MODEL BREAKDOWN</Text>
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Model breakdown</Text>
                 <View style={styles.tableCard}>
-                  <View style={styles.tableHeader}>
-                    <Text style={styles.tableHeaderCell}>MODEL</Text>
-                    <Text style={[styles.tableHeaderCell, { textAlign: "right" }]}>COST</Text>
+                  <View style={styles.tableHead}>
+                    <Text style={styles.tableHeadCell}>Model</Text>
+                    <Text style={[styles.tableHeadCell, { textAlign: "right" }]}>Cost</Text>
                   </View>
-                  <View style={styles.tableDivider} />
                   {modelBreakdown.map((m, i) => {
                     const cost = parseFloat(m.totalCost);
                     const pct = (cost / maxCost) * 100;
-                    const rowColor = cost > 0.05 ? RED : cost > 0.01 ? YELLOW : GREEN;
+                    const rowColor = cost > 0.05 ? "#ef4444" : cost > 0.01 ? "#f59e0b" : "#22c55e";
                     return (
                       <View key={m.model}>
+                        {i > 0 && <View style={styles.divider} />}
                         <View style={styles.tableRow}>
-                          <View style={{ flex: 1, marginRight: 12 }}>
+                          <View style={styles.tableRowLeft}>
                             <Text style={styles.tableModel}>{m.model}</Text>
                             <View style={styles.barTrack}>
-                              <View
-                                style={[
-                                  styles.barFill,
-                                  {
-                                    width: `${Math.max(2, pct)}%`,
-                                    backgroundColor: rowColor + "99",
-                                  },
-                                ]}
-                              />
+                              <View style={[styles.barFill, { width: `${Math.max(2, pct)}%` as any, backgroundColor: rowColor + "88" }]} />
                             </View>
                           </View>
-                          <Text style={[styles.tableCost, { color: rowColor }]}>
-                            {formatCost(cost)}
-                          </Text>
+                          <Text style={[styles.tableCost, { color: rowColor }]}>{formatCost(cost)}</Text>
                         </View>
-                        {i < modelBreakdown.length - 1 && (
-                          <View style={styles.tableDivider} />
-                        )}
                       </View>
                     );
                   })}
                 </View>
-              </>
+              </View>
             )}
 
             {/* Pricing reference */}
-            <Text style={styles.sectionLabel}>// PRICING REFERENCE ($/1M tokens)</Text>
-            <View style={styles.tableCard}>
-              <View style={styles.tableHeader}>
-                <Text style={styles.tableHeaderCell}>MODEL</Text>
-                <Text style={[styles.tableHeaderCell, { textAlign: "center" }]}>IN</Text>
-                <Text style={[styles.tableHeaderCell, { textAlign: "right" }]}>OUT</Text>
-              </View>
-              <View style={styles.tableDivider} />
-              {Object.keys(MODEL_INPUT_COSTS).map((model, i) => (
-                <View key={model}>
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceModel}>{model}</Text>
-                    <Text style={[styles.priceVal, { textAlign: "center" }]}>
-                      ${MODEL_INPUT_COSTS[model]}
-                    </Text>
-                    <Text style={[styles.priceVal, { textAlign: "right" }]}>
-                      ${MODEL_OUTPUT_COSTS[model]}
-                    </Text>
-                  </View>
-                  {i < Object.keys(MODEL_INPUT_COSTS).length - 1 && (
-                    <View style={styles.tableDivider} />
-                  )}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Pricing reference ($/1M tokens)</Text>
+              <View style={styles.tableCard}>
+                <View style={styles.tableHead}>
+                  <Text style={[styles.tableHeadCell, { flex: 2 }]}>Model</Text>
+                  <Text style={[styles.tableHeadCell, { textAlign: "center" }]}>Input</Text>
+                  <Text style={[styles.tableHeadCell, { textAlign: "right" }]}>Output</Text>
                 </View>
-              ))}
+                {Object.keys(MODEL_INPUT_COSTS).map((model, i) => (
+                  <View key={model}>
+                    {i > 0 && <View style={styles.divider} />}
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceModel}>{model}</Text>
+                      <Text style={[styles.priceVal, { textAlign: "center" }]}>${MODEL_INPUT_COSTS[model]}</Text>
+                      <Text style={[styles.priceVal, { textAlign: "right" }]}>${MODEL_OUTPUT_COSTS[model]}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
             </View>
           </>
         )}
@@ -377,220 +317,151 @@ export default function CostScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
+  root: { flex: 1, backgroundColor: "#141414" },
   content: { paddingHorizontal: 16, paddingBottom: 40 },
 
-  headerRow: {
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
+    alignItems: "center",
+    marginBottom: 20,
   },
-  sysLabel: {
-    color: TEXT_MUTED,
-    fontFamily: "SpaceMono",
-    fontSize: 9,
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  headerTitle: {
-    color: TEXT,
-    fontFamily: "SpaceMono",
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
+  headerTitle: { color: "#e8e8e8", fontSize: 22, fontWeight: "600" },
   budgetBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: ACCENT,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: ACCENT_DIM,
+    borderColor: "#303030",
   },
-  budgetBtnText: { color: ACCENT, fontFamily: "SpaceMono", fontSize: 10, letterSpacing: 1 },
+  budgetBtnText: { color: "#888", fontSize: 13 },
 
-  scanLine: { height: 1, backgroundColor: BORDER, marginBottom: 16 },
+  loadWrap: { alignItems: "center", paddingTop: 80 },
 
-  loadingWrap: { alignItems: "center", paddingTop: 80, gap: 12 },
-  loadingText: { color: TEXT_MUTED, fontFamily: "SpaceMono", fontSize: 10, letterSpacing: 2 },
-
-  // Hero
-  heroGrid: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  heroCard: {
-    backgroundColor: CARD,
+  // Metrics
+  metricRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  metricCard: {
+    flex: 1.4,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 12,
-    padding: 14,
+    borderColor: "#252525",
+    justifyContent: "space-between",
   },
-  heroCardLarge: { flex: 1.4, justifyContent: "space-between" },
-  heroCardSmallCol: { flex: 1, gap: 10 },
-  heroCardSmall: { flex: 1, justifyContent: "space-between" },
-  heroLabel: {
-    color: TEXT_MUTED,
-    fontFamily: "SpaceMono",
-    fontSize: 8,
-    letterSpacing: 2,
-    marginBottom: 6,
+  metricCardSmallCol: { flex: 1, gap: 10 },
+  metricCardSmall: {
+    flex: 1,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#252525",
   },
-  heroCostMain: { color: ACCENT, fontFamily: "SpaceMono", fontSize: 28, fontWeight: "700" },
-  heroCostSm: { color: TEXT, fontFamily: "SpaceMono", fontSize: 17, fontWeight: "700" },
-  heroSubLabel: { color: TEXT_MUTED, fontFamily: "SpaceMono", fontSize: 9, marginTop: 2 },
-  heroBadge: {
-    alignSelf: "flex-start",
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    marginTop: 8,
-  },
-  heroBadgeText: { fontFamily: "SpaceMono", fontSize: 9, letterSpacing: 1 },
+  metricLabel: { color: "#555", fontSize: 11, marginBottom: 6 },
+  metricValue: { color: "#f0f0f0", fontSize: 26, fontWeight: "600", marginBottom: 8 },
+  metricValueSm: { color: "#e0e0e0", fontSize: 17, fontWeight: "600" },
+  metricUnit: { color: "#444", fontSize: 10, marginTop: 2 },
+  liveBadge: { flexDirection: "row", alignItems: "center", gap: 5 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22c55e" },
+  liveText: { color: "#22c55e", fontSize: 11, fontWeight: "500" },
 
   // Budget
   budgetCard: {
-    backgroundColor: CARD,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    borderColor: "#252525",
   },
   budgetCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  budgetCardLabel: {
-    color: TEXT_MUTED,
-    fontFamily: "SpaceMono",
-    fontSize: 8,
-    letterSpacing: 2,
-  },
-  budgetPct: { fontFamily: "SpaceMono", fontSize: 13, fontWeight: "700" },
-  barTrack: {
-    height: 4,
-    backgroundColor: "#ffffff0d",
-    borderRadius: 2,
-    overflow: "hidden",
-    marginTop: 2,
-  },
+  budgetCardLabel: { color: "#666", fontSize: 12 },
+  budgetPct: { fontSize: 14, fontWeight: "600" },
+  barTrack: { height: 4, backgroundColor: "#ffffff0d", borderRadius: 2, overflow: "hidden", marginBottom: 2 },
   barFill: { height: 4, borderRadius: 2 },
-  budgetCardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
-  },
-  budgetCardSub: { color: TEXT_MUTED, fontFamily: "SpaceMono", fontSize: 9 },
-  budgetCardWarn: { fontFamily: "SpaceMono", fontSize: 9, letterSpacing: 1 },
+  budgetFooter: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
+  budgetSub: { color: "#555", fontSize: 11 },
+  budgetWarn: { color: "#ef4444", fontSize: 11 },
 
-  // Section label
-  sectionLabel: {
-    color: TEXT_MUTED,
-    fontFamily: "SpaceMono",
-    fontSize: 9,
-    letterSpacing: 2,
-    marginBottom: 8,
-    marginTop: 8,
-  },
+  // Section
+  section: { marginTop: 24 },
+  sectionLabel: { color: "#555", fontSize: 12, fontWeight: "500", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 },
 
   // Table
   tableCard: {
-    backgroundColor: CARD,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 12,
-    marginBottom: 16,
+    borderColor: "#252525",
     overflow: "hidden",
   },
-  tableHeader: {
+  tableHead: {
     flexDirection: "row",
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: SURFACE,
+    paddingVertical: 10,
+    backgroundColor: "#181818",
   },
-  tableHeaderCell: {
-    flex: 1,
-    color: TEXT_MUTED,
-    fontFamily: "SpaceMono",
-    fontSize: 8,
-    letterSpacing: 2,
-  },
-  tableDivider: { height: 1, backgroundColor: BORDER },
+  tableHeadCell: { flex: 1, color: "#444", fontSize: 11, letterSpacing: 0.5 },
+  divider: { height: 1, backgroundColor: "#222" },
   tableRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
-  tableModel: { color: TEXT_DIM, fontFamily: "SpaceMono", fontSize: 11, marginBottom: 4 },
-  tableCost: { fontFamily: "SpaceMono", fontSize: 13, fontWeight: "700", minWidth: 60, textAlign: "right" },
+  tableRowLeft: { flex: 1, marginRight: 12 },
+  tableModel: { color: "#aaa", fontSize: 12, marginBottom: 5 },
+  tableCost: { fontSize: 13, fontWeight: "600", minWidth: 60, textAlign: "right" },
 
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  priceModel: { flex: 2, color: TEXT_DIM, fontFamily: "SpaceMono", fontSize: 10 },
-  priceVal: { flex: 1, color: TEXT_MUTED, fontFamily: "SpaceMono", fontSize: 10 },
+  priceRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10 },
+  priceModel: { flex: 2, color: "#888", fontSize: 11 },
+  priceVal: { flex: 1, color: "#555", fontSize: 11 },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: "#000000dd", justifyContent: "flex-end" },
+  modalOverlay: { flex: 1, backgroundColor: "#000000cc", justifyContent: "flex-end" },
   modalCard: {
-    backgroundColor: CARD,
+    backgroundColor: "#1c1c1c",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
-    borderColor: BORDER,
+    borderColor: "#2a2a2a",
     padding: 20,
     paddingBottom: 40,
   },
-  modalTopBar: { alignItems: "center", marginBottom: 16 },
-  modalPill: { width: 36, height: 4, backgroundColor: BORDER, borderRadius: 2 },
-  modalHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  modalSysLabel: { color: TEXT_MUTED, fontFamily: "SpaceMono", fontSize: 9, letterSpacing: 2 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: GREEN },
-  modalFieldLabel: {
-    color: TEXT_MUTED,
-    fontFamily: "SpaceMono",
-    fontSize: 9,
-    letterSpacing: 1,
-    marginBottom: 6,
-    marginTop: 14,
-  },
-  modalInput: {
-    backgroundColor: SURFACE,
+  modalHandle: { width: 36, height: 4, backgroundColor: "#333", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+  modalTitle: { color: "#e0e0e0", fontSize: 17, fontWeight: "600", marginBottom: 20 },
+  fieldLabel: { color: "#666", fontSize: 12, marginBottom: 6, marginTop: 14 },
+  fieldInput: {
+    backgroundColor: "#252525",
     borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 8,
+    borderColor: "#303030",
+    borderRadius: 10,
     padding: 12,
-    color: TEXT,
-    fontFamily: "SpaceMono",
-    fontSize: 14,
+    color: "#e0e0e0",
+    fontSize: 15,
   },
-  modalButtons: { flexDirection: "row", gap: 10, marginTop: 20 },
-  modalCancel: {
+  modalBtns: { flexDirection: "row", gap: 10, marginTop: 24 },
+  cancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderColor: "#303030",
+    borderRadius: 12,
+    paddingVertical: 13,
     alignItems: "center",
   },
-  modalCancelText: { color: TEXT_MUTED, fontFamily: "SpaceMono", fontSize: 12, letterSpacing: 1 },
-  modalSave: {
+  cancelBtnText: { color: "#888", fontSize: 14 },
+  saveBtn: {
     flex: 1,
-    backgroundColor: ACCENT,
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 12,
+    paddingVertical: 13,
     alignItems: "center",
   },
-  modalSaveText: { color: "#fff", fontFamily: "SpaceMono", fontSize: 12, fontWeight: "700", letterSpacing: 1 },
+  saveBtnText: { color: "#000", fontSize: 14, fontWeight: "600" },
 });

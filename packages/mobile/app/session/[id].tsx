@@ -11,72 +11,54 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useFocusEffect } from "expo-router";
-import { colors, spacing, radius } from "../../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type AgentSession, type TokenEvent } from "../../lib/api";
 import { useRelay } from "../../lib/relay-context";
 
-const AGENT_META: Record<string, { color: string; label: string; logo: string }> = {
-  claude: { color: "#D4B896", label: "Claude Code", logo: "✦" },
-  opencode: { color: "#7C83FD", label: "OpenCode", logo: "</>" },
-  codex: { color: "#10A37F", label: "Codex CLI", logo: "⬡" },
-  gemini: { color: "#4285F4", label: "Gemini CLI", logo: "◈" },
-  aider: { color: "#22c55e", label: "Aider", logo: "⌥" },
+const AGENT_META: Record<string, { color: string; label: string }> = {
+  claude:   { color: "#D4B896", label: "Claude Code" },
+  opencode: { color: "#7C83FD", label: "OpenCode" },
+  codex:    { color: "#10A37F", label: "Codex CLI" },
+  gemini:   { color: "#4285F4", label: "Gemini CLI" },
+  aider:    { color: "#22c55e", label: "Aider" },
 };
 
 function getAgent(type: string) {
-  return AGENT_META[type] ?? { color: colors.accent, label: type, logo: "▣" };
+  return AGENT_META[type] ?? { color: "#888", label: type };
 }
 
-function ToolCallRow({ event }: { event: TokenEvent }) {
+function EventRow({ event }: { event: TokenEvent }) {
   const cost = event.costUsd ?? 0;
-  const costColor = cost > 0.01 ? colors.danger : cost > 0.005 ? colors.warning : "#22c55e";
-  const time = new Date(event.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const costColor = cost > 0.01 ? "#ef4444" : cost > 0.005 ? "#f59e0b" : "#22c55e";
+  const time = new Date(event.createdAt).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   const inK = (event.inputTokens / 1000).toFixed(1);
   const outK = (event.outputTokens / 1000).toFixed(1);
 
   return (
-    <View style={styles.tcRow}>
-      <View style={styles.tcLeft}>
-        <Text style={styles.tcTime}>{time}</Text>
-        <Text style={styles.tcModel} numberOfLines={1}>{event.model}</Text>
+    <View style={styles.eventRow}>
+      <View style={styles.eventLeft}>
+        <Text style={styles.eventTime}>{time}</Text>
+        <Text style={styles.eventModel} numberOfLines={1}>{event.model}</Text>
       </View>
-      <View style={styles.tcMid}>
-        <Text style={styles.tcTokens}>↑{inK}K</Text>
-        <Text style={styles.tcSep}>·</Text>
-        <Text style={styles.tcTokens}>↓{outK}K</Text>
+      <View style={styles.eventMid}>
+        <Text style={styles.eventTokens}>↑{inK}K</Text>
+        <Text style={styles.eventSep}>·</Text>
+        <Text style={styles.eventTokens}>↓{outK}K</Text>
       </View>
-      <Text style={[styles.tcCost, { color: costColor }]}>${cost.toFixed(5)}</Text>
+      <Text style={[styles.eventCost, { color: costColor }]}>${cost.toFixed(5)}</Text>
     </View>
-  );
-}
-
-function StatBox({ value, label, color }: { value: string; label: string; color?: string }) {
-  return (
-    <View style={styles.statBox}>
-      <Text style={[styles.statValue, color ? { color } : {}]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function CmdBtn({ label, sub, color, onPress }: { label: string; sub: string; color: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      style={[styles.cmdBtn, { borderColor: `${color}30`, backgroundColor: `${color}08` }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Text style={[styles.cmdLabel, { color }]}>{label}</Text>
-      <Text style={styles.cmdSub}>{sub}</Text>
-    </TouchableOpacity>
   );
 }
 
 export default function SessionDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
-  // Fix: guard against undefined id
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const relay = useRelay();
   const [session, setSession] = useState<AgentSession | null>(null);
   const [events, setEvents] = useState<TokenEvent[]>([]);
@@ -106,18 +88,18 @@ export default function SessionDetailScreen() {
 
   useFocusEffect(useCallback(() => { load(true); }, [load]));
 
-  const sendCmd = (action: string, params?: Record<string, unknown>) => {
-    relay.client?.sendCommand(action as any, params);
+  const sendCmd = (action: string, cmdParams?: Record<string, unknown>) => {
+    relay.client?.sendCommand(action as any, cmdParams);
   };
 
   if (!id || id === "undefined") {
     return (
       <View style={styles.root}>
-        <Stack.Screen options={{ title: "Session", headerStyle: { backgroundColor: "#0c0c0e" }, headerTintColor: colors.text }} />
+        <Stack.Screen options={{ title: "Session", headerStyle: { backgroundColor: "#141414" }, headerTintColor: "#aaa" }} />
         <View style={styles.center}>
           <Text style={styles.errorText}>Invalid session ID</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>← Go Back</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.goBackBtn}>
+            <Text style={styles.goBackText}>Go back</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -127,8 +109,8 @@ export default function SessionDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.root, styles.center]}>
-        <Stack.Screen options={{ title: "Loading…", headerStyle: { backgroundColor: "#0c0c0e" }, headerTintColor: colors.text }} />
-        <ActivityIndicator color={colors.accent} size="large" />
+        <Stack.Screen options={{ title: "Loading…", headerStyle: { backgroundColor: "#141414" }, headerTintColor: "#aaa" }} />
+        <ActivityIndicator color="#888" size="large" />
       </View>
     );
   }
@@ -136,10 +118,10 @@ export default function SessionDetailScreen() {
   if (!session) {
     return (
       <View style={[styles.root, styles.center]}>
-        <Stack.Screen options={{ title: "Not Found", headerStyle: { backgroundColor: "#0c0c0e" }, headerTintColor: colors.text }} />
+        <Stack.Screen options={{ title: "Not found", headerStyle: { backgroundColor: "#141414" }, headerTintColor: "#aaa" }} />
         <Text style={styles.errorText}>Session not found</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>← Go Back</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.goBackBtn}>
+          <Text style={styles.goBackText}>Go back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -149,135 +131,153 @@ export default function SessionDetailScreen() {
   const totalCost = parseFloat(session.totalCost || "0");
   const totalTokens = session.totalTokens || 0;
   const totalK = (totalTokens / 1000).toFixed(1);
+  const isActive = session.status === "active";
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
       <Stack.Screen
         options={{
           title: "",
-          headerStyle: { backgroundColor: "#0c0c0e" },
-          headerTintColor: colors.text,
+          headerStyle: { backgroundColor: "#141414" },
+          headerShadowVisible: false,
+          headerTintColor: "#aaa",
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ paddingLeft: 4, paddingRight: 8 }}>
-              <Text style={{ color: agent.color, fontFamily: "monospace", fontSize: 18 }}>←</Text>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Text style={styles.backArrow}>←</Text>
             </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <View style={[styles.statusBadge, { backgroundColor: isActive ? "#22c55e18" : "#25252520" }]}>
+              <View style={[styles.statusDot, { backgroundColor: isActive ? "#22c55e" : "#333" }]} />
+              <Text style={[styles.statusText, { color: isActive ? "#22c55e" : "#555" }]}>
+                {isActive ? "Active" : "Ended"}
+              </Text>
+            </View>
           ),
         }}
       />
 
       <ScrollView
-        style={styles.root}
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); load(true); }}
-            tintColor={agent.color}
+            tintColor="#555"
           />
         }
       >
-        {/* Agent header */}
-        <View style={[styles.agentHeader, { borderColor: `${agent.color}30`, backgroundColor: `${agent.color}06` }]}>
-          <View style={[styles.agentLogo, { backgroundColor: `${agent.color}15` }]}>
-            <Text style={[styles.agentLogoText, { color: agent.color }]}>{agent.logo}</Text>
+        {/* Session title area */}
+        <View style={styles.titleArea}>
+          <View style={[styles.agentTag, { backgroundColor: `${agent.color}18` }]}>
+            <Text style={[styles.agentTagText, { color: agent.color }]}>{agent.label}</Text>
           </View>
-          <View style={styles.agentHeaderInfo}>
-            <Text style={[styles.agentName, { color: agent.color }]}>{agent.label}</Text>
-            <Text style={styles.sessionName} numberOfLines={1}>{session.name}</Text>
-            <View style={styles.sessionMetaRow}>
-              <View style={[styles.statusPill, {
-                backgroundColor: session.status === "active" ? "#22c55e15" : "#44444415"
-              }]}>
-                <View style={[styles.statusDot, {
-                  backgroundColor: session.status === "active" ? "#22c55e" : "#555"
-                }]} />
-                <Text style={[styles.statusText, {
-                  color: session.status === "active" ? "#22c55e" : "#555"
-                }]}>{session.status.toUpperCase()}</Text>
-              </View>
-              <Text style={styles.modelLabel}>{session.model}</Text>
-            </View>
-          </View>
+          <Text style={styles.sessionTitle} numberOfLines={2}>{session.name}</Text>
+          <Text style={styles.sessionModel}>{session.model}</Text>
         </View>
 
         {/* Stats row */}
         <View style={styles.statsRow}>
-          <StatBox value={`$${totalCost.toFixed(4)}`} label="TOTAL COST" color={totalCost > 1 ? colors.danger : totalCost > 0.1 ? colors.warning : "#22c55e"} />
-          <StatBox value={`${totalK}K`} label="TOKENS" />
-          <StatBox value={String(events.length)} label="CALLS" />
-        </View>
-
-        {/* Command strip */}
-        <View style={styles.cmdStrip}>
-          <Text style={styles.stripLabel}>COMMANDS</Text>
-          <View style={styles.cmdRow}>
-            <CmdBtn label="PAUSE" sub="interrupt" color={colors.warning} onPress={() => sendCmd("pause")} />
-            <CmdBtn label="COMPACT" sub="save ctx" color={agent.color} onPress={() => sendCmd("compact")} />
-            <CmdBtn label="STATUS" sub="ping" color={colors.tertiary} onPress={() => sendCmd("status")} />
-            <CmdBtn
-              label="END"
-              sub="terminate"
-              color={colors.danger}
-              onPress={() =>
-                Alert.alert("End Session", "Terminate this agent session?", [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "End",
-                    style: "destructive",
-                    onPress: () => {
-                      apiClient.patchSessionStatus(id, "ended").then(() => load(true));
-                    },
-                  },
-                ])
-              }
-            />
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Total cost</Text>
+            <Text style={[styles.statValue, {
+              color: totalCost > 1 ? "#ef4444" : totalCost > 0.1 ? "#f59e0b" : "#e0e0e0"
+            }]}>
+              ${totalCost.toFixed(4)}
+            </Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Tokens</Text>
+            <Text style={styles.statValue}>{totalK}K</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>API calls</Text>
+            <Text style={styles.statValue}>{events.length}</Text>
           </View>
         </View>
 
         {/* Context warning */}
         {totalTokens >= 50_000 && (
           <View style={[styles.ctxWarn, {
-            borderLeftColor: totalTokens >= 200_000 ? colors.danger : colors.warning,
-            backgroundColor: totalTokens >= 200_000 ? "#ef444408" : "#f59e0b08",
+            borderLeftColor: totalTokens >= 200_000 ? "#ef4444" : "#f59e0b",
           }]}>
-            <Text style={[styles.ctxWarnTitle, { color: totalTokens >= 200_000 ? colors.danger : colors.warning }]}>
-              {totalTokens >= 200_000 ? "⛔  CONTEXT CRITICAL" : "⚠  CONTEXT HIGH"}
+            <Text style={[styles.ctxWarnTitle, { color: totalTokens >= 200_000 ? "#ef4444" : "#f59e0b" }]}>
+              {totalTokens >= 200_000 ? "Context critical" : "Context high"}
             </Text>
-            <Text style={styles.ctxWarnSub}>
+            <Text style={styles.ctxWarnText}>
               {totalK}K tokens — {totalTokens >= 200_000 ? "compact now to cut costs 50–70%" : "consider compacting soon"}
             </Text>
           </View>
         )}
 
-        {/* Tool call feed */}
-        <View style={styles.feedHeader}>
-          <Text style={styles.feedTitle}>TOOL CALL FEED</Text>
-          <Text style={styles.feedCount}>{events.length} calls</Text>
+        {/* Actions */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => sendCmd("compact")}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.actionBtnText}>Compact</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => sendCmd("pause")}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.actionBtnText}>Pause</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => sendCmd("status")}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.actionBtnText}>Status</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnDanger]}
+            activeOpacity={0.7}
+            onPress={() =>
+              Alert.alert("End Session", "Terminate this agent session?", [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "End",
+                  style: "destructive",
+                  onPress: () => apiClient.patchSessionStatus(id, "ended").then(() => load(true)),
+                },
+              ])
+            }
+          >
+            <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>End</Text>
+          </TouchableOpacity>
         </View>
 
-        {events.length === 0 ? (
-          <View style={styles.emptyFeed}>
-            <Text style={styles.emptyIcon}>◌</Text>
-            <Text style={styles.emptyTitle}>No events yet</Text>
-            <Text style={styles.emptySub}>LLM calls appear here in real-time</Text>
+        {/* Event feed */}
+        <View style={styles.feedSection}>
+          <View style={styles.feedHeader}>
+            <Text style={styles.feedTitle}>API calls</Text>
+            <Text style={styles.feedCount}>{events.length} total</Text>
           </View>
-        ) : (
-          <View style={styles.feed}>
-            {/* Feed header row */}
-            <View style={styles.feedRowHeader}>
-              <Text style={[styles.feedColLabel, { width: 60 }]}>TIME</Text>
-              <Text style={[styles.feedColLabel, { flex: 1 }]}>MODEL</Text>
-              <Text style={[styles.feedColLabel, { width: 80, textAlign: "center" }]}>TOKENS</Text>
-              <Text style={[styles.feedColLabel, { width: 64, textAlign: "right" }]}>COST</Text>
+
+          {events.length === 0 ? (
+            <View style={styles.emptyFeed}>
+              <Text style={styles.emptyText}>No API calls yet</Text>
+              <Text style={styles.emptySubText}>LLM calls appear here in real-time</Text>
             </View>
-            {events
-              .slice()
-              .reverse()
-              .map((e) => (
-                <ToolCallRow key={e.id} event={e} />
+          ) : (
+            <View style={styles.feedCard}>
+              <View style={styles.feedHeadRow}>
+                <Text style={[styles.feedHeadCell, { width: 70 }]}>Time</Text>
+                <Text style={[styles.feedHeadCell, { flex: 1 }]}>Model</Text>
+                <Text style={[styles.feedHeadCell, { width: 80, textAlign: "center" }]}>Tokens</Text>
+                <Text style={[styles.feedHeadCell, { width: 64, textAlign: "right" }]}>Cost</Text>
+              </View>
+              {events.slice().reverse().map((e) => (
+                <EventRow key={e.id} event={e} />
               ))}
-          </View>
-        )}
+            </View>
+          )}
+        </View>
 
         <View style={{ height: 48 }} />
       </ScrollView>
@@ -286,136 +286,150 @@ export default function SessionDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0c0c0e" },
-  center: { alignItems: "center", justifyContent: "center" },
-  content: { padding: spacing.md, paddingBottom: 40 },
+  root: { flex: 1, backgroundColor: "#141414" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  scroll: { flex: 1 },
+  content: { padding: 16, paddingBottom: 40 },
 
-  errorText: { color: "#555", fontFamily: "monospace", fontSize: 14, marginBottom: 16 },
-  backBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: radius.sm, borderWidth: 1, borderColor: "#333" },
-  backBtnText: { color: colors.accent, fontFamily: "monospace", fontSize: 13 },
-
-  // Agent header
-  agentHeader: {
+  backBtn: { paddingHorizontal: 4 },
+  backArrow: { color: "#aaa", fontSize: 18 },
+  statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: radius.lg,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginRight: 4,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 12, fontWeight: "500" },
+
+  errorText: { color: "#666", fontSize: 15, marginBottom: 16 },
+  goBackBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: spacing.md,
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    borderColor: "#303030",
   },
-  agentLogo: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
+  goBackText: { color: "#888", fontSize: 14 },
+
+  // Title area
+  titleArea: { marginBottom: 20 },
+  agentTag: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginBottom: 10,
   },
-  agentLogoText: { fontSize: 24, fontFamily: "monospace", fontWeight: "700" },
-  agentHeaderInfo: { flex: 1 },
-  agentName: { fontSize: 10, fontFamily: "monospace", letterSpacing: 2, marginBottom: 3 },
-  sessionName: { color: "#e0e0e0", fontSize: 16, fontFamily: "monospace", fontWeight: "700", marginBottom: 6 },
-  sessionMetaRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  statusPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
-  statusDot: { width: 5, height: 5, borderRadius: 3 },
-  statusText: { fontSize: 9, fontFamily: "monospace", fontWeight: "700", letterSpacing: 1 },
-  modelLabel: { color: "#333", fontSize: 10, fontFamily: "monospace" },
+  agentTagText: { fontSize: 12, fontWeight: "500" },
+  sessionTitle: { color: "#e8e8e8", fontSize: 20, fontWeight: "600", lineHeight: 26, marginBottom: 6 },
+  sessionModel: { color: "#444", fontSize: 12 },
 
   // Stats
-  statsRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-  statBox: {
-    flex: 1,
-    backgroundColor: "#111114",
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: "#1e1e22",
-    padding: spacing.sm,
-    alignItems: "center",
-    paddingVertical: 14,
+  statsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
   },
-  statValue: { color: "#e0e0e0", fontSize: 15, fontFamily: "monospace", fontWeight: "700", marginBottom: 4 },
-  statLabel: { color: "#333", fontSize: 8, fontFamily: "monospace", letterSpacing: 1.5 },
-
-  // Commands
-  cmdStrip: { marginBottom: spacing.md },
-  stripLabel: { color: "#333", fontSize: 9, fontFamily: "monospace", letterSpacing: 2, marginBottom: spacing.sm },
-  cmdRow: { flexDirection: "row", gap: spacing.sm },
-  cmdBtn: {
+  statCard: {
     flex: 1,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingVertical: 10,
-    alignItems: "center",
+    borderColor: "#252525",
   },
-  cmdLabel: { fontSize: 9, fontFamily: "monospace", fontWeight: "900", letterSpacing: 0.5 },
-  cmdSub: { color: "#333", fontSize: 8, fontFamily: "monospace", marginTop: 2 },
+  statLabel: { color: "#555", fontSize: 11, marginBottom: 6 },
+  statValue: { color: "#e0e0e0", fontSize: 17, fontWeight: "600" },
 
   // Context warning
   ctxWarn: {
-    borderRadius: radius.md,
+    borderLeftWidth: 3,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 14,
+  },
+  ctxWarnTitle: { fontSize: 13, fontWeight: "600", marginBottom: 4 },
+  ctxWarnText: { color: "#666", fontSize: 12, lineHeight: 18 },
+
+  // Actions
+  actionsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 24,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#1c1c1c",
     borderWidth: 1,
     borderColor: "#2a2a2a",
-    borderLeftWidth: 3,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    alignItems: "center",
   },
-  ctxWarnTitle: { fontSize: 10, fontFamily: "monospace", fontWeight: "700", letterSpacing: 1, marginBottom: 4 },
-  ctxWarnSub: { color: "#555", fontSize: 11, fontFamily: "monospace" },
+  actionBtnText: { color: "#888", fontSize: 13, fontWeight: "500" },
+  actionBtnDanger: { borderColor: "#ef444428", backgroundColor: "#ef444408" },
+  actionBtnDangerText: { color: "#ef4444" },
 
   // Feed
+  feedSection: {},
   feedHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.sm,
+    marginBottom: 10,
   },
-  feedTitle: { color: "#333", fontSize: 9, fontFamily: "monospace", letterSpacing: 2 },
-  feedCount: { color: "#333", fontSize: 9, fontFamily: "monospace" },
-  feed: {
-    backgroundColor: "#0e0e11",
-    borderRadius: radius.md,
+  feedTitle: { color: "#666", fontSize: 12, fontWeight: "500", textTransform: "uppercase", letterSpacing: 0.5 },
+  feedCount: { color: "#444", fontSize: 12 },
+
+  feedCard: {
+    backgroundColor: "#1c1c1c",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#1a1a1e",
+    borderColor: "#252525",
     overflow: "hidden",
   },
-  feedRowHeader: {
+  feedHeadRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#1a1a1e",
-    backgroundColor: "#0c0c0e",
+    borderBottomColor: "#252525",
+    backgroundColor: "#181818",
   },
-  feedColLabel: { color: "#2a2a2a", fontSize: 8, fontFamily: "monospace", letterSpacing: 1.5 },
+  feedHeadCell: { color: "#444", fontSize: 10, letterSpacing: 0.5 },
 
-  tcRow: {
+  eventRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#111114",
-    gap: spacing.sm,
+    borderBottomColor: "#1e1e1e",
+    gap: 8,
   },
-  tcLeft: { width: 60 },
-  tcTime: { color: "#333", fontSize: 9, fontFamily: "monospace", marginBottom: 2 },
-  tcModel: { color: "#555", fontSize: 10, fontFamily: "monospace" },
-  tcMid: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4 },
-  tcTokens: { color: "#444", fontSize: 10, fontFamily: "monospace" },
-  tcSep: { color: "#2a2a2a" },
-  tcCost: { width: 64, textAlign: "right", fontSize: 11, fontFamily: "monospace", fontWeight: "700" },
+  eventLeft: { width: 70 },
+  eventTime: { color: "#444", fontSize: 10, marginBottom: 2 },
+  eventModel: { color: "#777", fontSize: 11 },
+  eventMid: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4 },
+  eventTokens: { color: "#555", fontSize: 11 },
+  eventSep: { color: "#333" },
+  eventCost: { width: 64, textAlign: "right", fontSize: 12, fontWeight: "600" },
 
-  // Empty
+  // Empty feed
   emptyFeed: {
-    backgroundColor: "#0e0e11",
-    borderRadius: radius.md,
+    backgroundColor: "#1c1c1c",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#1a1a1e",
-    padding: spacing.xl,
+    borderColor: "#252525",
+    padding: 32,
     alignItems: "center",
   },
-  emptyIcon: { color: "#222", fontSize: 40, marginBottom: spacing.sm },
-  emptyTitle: { color: "#444", fontFamily: "monospace", fontSize: 13, marginBottom: 6 },
-  emptySub: { color: "#2a2a2a", fontFamily: "monospace", fontSize: 10, textAlign: "center" },
+  emptyText: { color: "#555", fontSize: 14, marginBottom: 6 },
+  emptySubText: { color: "#3a3a3a", fontSize: 12, textAlign: "center" },
 });

@@ -8,91 +8,36 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
-import { colors, spacing, radius } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient } from "../lib/api";
 
-// Official agentic CLI tools — no model picker, just agent selection
 const AGENTS = [
-  {
-    id: "claude",
-    name: "Claude Code",
-    tagline: "Anthropic's agentic coding CLI",
-    model: "claude-sonnet-4-5",
-    accentColor: "#D4B896",
-    bgColor: "#1a1510",
-    borderColor: "#3d2e1e",
-    // Claude logo as text art
-    logoText: "✦",
-    logoColor: "#D4B896",
-    badge: "PREMIUM",
-    badgeColor: "#D4B896",
-  },
-  {
-    id: "opencode",
-    name: "OpenCode",
-    tagline: "Open-source terminal AI agent",
-    model: "claude-sonnet-4-5",
-    accentColor: "#7C83FD",
-    bgColor: "#0f0f1a",
-    borderColor: "#2a2a4a",
-    logoText: "</>",
-    logoColor: "#7C83FD",
-    badge: "OPEN SOURCE",
-    badgeColor: "#7C83FD",
-  },
-  {
-    id: "codex",
-    name: "Codex CLI",
-    tagline: "OpenAI's command-line coding agent",
-    model: "o3-mini",
-    accentColor: "#10A37F",
-    bgColor: "#0a1510",
-    borderColor: "#1a3a2a",
-    logoText: "⬡",
-    logoColor: "#10A37F",
-    badge: "OpenAI",
-    badgeColor: "#10A37F",
-  },
-  {
-    id: "gemini",
-    name: "Gemini CLI",
-    tagline: "Google's agentic CLI agent",
-    model: "gemini-2-5-pro",
-    accentColor: "#4285F4",
-    bgColor: "#0a0f1a",
-    borderColor: "#1a2a3a",
-    logoText: "◈",
-    logoColor: "#4285F4",
-    badge: "Google",
-    badgeColor: "#4285F4",
-  },
-  {
-    id: "aider",
-    name: "Aider",
-    tagline: "AI pair programmer in your terminal",
-    model: "claude-sonnet-4-5",
-    accentColor: "#22c55e",
-    bgColor: "#0a150a",
-    borderColor: "#1a3a1a",
-    logoText: "⌥",
-    logoColor: "#22c55e",
-    badge: "COMMUNITY",
-    badgeColor: "#22c55e",
-  },
+  { id: "claude",   name: "Claude Code", model: "claude-sonnet-4-5", color: "#D4B896" },
+  { id: "opencode", name: "OpenCode",    model: "claude-sonnet-4-5", color: "#7C83FD" },
+  { id: "codex",    name: "Codex CLI",   model: "o3-mini",           color: "#10A37F" },
+  { id: "gemini",   name: "Gemini CLI",  model: "gemini-2-5-pro",    color: "#4285F4" },
+  { id: "aider",    name: "Aider",       model: "claude-sonnet-4-5", color: "#22c55e" },
 ];
+
+const SKILLS_COUNT = 14;
 
 export default function NewSessionModal() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [selectedId, setSelectedId] = useState("claude");
-  const [name, setName] = useState("");
+  const [message, setMessage] = useState("");
+  const [autoMode, setAutoMode] = useState(true);
   const [creating, setCreating] = useState(false);
 
   const selected = AGENTS.find((a) => a.id === selectedId)!;
 
   const handleCreate = async () => {
-    const sessionName = name.trim() || `${selected.name} Session`;
+    if (creating) return;
+    const sessionName = message.trim() || `${selected.name} Session`;
     setCreating(true);
     try {
       const data = await apiClient.createSession({
@@ -110,234 +55,246 @@ export default function NewSessionModal() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
       <Stack.Screen
         options={{
-          title: "New Agent Session",
-          presentation: "modal",
-          headerStyle: { backgroundColor: "#0c0c0e" },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontFamily: "monospace", fontSize: 13, letterSpacing: 1 },
-          headerRight: () => (
-            <TouchableOpacity onPress={handleCreate} disabled={creating} style={{ marginRight: 4 }}>
-              {creating ? (
-                <ActivityIndicator color={selected.accentColor} size="small" />
-              ) : (
-                <Text style={[styles.headerBtn, { color: selected.accentColor }]}>LAUNCH</Text>
-              )}
+          headerShown: true,
+          title: "",
+          headerStyle: { backgroundColor: "#141414" },
+          headerTintColor: "#aaa",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.dismiss()} style={styles.backBtn}>
+              <Text style={styles.backArrow}>←</Text>
             </TouchableOpacity>
           ),
         }}
       />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Section label */}
-        <View style={styles.sectionRow}>
-          <View style={styles.sectionLine} />
-          <Text style={styles.sectionLabel}>SELECT AGENT</Text>
-          <View style={styles.sectionLine} />
-        </View>
-
-        {/* Agent cards */}
-        <View style={styles.agentList}>
-          {AGENTS.map((agent) => {
-            const isSelected = selectedId === agent.id;
-            return (
-              <TouchableOpacity
-                key={agent.id}
+      {/* Chat area — scrollable messages area (empty for new session) */}
+      <ScrollView
+        style={styles.chatArea}
+        contentContainerStyle={styles.chatContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Agent selector pills */}
+        <View style={styles.agentPills}>
+          {AGENTS.map((agent) => (
+            <TouchableOpacity
+              key={agent.id}
+              style={[
+                styles.agentPill,
+                selectedId === agent.id && { borderColor: agent.color, backgroundColor: `${agent.color}12` },
+              ]}
+              onPress={() => setSelectedId(agent.id)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.agentDot, { backgroundColor: agent.color }]} />
+              <Text
                 style={[
-                  styles.agentCard,
-                  {
-                    backgroundColor: isSelected ? agent.bgColor : "#111114",
-                    borderColor: isSelected ? agent.accentColor : "#1e1e22",
-                  },
+                  styles.agentPillText,
+                  selectedId === agent.id && { color: agent.color },
                 ]}
-                onPress={() => setSelectedId(agent.id)}
-                activeOpacity={0.8}
               >
-                {/* Left: logo */}
-                <View style={[styles.logoBox, { backgroundColor: `${agent.accentColor}15` }]}>
-                  <Text style={[styles.logoText, { color: agent.accentColor }]}>{agent.logoText}</Text>
-                </View>
-
-                {/* Center: info */}
-                <View style={styles.agentInfo}>
-                  <View style={styles.agentNameRow}>
-                    <Text style={[styles.agentName, isSelected && { color: agent.accentColor }]}>
-                      {agent.name}
-                    </Text>
-                    <View style={[styles.agentBadge, { backgroundColor: `${agent.badgeColor}15` }]}>
-                      <Text style={[styles.agentBadgeText, { color: agent.badgeColor }]}>
-                        {agent.badge}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.agentTagline}>{agent.tagline}</Text>
-                  <Text style={styles.agentModel}>Default: {agent.model}</Text>
-                </View>
-
-                {/* Right: selector */}
-                <View style={[styles.selector, { borderColor: isSelected ? agent.accentColor : "#333" }]}>
-                  {isSelected && (
-                    <View style={[styles.selectorDot, { backgroundColor: agent.accentColor }]} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                {agent.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Session name */}
-        <View style={[styles.sectionRow, { marginTop: spacing.lg }]}>
-          <View style={styles.sectionLine} />
-          <Text style={styles.sectionLabel}>SESSION NAME</Text>
-          <View style={styles.sectionLine} />
+        {/* Welcome message */}
+        <View style={styles.welcomeArea}>
+          <Text style={styles.welcomeTitle}>New Session</Text>
+          <Text style={styles.welcomeSub}>
+            What would you like {selected.name} to do?
+          </Text>
         </View>
-
-        <View style={[styles.inputWrap, { borderColor: selected.borderColor }]}>
-          <Text style={[styles.inputPrefix, { color: selected.accentColor }]}>$</Text>
-          <TextInput
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder={`${selected.name} Session`}
-            placeholderTextColor="#333"
-            autoFocus={false}
-            returnKeyType="done"
-            onSubmitEditing={handleCreate}
-          />
-        </View>
-
-        {/* Launch button */}
-        <TouchableOpacity
-          style={[
-            styles.launchBtn,
-            { backgroundColor: selected.accentColor },
-            creating && { opacity: 0.6 },
-          ]}
-          onPress={handleCreate}
-          disabled={creating}
-          activeOpacity={0.85}
-        >
-          {creating ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <View style={styles.launchInner}>
-              <Text style={styles.launchText}>LAUNCH {selected.name.toUpperCase()}</Text>
-              <Text style={styles.launchArrow}>→</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <View style={{ height: 60 }} />
       </ScrollView>
+
+      {/* Bottom composer */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={90}
+      >
+        <View style={styles.composer}>
+          {/* Toolbar row */}
+          <View style={styles.composerToolbar}>
+            {/* Model pill */}
+            <TouchableOpacity style={styles.modelPill} activeOpacity={0.7}>
+              <View style={[styles.modelDot, { backgroundColor: selected.color }]} />
+              <Text style={styles.modelPillText}>{selected.name}</Text>
+              <Text style={styles.modelPillChevron}>|||</Text>
+            </TouchableOpacity>
+
+            {/* MCP button */}
+            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
+              <Text style={styles.toolBtnText}>+ MCP</Text>
+            </TouchableOpacity>
+
+            {/* Skills button */}
+            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
+              <Text style={styles.toolBtnText}>Skills ({SKILLS_COUNT})</Text>
+            </TouchableOpacity>
+
+            <View style={styles.flex} />
+
+            {/* Auto toggle */}
+            <TouchableOpacity
+              style={[styles.autoToggle, autoMode && styles.autoToggleOn]}
+              onPress={() => setAutoMode((v) => !v)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.autoToggleText, autoMode && styles.autoToggleTextOn]}>
+                Auto
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Input row */}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Type your message..."
+              placeholderTextColor="#444"
+              multiline
+              maxLength={2000}
+              returnKeyType="default"
+            />
+            <TouchableOpacity
+              style={[
+                styles.sendBtn,
+                (message.trim() || creating) && styles.sendBtnActive,
+              ]}
+              onPress={handleCreate}
+              disabled={creating}
+              activeOpacity={0.8}
+            >
+              {creating ? (
+                <ActivityIndicator color="#000" size="small" />
+              ) : (
+                <Text style={styles.sendBtnText}>↑</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0c0c0e" },
-  content: { padding: spacing.md, paddingBottom: 60 },
+  root: { flex: 1, backgroundColor: "#141414" },
 
-  headerBtn: {
-    fontFamily: "monospace",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.5,
+  backBtn: { paddingHorizontal: 4 },
+  backArrow: { color: "#aaa", fontSize: 18 },
+
+  // Chat area
+  chatArea: { flex: 1 },
+  chatContent: {
+    padding: 20,
+    paddingTop: 24,
+    flexGrow: 1,
   },
 
-  sectionRow: {
+  // Agent pills
+  agentPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 32,
+  },
+  agentPill: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  sectionLine: { flex: 1, height: 1, backgroundColor: "#1e1e22" },
-  sectionLabel: {
-    color: "#444",
-    fontSize: 9,
-    fontFamily: "monospace",
-    letterSpacing: 2.5,
-  },
-
-  agentList: { gap: spacing.sm },
-
-  agentCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: spacing.md,
-    gap: spacing.md,
+    borderColor: "#2a2a2a",
+    gap: 6,
+  },
+  agentDot: { width: 6, height: 6, borderRadius: 3 },
+  agentPillText: { color: "#666", fontSize: 13, fontWeight: "400" },
+
+  // Welcome
+  welcomeArea: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 40 },
+  welcomeTitle: { color: "#e0e0e0", fontSize: 22, fontWeight: "600", marginBottom: 8 },
+  welcomeSub: { color: "#555", fontSize: 14, textAlign: "center", lineHeight: 20 },
+
+  // Composer
+  composer: {
+    backgroundColor: "#1a1a1a",
+    borderTopWidth: 1,
+    borderTopColor: "#252525",
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
 
-  logoBox: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoText: { fontSize: 22, fontFamily: "monospace", fontWeight: "700" },
-
-  agentInfo: { flex: 1 },
-  agentNameRow: {
+  // Toolbar
+  composerToolbar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: 3,
+    gap: 8,
+    marginBottom: 10,
   },
-  agentName: {
-    color: "#e0e0e0",
-    fontSize: 14,
-    fontFamily: "monospace",
-    fontWeight: "700",
-  },
-  agentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  agentBadgeText: { fontSize: 8, fontFamily: "monospace", fontWeight: "700", letterSpacing: 1 },
-  agentTagline: { color: "#555", fontSize: 11, fontFamily: "monospace", marginBottom: 3 },
-  agentModel: { color: "#333", fontSize: 10, fontFamily: "monospace" },
-
-  selector: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  selectorDot: { width: 10, height: 10, borderRadius: 5 },
-
-  inputWrap: {
+  modelPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111114",
-    borderRadius: radius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#252525",
   },
-  inputPrefix: { fontSize: 16, fontFamily: "monospace", fontWeight: "700" },
+  modelDot: { width: 7, height: 7, borderRadius: 4 },
+  modelPillText: { color: "#c0c0c0", fontSize: 12, fontWeight: "500" },
+  modelPillChevron: { color: "#555", fontSize: 10, letterSpacing: -1 },
+  toolBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#252525",
+  },
+  toolBtnText: { color: "#888", fontSize: 12 },
+  flex: { flex: 1 },
+  autoToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#252525",
+  },
+  autoToggleOn: { backgroundColor: "#e0e0e0" },
+  autoToggleText: { color: "#888", fontSize: 12, fontWeight: "500" },
+  autoToggleTextOn: { color: "#000" },
+
+  // Input
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+    backgroundColor: "#252525",
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
   input: {
     flex: 1,
     color: "#e0e0e0",
-    fontFamily: "monospace",
-    fontSize: 14,
-    paddingVertical: spacing.md,
-    minHeight: 52,
+    fontSize: 15,
+    maxHeight: 120,
+    lineHeight: 20,
   },
-
-  launchBtn: {
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
+  sendBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#3a3a3a",
     alignItems: "center",
+    justifyContent: "center",
   },
-  launchInner: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  launchText: { color: "#000", fontFamily: "monospace", fontSize: 14, fontWeight: "900", letterSpacing: 1 },
-  launchArrow: { color: "#000", fontSize: 18, fontWeight: "900" },
+  sendBtnActive: { backgroundColor: "#ffffff" },
+  sendBtnText: { color: "#000", fontSize: 18, fontWeight: "700", lineHeight: 22 },
 });

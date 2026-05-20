@@ -1,12 +1,11 @@
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
-import { colors, radius } from "../../lib/theme";
 
 function TabIcon({ focused, icon, label }: { focused: boolean; icon: string; label: string }) {
   return (
-    <View style={[styles.icon, focused && styles.iconFocused]}>
+    <View style={styles.iconWrap}>
       <Text style={[styles.iconText, focused && styles.iconTextFocused]}>{icon}</Text>
-      {focused && <Text style={styles.iconLabel}>{label}</Text>}
+      <Text style={[styles.iconLabel, focused && styles.iconLabelFocused]}>{label}</Text>
     </View>
   );
 }
@@ -21,27 +20,27 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="dashboard"
+        name="sessions"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⚡" label="DASHBOARD" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⊞" label="Sessions" />,
         }}
       />
       <Tabs.Screen
-        name="sessions"
+        name="dashboard"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="▣" label="AGENTS" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◫" label="Overview" />,
         }}
       />
       <Tabs.Screen
         name="cost"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◎" label="COSTS" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◎" label="Costs" />,
         }}
       />
       <Tabs.Screen
         name="connect"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⟡" label="CONNECT" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⟡" label="Connect" />,
         }}
       />
     </Tabs>
@@ -50,36 +49,32 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: "#0c0c0e",
-    borderTopColor: "#1a1a1e",
+    backgroundColor: "#141414",
+    borderTopColor: "#252525",
     borderTopWidth: 1,
-    height: 68,
-    paddingTop: 8,
-    paddingBottom: 10,
+    height: 60,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
-  icon: {
-    flexDirection: "row",
+  iconWrap: {
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-  },
-  iconFocused: {
-    backgroundColor: `${colors.accent}12`,
+    justifyContent: "center",
+    gap: 3,
+    paddingTop: 6,
   },
   iconText: {
     fontSize: 18,
-    color: "#333",
+    color: "#3a3a3a",
   },
   iconTextFocused: {
-    color: colors.accent,
+    color: "#ffffff",
   },
   iconLabel: {
-    fontSize: 9,
-    fontFamily: "monospace",
-    fontWeight: "700",
-    color: colors.accent,
-    letterSpacing: 1,
+    fontSize: 10,
+    color: "#3a3a3a",
+    fontWeight: "400",
+  },
+  iconLabelFocused: {
+    color: "#ffffff",
   },
 });
