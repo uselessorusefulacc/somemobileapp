@@ -8,33 +8,35 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
-  Pressable,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type AgentSession } from "../../lib/api";
 
 // ── Design tokens ────────────────────────────────────────────────
-const BG      = "#141414";
-const LINE    = "#1e1e1e";
-const TEXT    = "#f0f0f0";
-const TEXT_2  = "#888";
-const TEXT_3  = "#444";
-const HOVER   = "#1e1e1e";
-const GREEN   = "#22c55e";
+const BG       = "#080808";
+const SURFACE  = "#111111";
+const CARD     = "#141414";
+const BORDER   = "#1f1f1f";
+const LINE     = "#161616";
+const TEXT     = "#ffffff";
+const TEXT_2   = "#999";
+const TEXT_3   = "#3a3a3a";
+const GREEN    = "#22c55e";
+const ACCENT   = "#a78bfa"; // purple-ish Raycast accent
 
 const AGENT_META: Record<string, { color: string; label: string; logo: string }> = {
-  claude:   { color: "#D4A574", label: "Claude Code",   logo: "A"  },
-  opencode: { color: "#818CF8", label: "OpenCode",       logo: "O"  },
-  codex:    { color: "#10A37F", label: "Codex CLI",      logo: "C"  },
-  gemini:   { color: "#4285F4", label: "Gemini CLI",     logo: "G"  },
-  aider:    { color: "#22c55e", label: "Aider",          logo: "Ai" },
-  copilot:  { color: "#a78bfa", label: "GitHub Copilot", logo: "Co" },
-  cline:    { color: "#fb923c", label: "Cline",          logo: "Cl" },
+  claude:   { color: "#D4A574", label: "Claude Code",    logo: "A"  },
+  opencode: { color: "#818CF8", label: "OpenCode",        logo: "O"  },
+  codex:    { color: "#10A37F", label: "Codex CLI",       logo: "C"  },
+  gemini:   { color: "#4285F4", label: "Gemini CLI",      logo: "G"  },
+  aider:    { color: "#22c55e", label: "Aider",           logo: "Ai" },
+  copilot:  { color: "#a78bfa", label: "GitHub Copilot",  logo: "Co" },
+  cline:    { color: "#fb923c", label: "Cline",           logo: "Cl" },
 };
 
 function getAgent(type: string) {
-  return AGENT_META[type] ?? { color: "#666", label: type, logo: type[0]?.toUpperCase() ?? "?" };
+  return AGENT_META[type] ?? { color: "#555", label: type, logo: type[0]?.toUpperCase() ?? "?" };
 }
 
 function relativeTime(dateStr: string): string {
@@ -50,9 +52,15 @@ function SessionRow({ session, onPress }: { session: AgentSession; onPress: () =
   const isActive = session.status === "active";
   const time = session.updatedAt ? relativeTime(session.updatedAt) : "";
   return (
-    <TouchableOpacity style={s.sessionRow} onPress={onPress} activeOpacity={0.6}>
-      <View style={[s.sessionIndicator, { backgroundColor: isActive ? GREEN : "transparent" }]} />
-      <Text style={s.sessionName} numberOfLines={1}>{session.name}</Text>
+    <TouchableOpacity style={s.sessionRow} onPress={onPress} activeOpacity={0.5}>
+      <View style={s.sessionIndentLine} />
+      <View style={[
+        s.sessionDot,
+        isActive
+          ? { backgroundColor: GREEN, shadowColor: GREEN, shadowOpacity: 0.8, shadowRadius: 6, elevation: 4 }
+          : { backgroundColor: TEXT_3 }
+      ]} />
+      <Text style={[s.sessionName, isActive && { color: TEXT }]} numberOfLines={1}>{session.name}</Text>
       <Text style={s.sessionTime}>{time}</Text>
     </TouchableOpacity>
   );
@@ -67,33 +75,50 @@ function FolderGroup({ label, color, logo, sessions, onPress }: {
   const [collapsed, setCollapsed] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? sessions : sessions.slice(0, 5);
+  const hasActive = sessions.some((s) => s.status === "active");
 
   return (
-    <View>
+    <View style={s.folderGroup}>
       <TouchableOpacity
         style={s.folderRow}
         onPress={() => setCollapsed((c) => !c)}
-        activeOpacity={0.65}
+        activeOpacity={0.6}
       >
-        <Text style={[s.folderChevron, collapsed && s.folderChevronCollapsed]}>›</Text>
-        <View style={[s.folderDot, { backgroundColor: color + "25", borderColor: color + "55" }]}>
+        {/* Glow icon */}
+        <View style={[s.folderIcon, {
+          backgroundColor: color + "15",
+          borderColor: color + "35",
+          shadowColor: color,
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 3,
+        }]}>
           <Text style={[s.folderLogo, { color }]}>{logo}</Text>
         </View>
-        <Text style={s.folderLabel}>{label}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.folderLabel}>{label}</Text>
+        </View>
+        {hasActive && (
+          <View style={[s.activeBadge, { borderColor: GREEN + "50" }]}>
+            <View style={[s.activeDot, { shadowColor: GREEN, shadowOpacity: 1, shadowRadius: 4 }]} />
+            <Text style={s.activeBadgeText}>live</Text>
+          </View>
+        )}
         <Text style={s.folderCount}>{sessions.length}</Text>
+        <Text style={[s.chevron, collapsed && s.chevronCollapsed]}>›</Text>
       </TouchableOpacity>
 
       {!collapsed && (
-        <>
+        <View style={s.folderContent}>
           {visible.map((sess) => (
             <SessionRow key={sess.id} session={sess} onPress={() => onPress(sess.id)} />
           ))}
           {!showAll && sessions.length > 5 && (
             <TouchableOpacity style={s.showMore} onPress={() => setShowAll(true)} activeOpacity={0.7}>
-              <Text style={s.showMoreText}>Show {sessions.length - 5} more</Text>
+              <Text style={s.showMoreText}>+{sessions.length - 5} more</Text>
             </TouchableOpacity>
           )}
-        </>
+        </View>
       )}
     </View>
   );
@@ -131,7 +156,6 @@ export default function SessionsScreen() {
       )
     : sessions;
 
-  // Build folder groups
   const groups = Object.entries(AGENT_META).reduce(
     (acc, [agentType, meta]) => {
       const group = filtered.filter((s) => s.agentType === agentType);
@@ -141,92 +165,108 @@ export default function SessionsScreen() {
     [] as { agentType: string; label: string; color: string; logo: string; sessions: AgentSession[] }[]
   );
   const others = filtered.filter((s) => !Object.keys(AGENT_META).includes(s.agentType));
-  if (others.length) groups.push({ agentType: "other", label: "Other", color: "#666", logo: "?", sessions: others });
+  if (others.length) groups.push({ agentType: "other", label: "Other", color: "#555", logo: "?", sessions: others });
+
+  const activeCount = sessions.filter((s) => s.status === "active").length;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
 
-      {/* ── Header ───────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────── */}
       <View style={s.header}>
-        <View style={s.headerLeft}>
-          <Text style={s.snowflake}>✳</Text>
-          <Text style={s.appName}>AGENTPILOT</Text>
+        <View>
+          <Text style={s.appName}>AgentPilot</Text>
+          <Text style={s.appSub}>
+            {activeCount > 0
+              ? <Text style={{ color: GREEN }}>{activeCount} running</Text>
+              : "no active sessions"}
+          </Text>
         </View>
         <TouchableOpacity
-          style={s.collapseBtn}
+          style={[s.newBtn, {
+            shadowColor: ACCENT,
+            shadowOpacity: 0.5,
+            shadowRadius: 12,
+            elevation: 8,
+          }]}
           onPress={() => router.push("/new-session")}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
-          <Text style={s.collapseBtnText}>⊞</Text>
+          <Text style={s.newBtnText}>+ New</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── New session row ───────────────────────────────────── */}
-      <TouchableOpacity
-        style={s.actionRow}
-        onPress={() => router.push("/new-session")}
-        activeOpacity={0.6}
-      >
-        <Text style={s.actionIcon}>+</Text>
-        <Text style={s.actionText}>New Session</Text>
-      </TouchableOpacity>
-
-      {/* ── Search row ───────────────────────────────────────── */}
-      {searching ? (
-        <View style={s.searchInputRow}>
-          <Text style={s.searchIconText}>⌕</Text>
-          <TextInput
-            style={s.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search sessions…"
-            placeholderTextColor="#333"
-            autoFocus
-            onBlur={() => { if (!searchQuery) setSearching(false); }}
-          />
-          {!!searchQuery && (
-            <TouchableOpacity onPress={() => { setSearchQuery(""); setSearching(false); }}>
-              <Text style={s.searchClear}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : (
-        <TouchableOpacity style={s.actionRow} onPress={() => setSearching(true)} activeOpacity={0.6}>
-          <Text style={s.actionIcon}>⌕</Text>
-          <Text style={[s.actionText, { color: TEXT_3 }]}>Search</Text>
-        </TouchableOpacity>
-      )}
+      {/* ── Search bar ─────────────────────────────────── */}
+      <View style={s.searchRow}>
+        {searching ? (
+          <View style={s.searchInputWrap}>
+            <Text style={s.searchIcon}>⌕</Text>
+            <TextInput
+              style={s.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search sessions, agents…"
+              placeholderTextColor="#2a2a2a"
+              autoFocus
+              onBlur={() => { if (!searchQuery) setSearching(false); }}
+            />
+            {!!searchQuery && (
+              <TouchableOpacity onPress={() => { setSearchQuery(""); setSearching(false); }}>
+                <Text style={s.searchClear}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <TouchableOpacity style={s.searchTrigger} onPress={() => setSearching(true)} activeOpacity={0.7}>
+            <Text style={s.searchIcon}>⌕</Text>
+            <Text style={s.searchPlaceholder}>Search…</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <View style={s.divider} />
 
-      {/* ── Projects section ─────────────────────────────────── */}
+      {/* ── Sessions list ──────────────────────────────── */}
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator color="#555" size="small" />
+          <ActivityIndicator color={ACCENT} size="small" />
         </View>
       ) : (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 16 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => { setRefreshing(true); load(true); }}
-              tintColor="#444"
+              tintColor={ACCENT}
             />
           }
           showsVerticalScrollIndicator={false}
         >
-          <View style={s.projectsHeader}>
-            <Text style={s.projectsLabel}>Projects</Text>
-            <Text style={s.filterIcon}>⊟</Text>
+          {/* Section header */}
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionLabel}>Projects</Text>
+            <Text style={s.sectionCount}>{filtered.length} sessions</Text>
           </View>
 
           {groups.length === 0 ? (
             <View style={s.empty}>
+              {/* Glow blob bg */}
+              <View style={s.emptyGlow} />
+              <Text style={s.emptyEmoji}>⚡</Text>
               <Text style={s.emptyTitle}>No sessions yet</Text>
-              <Text style={s.emptySub}>Start a new session to begin tracking</Text>
-              <TouchableOpacity style={s.emptyBtn} onPress={() => router.push("/new-session")} activeOpacity={0.7}>
+              <Text style={s.emptySub}>Start tracking your AI agent costs</Text>
+              <TouchableOpacity
+                style={[s.emptyBtn, {
+                  shadowColor: ACCENT,
+                  shadowOpacity: 0.6,
+                  shadowRadius: 16,
+                  elevation: 8,
+                }]}
+                onPress={() => router.push("/new-session")}
+                activeOpacity={0.8}
+              >
                 <Text style={s.emptyBtnText}>+ New Session</Text>
               </TouchableOpacity>
             </View>
@@ -245,16 +285,19 @@ export default function SessionsScreen() {
         </ScrollView>
       )}
 
-      {/* ── Bottom bar ───────────────────────────────────────── */}
-      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 6 }]}>
-        <View style={s.bottomLeft}>
-          <View style={s.avatar}>
-            <Text style={s.avatarText}>A</Text>
-          </View>
-          <Text style={s.bottomName}>Agent</Text>
+      {/* ── Bottom bar ─────────────────────────────────── */}
+      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 8 }]}>
+        <View style={[s.avatar, {
+          shadowColor: ACCENT,
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+        }]}>
+          <Text style={s.avatarText}>A</Text>
         </View>
+        <Text style={s.bottomName}>AgentPilot</Text>
+        <View style={{ flex: 1 }} />
         <TouchableOpacity activeOpacity={0.7}>
-          <Text style={s.settingsIcon}>☼</Text>
+          <Text style={s.settingsIcon}>⚙</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -268,101 +311,217 @@ const s = StyleSheet.create({
 
   // Header
   header: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  snowflake: { color: TEXT, fontSize: 15 },
-  appName: { color: TEXT, fontSize: 13, fontWeight: "700", letterSpacing: 0.8 },
-  collapseBtn: {
-    width: 30, height: 30, borderRadius: 7,
-    backgroundColor: "#1e1e1e",
-    alignItems: "center", justifyContent: "center",
+  appName: {
+    color: TEXT,
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.5,
   },
-  collapseBtnText: { color: TEXT_2, fontSize: 14 },
+  appSub: {
+    color: TEXT_3,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  newBtn: {
+    backgroundColor: "#7c3aed",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  newBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
 
-  // Action rows (new session / search)
-  actionRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 11, gap: 12,
+  // Search
+  searchRow: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
-  actionIcon: { color: TEXT_3, fontSize: 15, width: 18, textAlign: "center" },
-  actionText: { color: TEXT_2, fontSize: 14 },
-
-  // Search input
-  searchInputRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 9, gap: 12,
+  searchTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: SURFACE,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  searchIconText: { color: TEXT_3, fontSize: 16, width: 18, textAlign: "center" },
-  searchInput: { flex: 1, color: TEXT, fontSize: 14, paddingVertical: 2 },
+  searchInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: SURFACE,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: ACCENT + "44",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  searchIcon: { color: TEXT_3, fontSize: 16 },
+  searchPlaceholder: { color: TEXT_3, fontSize: 14 },
+  searchInput: { flex: 1, color: TEXT, fontSize: 14 },
   searchClear: { color: TEXT_3, fontSize: 14 },
 
   divider: { height: 1, backgroundColor: LINE },
 
-  // Projects header
-  projectsHeader: {
-    flexDirection: "row", alignItems: "center",
+  // Section header
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
-  projectsLabel: { color: TEXT_3, fontSize: 11, fontWeight: "500", textTransform: "uppercase", letterSpacing: 0.5 },
-  filterIcon: { color: TEXT_3, fontSize: 14 },
+  sectionLabel: {
+    color: TEXT_3,
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+  },
+  sectionCount: { color: TEXT_3, fontSize: 11 },
 
-  // Folder row
-  folderRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 9, gap: 8,
+  // Folder group
+  folderGroup: {
+    marginHorizontal: 12,
+    marginBottom: 4,
+    borderRadius: 14,
+    overflow: "hidden",
   },
-  folderChevron: { color: "#333", fontSize: 14, transform: [{ rotate: "90deg" }], marginRight: -2 },
-  folderChevronCollapsed: { transform: [{ rotate: "0deg" }] },
-  folderDot: {
-    width: 22, height: 22, borderRadius: 6,
-    alignItems: "center", justifyContent: "center",
+  folderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: CARD,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    marginBottom: 1,
+  },
+  folderIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
   },
-  folderLogo: { fontSize: 10, fontWeight: "700" },
-  folderLabel: { flex: 1, color: TEXT_2, fontSize: 13, fontWeight: "500" },
-  folderCount: { color: TEXT_3, fontSize: 12 },
-
-  // Session row
-  sessionRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 10,
-    paddingLeft: 50, gap: 8,
+  folderLogo: { fontSize: 13, fontWeight: "800" },
+  folderLabel: { color: TEXT, fontSize: 14, fontWeight: "600" },
+  activeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: GREEN + "10",
   },
-  sessionIndicator: { width: 5, height: 5, borderRadius: 3, marginRight: 2 },
-  sessionName: { flex: 1, color: TEXT_2, fontSize: 13 },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: GREEN,
+  },
+  activeBadgeText: { color: GREEN, fontSize: 10, fontWeight: "600" },
+  folderCount: { color: TEXT_3, fontSize: 13, fontWeight: "500", minWidth: 16, textAlign: "right" },
+  chevron: { color: TEXT_3, fontSize: 16, transform: [{ rotate: "90deg" }] },
+  chevronCollapsed: { transform: [{ rotate: "0deg" }] },
+
+  // Session rows inside folder
+  folderContent: {
+    backgroundColor: SURFACE,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: BORDER,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    marginTop: -4,
+    overflow: "hidden",
+  },
+  sessionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: LINE,
+  },
+  sessionIndentLine: {
+    width: 1,
+    height: 18,
+    backgroundColor: BORDER,
+    marginLeft: 6,
+  },
+  sessionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  sessionName: { flex: 1, color: TEXT_2, fontSize: 13, fontWeight: "400" },
   sessionTime: { color: TEXT_3, fontSize: 12 },
 
-  // Show more
-  showMore: { paddingHorizontal: 50, paddingVertical: 8 },
+  showMore: { paddingHorizontal: 20, paddingVertical: 10 },
   showMoreText: { color: TEXT_3, fontSize: 12 },
 
   // Empty state
-  empty: { alignItems: "center", paddingTop: 64, gap: 8 },
-  emptyTitle: { color: TEXT_2, fontSize: 16, fontWeight: "500" },
-  emptySub: { color: TEXT_3, fontSize: 13, textAlign: "center" },
-  emptyBtn: {
-    marginTop: 12, paddingHorizontal: 20, paddingVertical: 10,
-    borderRadius: 10, borderWidth: 1, borderColor: "#2a2a2a",
+  empty: { alignItems: "center", paddingTop: 80, paddingBottom: 40, position: "relative" },
+  emptyGlow: {
+    position: "absolute",
+    top: 40,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: ACCENT + "08",
   },
-  emptyBtnText: { color: TEXT_2, fontSize: 13 },
+  emptyEmoji: { fontSize: 40, marginBottom: 16 },
+  emptyTitle: { color: TEXT, fontSize: 20, fontWeight: "700", marginBottom: 8, letterSpacing: -0.3 },
+  emptySub: { color: TEXT_3, fontSize: 14, textAlign: "center", marginBottom: 28 },
+  emptyBtn: {
+    backgroundColor: "#7c3aed",
+    paddingHorizontal: 24,
+    paddingVertical: 13,
+    borderRadius: 24,
+  },
+  emptyBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
 
   // Bottom bar
   bottomBar: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: LINE,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: LINE,
+    gap: 10,
     backgroundColor: BG,
   },
-  bottomLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   avatar: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: "#2a2a2a", alignItems: "center", justifyContent: "center",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#1a1a2e",
+    borderWidth: 1,
+    borderColor: ACCENT + "44",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  avatarText: { color: TEXT_2, fontSize: 12, fontWeight: "600" },
-  bottomName: { color: TEXT_2, fontSize: 13 },
+  avatarText: { color: ACCENT, fontSize: 12, fontWeight: "700" },
+  bottomName: { color: TEXT_2, fontSize: 13, fontWeight: "500" },
   settingsIcon: { color: TEXT_3, fontSize: 18, padding: 4 },
 });
