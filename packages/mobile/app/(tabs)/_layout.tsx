@@ -1,11 +1,15 @@
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
 
+const BG = "#141414";
+const ACTIVE = "#e0e0e0";
+const INACTIVE = "#333";
+
 function TabIcon({ focused, icon, label }: { focused: boolean; icon: string; label: string }) {
   return (
-    <View style={styles.iconWrap}>
-      <Text style={[styles.iconText, focused && styles.iconTextFocused]}>{icon}</Text>
-      <Text style={[styles.iconLabel, focused && styles.iconLabelFocused]}>{label}</Text>
+    <View style={s.wrap}>
+      <Text style={[s.icon, focused && s.iconActive]}>{icon}</Text>
+      <Text style={[s.label, focused && s.labelActive]}>{label}</Text>
     </View>
   );
 }
@@ -15,7 +19,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.bar,
+        tabBarStyle: s.bar,
         tabBarShowLabel: false,
       }}
     >
@@ -47,34 +51,33 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   bar: {
-    backgroundColor: "#141414",
-    borderTopColor: "#252525",
+    backgroundColor: BG,
     borderTopWidth: 1,
-    height: 60,
+    borderTopColor: "#1e1e1e",
+    height: 58,
     paddingTop: 0,
     paddingBottom: 0,
   },
-  iconWrap: {
+  wrap: {
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
     paddingTop: 6,
   },
-  iconText: {
+  icon: {
     fontSize: 18,
-    color: "#3a3a3a",
+    color: INACTIVE,
   },
-  iconTextFocused: {
-    color: "#ffffff",
+  iconActive: {
+    color: ACTIVE,
   },
-  iconLabel: {
+  label: {
     fontSize: 10,
-    color: "#3a3a3a",
-    fontWeight: "400",
+    color: INACTIVE,
   },
-  iconLabelFocused: {
-    color: "#ffffff",
+  labelActive: {
+    color: ACTIVE,
   },
 });

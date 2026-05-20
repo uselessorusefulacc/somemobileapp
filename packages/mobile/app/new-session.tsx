@@ -15,12 +15,21 @@ import { Stack, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient } from "../lib/api";
 
+// ── Design tokens ────────────────────────────────────────────────
+const BG      = "#141414";
+const SURFACE = "#1e1e1e";
+const BORDER  = "#282828";
+const LINE    = "#1e1e1e";
+const TEXT    = "#f0f0f0";
+const TEXT_2  = "#888";
+const TEXT_3  = "#444";
+
 const AGENTS = [
-  { id: "claude",   name: "Claude Code", model: "claude-sonnet-4-5", color: "#D4B896" },
-  { id: "opencode", name: "OpenCode",    model: "claude-sonnet-4-5", color: "#7C83FD" },
-  { id: "codex",    name: "Codex CLI",   model: "o3-mini",           color: "#10A37F" },
-  { id: "gemini",   name: "Gemini CLI",  model: "gemini-2-5-pro",    color: "#4285F4" },
-  { id: "aider",    name: "Aider",       model: "claude-sonnet-4-5", color: "#22c55e" },
+  { id: "claude",   name: "Claude Code",     model: "claude-sonnet-4-5", color: "#D4A574", logo: "A"  },
+  { id: "opencode", name: "OpenCode",         model: "claude-sonnet-4-5", color: "#818CF8", logo: "O"  },
+  { id: "codex",    name: "Codex CLI",        model: "o3",                color: "#10A37F", logo: "C"  },
+  { id: "gemini",   name: "Gemini CLI",       model: "gemini-2-5-pro",    color: "#4285F4", logo: "G"  },
+  { id: "aider",    name: "Aider",            model: "claude-sonnet-4-5", color: "#22c55e", logo: "Ai" },
 ];
 
 const SKILLS_COUNT = 14;
@@ -37,16 +46,15 @@ export default function NewSessionModal() {
 
   const handleCreate = async () => {
     if (creating) return;
-    const sessionName = message.trim() || `${selected.name} Session`;
     setCreating(true);
     try {
       const data = await apiClient.createSession({
-        name: sessionName,
+        name: message.trim() || `${selected.name} Session`,
         agentType: selectedId,
         model: selected.model,
       });
       router.dismiss();
-      setTimeout(() => router.push(`/session/${data.id}`), 100);
+      setTimeout(() => router.push(`/session/${data.id}`), 120);
     } catch (e) {
       Alert.alert("Error", String(e));
     } finally {
@@ -55,128 +63,146 @@ export default function NewSessionModal() {
   };
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
+    <View style={[s.root, { paddingBottom: insets.bottom }]}>
       <Stack.Screen
         options={{
           headerShown: true,
-          title: "",
-          headerStyle: { backgroundColor: "#141414" },
-          headerTintColor: "#aaa",
+          title: "New session",
+          headerStyle: { backgroundColor: BG },
+          headerTitleStyle: { color: TEXT, fontSize: 16, fontWeight: "600" },
+          headerTintColor: TEXT_2,
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.dismiss()} style={styles.backBtn}>
-              <Text style={styles.backArrow}>←</Text>
+            <TouchableOpacity onPress={() => router.dismiss()} style={s.backBtn}>
+              <Text style={s.backArrow}>←</Text>
             </TouchableOpacity>
           ),
         }}
       />
 
-      {/* Chat area — scrollable messages area (empty for new session) */}
+      {/* ── Agent context header ───────────────────────── */}
+      <View style={s.contextBar}>
+        <View style={[s.contextDot, { backgroundColor: selected.color + "22", borderColor: selected.color + "44" }]}>
+          <Text style={[s.contextLogo, { color: selected.color }]}>{selected.logo}</Text>
+        </View>
+        <Text style={s.contextName}>{selected.name}</Text>
+        <View style={[s.contextIndicator, { backgroundColor: TEXT_3 }]} />
+        <Text style={s.contextNow}>now</Text>
+      </View>
+
+      {/* ── Chat area ──────────────────────────────────── */}
       <ScrollView
-        style={styles.chatArea}
-        contentContainerStyle={styles.chatContent}
+        style={s.chatArea}
+        contentContainerStyle={s.chatContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* Agent selector pills */}
-        <View style={styles.agentPills}>
-          {AGENTS.map((agent) => (
-            <TouchableOpacity
-              key={agent.id}
-              style={[
-                styles.agentPill,
-                selectedId === agent.id && { borderColor: agent.color, backgroundColor: `${agent.color}12` },
-              ]}
-              onPress={() => setSelectedId(agent.id)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.agentDot, { backgroundColor: agent.color }]} />
-              <Text
-                style={[
-                  styles.agentPillText,
-                  selectedId === agent.id && { color: agent.color },
-                ]}
+        {/* Agent pills */}
+        <View style={s.agentPills}>
+          {AGENTS.map((a) => {
+            const sel = selectedId === a.id;
+            return (
+              <TouchableOpacity
+                key={a.id}
+                style={[s.agentPill, sel && {
+                  borderColor: a.color + "55",
+                  backgroundColor: a.color + "12",
+                }]}
+                onPress={() => setSelectedId(a.id)}
+                activeOpacity={0.7}
               >
-                {agent.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <View style={[s.agentPillDot, { backgroundColor: sel ? a.color : TEXT_3 }]} />
+                <Text style={[s.agentPillText, sel && { color: a.color }]}>{a.name}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Welcome message */}
-        <View style={styles.welcomeArea}>
-          <Text style={styles.welcomeTitle}>New Session</Text>
-          <Text style={styles.welcomeSub}>
-            What would you like {selected.name} to do?
-          </Text>
+        {/* Empty state prompt */}
+        <View style={s.welcomeArea}>
+          <Text style={s.welcomeText}>Start a new conversation</Text>
         </View>
       </ScrollView>
 
-      {/* Bottom composer */}
+      {/* ── Bottom composer ───────────────────────────── */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={88}
       >
-        <View style={styles.composer}>
-          {/* Toolbar row */}
-          <View style={styles.composerToolbar}>
-            {/* Model pill */}
-            <TouchableOpacity style={styles.modelPill} activeOpacity={0.7}>
-              <View style={[styles.modelDot, { backgroundColor: selected.color }]} />
-              <Text style={styles.modelPillText}>{selected.name}</Text>
-              <Text style={styles.modelPillChevron}>|||</Text>
-            </TouchableOpacity>
-
-            {/* MCP button */}
-            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
-              <Text style={styles.toolBtnText}>+ MCP</Text>
-            </TouchableOpacity>
-
-            {/* Skills button */}
-            <TouchableOpacity style={styles.toolBtn} activeOpacity={0.7}>
-              <Text style={styles.toolBtnText}>Skills ({SKILLS_COUNT})</Text>
-            </TouchableOpacity>
-
-            <View style={styles.flex} />
-
-            {/* Auto toggle */}
-            <TouchableOpacity
-              style={[styles.autoToggle, autoMode && styles.autoToggleOn]}
-              onPress={() => setAutoMode((v) => !v)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.autoToggleText, autoMode && styles.autoToggleTextOn]}>
-                Auto
+        <View style={s.composer}>
+          {/* Input area */}
+          <View style={s.inputBox}>
+            {/* Task prefix row */}
+            <View style={s.taskRow}>
+              <View style={[s.taskDot, { borderColor: selected.color }]} />
+              <Text style={s.taskPlaceholder} numberOfLines={1}>
+                {message.trim() || "Check current branch…"}
               </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={s.taskChevron}>∧</Text>
+              </TouchableOpacity>
+            </View>
 
-          {/* Input row */}
-          <View style={styles.inputRow}>
+            {/* Message input */}
             <TextInput
-              style={styles.input}
+              style={s.messageInput}
               value={message}
               onChangeText={setMessage}
-              placeholder="Type your message..."
-              placeholderTextColor="#444"
+              placeholder="Type your message…"
+              placeholderTextColor={TEXT_3}
               multiline
-              maxLength={2000}
-              returnKeyType="default"
+              maxLength={4000}
             />
-            <TouchableOpacity
-              style={[
-                styles.sendBtn,
-                (message.trim() || creating) && styles.sendBtnActive,
-              ]}
-              onPress={handleCreate}
-              disabled={creating}
-              activeOpacity={0.8}
-            >
-              {creating ? (
-                <ActivityIndicator color="#000" size="small" />
-              ) : (
-                <Text style={styles.sendBtnText}>↑</Text>
-              )}
-            </TouchableOpacity>
+
+            {/* Toolbar */}
+            <View style={s.toolbar}>
+              {/* Plus */}
+              <TouchableOpacity style={s.toolBtn} activeOpacity={0.7}>
+                <Text style={s.toolBtnText}>+</Text>
+              </TouchableOpacity>
+
+              {/* Model pill */}
+              <TouchableOpacity style={s.modelPill} activeOpacity={0.7}>
+                <Text style={[s.modelPillLogo, { color: selected.color }]}>{selected.logo}</Text>
+                <Text style={s.modelPillName}>{selected.name.split(" ")[0]}</Text>
+                <Text style={s.modelPillSignal}>|||</Text>
+              </TouchableOpacity>
+
+              {/* Auto toggle */}
+              <TouchableOpacity
+                style={[s.togglePill, autoMode && s.togglePillOn]}
+                onPress={() => setAutoMode((v) => !v)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.toggleText, autoMode && s.toggleTextOn]}>Auto</Text>
+              </TouchableOpacity>
+
+              <View style={{ flex: 1 }} />
+
+              {/* Send */}
+              <TouchableOpacity
+                style={[s.sendBtn, (message.trim() || creating) && s.sendBtnActive]}
+                onPress={handleCreate}
+                disabled={creating}
+                activeOpacity={0.8}
+              >
+                {creating
+                  ? <ActivityIndicator color="#000" size="small" />
+                  : <Text style={s.sendBtnText}>↑</Text>
+                }
+              </TouchableOpacity>
+            </View>
+
+            {/* MCP + Skills row */}
+            <View style={s.chipRow}>
+              <View style={[s.chip, { borderColor: selected.color + "44" }]}>
+                <View style={[s.chipDot, { backgroundColor: selected.color }]} />
+                <Text style={[s.chipText, { color: selected.color }]}>MCP (1)</Text>
+              </View>
+              <TouchableOpacity style={s.chip} activeOpacity={0.7}>
+                <Text style={s.chipText}>Skills ({SKILLS_COUNT})</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -184,117 +210,130 @@ export default function NewSessionModal() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#141414" },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: BG },
 
   backBtn: { paddingHorizontal: 4 },
-  backArrow: { color: "#aaa", fontSize: 18 },
+  backArrow: { color: TEXT_2, fontSize: 20 },
+
+  // Context bar (project + "now")
+  contextBar: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 18, paddingVertical: 10, gap: 8,
+    borderBottomWidth: 1, borderBottomColor: LINE,
+  },
+  contextDot: {
+    width: 22, height: 22, borderRadius: 6,
+    alignItems: "center", justifyContent: "center", borderWidth: 1,
+  },
+  contextLogo: { fontSize: 10, fontWeight: "700" },
+  contextName: { color: TEXT_2, fontSize: 13 },
+  contextIndicator: { width: 5, height: 5, borderRadius: 3 },
+  contextNow: { color: TEXT_3, fontSize: 12 },
 
   // Chat area
   chatArea: { flex: 1 },
-  chatContent: {
-    padding: 20,
-    paddingTop: 24,
-    flexGrow: 1,
-  },
+  chatContent: { padding: 20, paddingTop: 20, flexGrow: 1 },
 
   // Agent pills
-  agentPills: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 32,
-  },
+  agentPills: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 40 },
   agentPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#2a2a2a",
-    gap: 6,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1, borderColor: BORDER,
   },
-  agentDot: { width: 6, height: 6, borderRadius: 3 },
-  agentPillText: { color: "#666", fontSize: 13, fontWeight: "400" },
+  agentPillDot: { width: 6, height: 6, borderRadius: 3 },
+  agentPillText: { color: TEXT_3, fontSize: 13 },
 
   // Welcome
-  welcomeArea: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 40 },
-  welcomeTitle: { color: "#e0e0e0", fontSize: 22, fontWeight: "600", marginBottom: 8 },
-  welcomeSub: { color: "#555", fontSize: 14, textAlign: "center", lineHeight: 20 },
+  welcomeArea: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 20 },
+  welcomeText: { color: TEXT_3, fontSize: 15 },
 
   // Composer
   composer: {
-    backgroundColor: "#1a1a1a",
-    borderTopWidth: 1,
-    borderTopColor: "#252525",
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
+    backgroundColor: BG,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  inputBox: {
+    backgroundColor: SURFACE,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    overflow: "hidden",
+  },
+
+  // Task row
+  taskRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: LINE,
+    gap: 10,
+  },
+  taskDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5 },
+  taskPlaceholder: { flex: 1, color: TEXT_2, fontSize: 13 },
+  taskChevron: { color: TEXT_3, fontSize: 14 },
+
+  // Message input
+  messageInput: {
+    color: TEXT, fontSize: 15,
+    paddingHorizontal: 14, paddingVertical: 12,
+    maxHeight: 100, lineHeight: 21,
   },
 
   // Toolbar
-  composerToolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
+  toolbar: {
+    flexDirection: "row", alignItems: "center",
+    paddingHorizontal: 10, paddingVertical: 8,
+    borderTopWidth: 1, borderTopColor: LINE, gap: 8,
   },
-  modelPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: "#252525",
-  },
-  modelDot: { width: 7, height: 7, borderRadius: 4 },
-  modelPillText: { color: "#c0c0c0", fontSize: 12, fontWeight: "500" },
-  modelPillChevron: { color: "#555", fontSize: 10, letterSpacing: -1 },
   toolBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    width: 30, height: 30, borderRadius: 8,
     backgroundColor: "#252525",
+    alignItems: "center", justifyContent: "center",
   },
-  toolBtnText: { color: "#888", fontSize: 12 },
-  flex: { flex: 1 },
-  autoToggle: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: "#252525",
-  },
-  autoToggleOn: { backgroundColor: "#e0e0e0" },
-  autoToggleText: { color: "#888", fontSize: 12, fontWeight: "500" },
-  autoToggleTextOn: { color: "#000" },
+  toolBtnText: { color: TEXT_2, fontSize: 16 },
 
-  // Input
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
-    backgroundColor: "#252525",
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  // Model pill
+  modelPill: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 14, backgroundColor: "#252525",
   },
-  input: {
-    flex: 1,
-    color: "#e0e0e0",
-    fontSize: 15,
-    maxHeight: 120,
-    lineHeight: 20,
+  modelPillLogo: { fontSize: 11, fontWeight: "700" },
+  modelPillName: { color: TEXT_2, fontSize: 12 },
+  modelPillSignal: { color: TEXT_3, fontSize: 9, letterSpacing: -1 },
+
+  // Auto toggle
+  togglePill: {
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 14, backgroundColor: "#252525",
   },
+  togglePillOn: { backgroundColor: TEXT },
+  toggleText: { color: TEXT_2, fontSize: 12, fontWeight: "500" },
+  toggleTextOn: { color: "#000" },
+
+  // Send button
   sendBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#3a3a3a",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: "#2a2a2a",
+    alignItems: "center", justifyContent: "center",
   },
-  sendBtnActive: { backgroundColor: "#ffffff" },
-  sendBtnText: { color: "#000", fontSize: 18, fontWeight: "700", lineHeight: 22 },
+  sendBtnActive: { backgroundColor: TEXT },
+  sendBtnText: { color: "#000", fontSize: 17, fontWeight: "700", lineHeight: 22 },
+
+  // Chip row (MCP + Skills)
+  chipRow: {
+    flexDirection: "row", gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: LINE,
+  },
+  chip: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 12, borderWidth: 1, borderColor: BORDER,
+  },
+  chipDot: { width: 6, height: 6, borderRadius: 3 },
+  chipText: { color: TEXT_2, fontSize: 12 },
 });
