@@ -52,17 +52,4 @@ export const optimizationTips = sqliteTable("optimization_tips", {
     .$defaultFn(() => new Date()),
 });
 
-// Model pricing table — used for cost calculation
-export const modelPricing = sqliteTable("model_pricing", {
-  id: text("id").primaryKey(),
-  modelId: text("model_id").notNull().unique(),
-  provider: text("provider").notNull(),
-  displayName: text("display_name").notNull(),
-  inputCostPer1M: real("input_cost_per_1m").notNull(), // USD per 1M input tokens
-  outputCostPer_1M: real("output_cost_per_1m").notNull(), // USD per 1M output tokens
-  cacheReadCostPer1M: real("cache_read_cost_per_1m").notNull().default(0),
-  cacheWriteCostPer1M: real("cache_write_cost_per_1m").notNull().default(0),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+

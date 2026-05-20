@@ -22,8 +22,8 @@ const MODEL_INPUT_COSTS: Record<string, number> = {
   "gpt-4o": 5,
   "gpt-4o-mini": 0.15,
   "o3-mini": 1.1,
-  "gemini-2.5-pro": 1.25,
-  "gemini-2.0-flash": 0.1,
+  "gemini-2-5-pro": 1.25,
+  "gemini-2-5-flash": 0.1,
 };
 
 const MODEL_OUTPUT_COSTS: Record<string, number> = {
@@ -33,8 +33,8 @@ const MODEL_OUTPUT_COSTS: Record<string, number> = {
   "gpt-4o": 15,
   "gpt-4o-mini": 0.6,
   "o3-mini": 4.4,
-  "gemini-2.5-pro": 10,
-  "gemini-2.0-flash": 0.4,
+  "gemini-2-5-pro": 10,
+  "gemini-2-5-flash": 0.4,
 };
 
 function Bar({ pct, color }: { pct: number; color: string }) {
@@ -85,7 +85,7 @@ function ModelRow({
 function PricingRow({ model }: { model: string }) {
   const input = MODEL_INPUT_COSTS[model];
   const output = MODEL_OUTPUT_COSTS[model];
-  if (!input) return null;
+  if (input == null) return null;
   const tier = input < 1 ? "cheap" : input < 5 ? "mid" : "expensive";
   const tierColor =
     tier === "cheap" ? colors.success : tier === "mid" ? colors.warning : colors.danger;

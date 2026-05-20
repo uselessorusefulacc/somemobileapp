@@ -43,9 +43,9 @@ const AGENT_TYPES = [
 
 const MODELS_BY_AGENT: Record<string, string[]> = {
   claude: ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-3-5"],
-  opencode: ["claude-sonnet-4-5", "gpt-4o", "gemini-2.5-pro"],
+  opencode: ["claude-sonnet-4-5", "gpt-4o", "gemini-2-5-pro"],
   codex: ["o3-mini", "gpt-4o", "gpt-4o-mini"],
-  custom: ["gpt-4o", "gpt-4o-mini", "claude-haiku-3-5", "gemini-2.0-flash"],
+  custom: ["gpt-4o", "gpt-4o-mini", "claude-haiku-3-5", "gemini-2-5-flash"],
 };
 
 function AgentTypeCard({

@@ -220,8 +220,8 @@ export default function SessionDetailScreen() {
 
   const costPer1K =
     session.totalTokens > 0
-      ? ((totalCost / session.totalTokens) * 1000).toFixed(4)
-      : "0";
+      ? `${((totalCost / session.totalTokens) * 1000).toFixed(4)}`
+      : "$0.0000";
 
   const isExpensiveModel = EXPENSIVE_MODELS.includes(session.model);
 
@@ -304,12 +304,14 @@ export default function SessionDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>COST OVER TIME</Text>
             <View style={styles.barChart}>
-              {events.slice(-20).map((e) => {
-                const cost = e.costUsd ?? 0;
+              {(() => {
+                const last20 = events.slice(-20);
                 const maxCostInView = Math.max(
-                  ...events.slice(-20).map((ev) => ev.costUsd ?? 0),
+                  ...last20.map((ev) => ev.costUsd ?? 0),
                   0.0001
                 );
+                return last20.map((e) => {
+                const cost = e.costUsd ?? 0;
                 const pct = (cost / maxCostInView) * 100;
                 const barColor =
                   cost > 0.01 ? colors.danger : cost > 0.005 ? colors.warning : colors.success;
@@ -323,7 +325,8 @@ export default function SessionDetailScreen() {
                     />
                   </View>
                 );
-              })}
+                });
+              })()}
             </View>
           </View>
         )}
