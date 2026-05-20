@@ -333,6 +333,8 @@ const app = new Hono()
     return c.json({ events }, 200);
   })
 
+  // DEPRECATED: Use WebSocket relay + agentpilot-daemon instead.
+  // Kept for backward compatibility with external integrations.
   // Fix #14: webhook now accepts cacheReadTokens/cacheWriteTokens
   // Fix #15: verify session exists before inserting
   .post("/events", async (c) => {

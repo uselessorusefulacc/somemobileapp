@@ -1,16 +1,28 @@
-// AgentPilot Design System — Dark-first, terminal aesthetic
-// Flat color tokens for easy StyleSheet use
+// AgentPilot Design System v2 — Factory-inspired premium dark aesthetic
+// Inspired by factory.ai + lunel hybrid
 
 export const colors = {
-  // Backgrounds
-  bg: "#0a0a0f",
-  surface: "#111118",
-  card: "#13131b",
+  // Core backgrounds — deep charcoal with warmth
+  bg: "#0c0c0e",
+  surface: "#151518",
+  surfaceElevated: "#1e1e22",
+  card: "#18181c",
 
-  // Accent (indigo)
-  accent: "#6366f1",
-  accentDim: "rgba(99,102,241,0.15)",
-  accentGlow: "rgba(99,102,241,0.3)",
+  // Gradient accents — factory.ai soft glow
+  accent: "#f97316",       // vibrant orange
+  accentSoft: "#fb923c",   // softer orange
+  accentDim: "rgba(249,115,22,0.15)",
+  accentGlow: "rgba(249,115,22,0.12)",
+  accentGlowStrong: "rgba(249,115,22,0.25)",
+
+  // Secondary accents — purple/pink factory gradient vibes
+  secondary: "#a855f7",    // purple
+  secondarySoft: "#c084fc",
+  secondaryGlow: "rgba(168,85,247,0.12)",
+
+  // Tertiary — cyan/teal for data/metrics
+  tertiary: "#06b6d4",
+  tertiaryGlow: "rgba(6,182,212,0.12)",
 
   // Status
   success: "#22c55e",
@@ -18,16 +30,17 @@ export const colors = {
   danger: "#ef4444",
   error: "#ef4444",
 
-  // Text
-  text: "rgba(255,255,255,0.95)",
-  textSecondary: "rgba(255,255,255,0.6)",
-  textMuted: "rgba(255,255,255,0.35)",
+  // Text — warm grays
+  text: "#fafaf9",
+  textSecondary: "#a8a29e",
+  textMuted: "#57534e",
 
-  // Border
-  border: "rgba(255,255,255,0.07)",
+  // Border — subtle warm separators
+  border: "rgba(255,255,255,0.06)",
+  borderHighlight: "rgba(249,115,22,0.2)",
 
   // Agent type colors
-  agentClaude: "#d97706",
+  agentClaude: "#f59e0b",
   agentOpencode: "#6366f1",
   agentCodex: "#22c55e",
 
@@ -48,9 +61,9 @@ export const spacing = {
 
 export const radius = {
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  md: 14,
+  lg: 20,
+  xl: 28,
   full: 9999,
 };
 
@@ -65,7 +78,6 @@ export function getCostColor(costUsd: number): string {
   return colors.costHigh;
 }
 
-// #90: exact match instead of substring — avoids false positives (e.g. "claudette")
 export function getAgentColor(agentType: string): string {
   if (agentType === "claude") return colors.agentClaude;
   if (agentType === "opencode") return colors.agentOpencode;
@@ -73,10 +85,8 @@ export function getAgentColor(agentType: string): string {
   return colors.accent;
 }
 
-// #91: drop confusing "m" suffix — use "µ" (micro) or just show full decimals
 export function formatCost(costUsd: number): string {
-  if (costUsd === 0) return "$0.0000";
-  if (costUsd < 0.0001) return `<$0.0001`;
+  if (costUsd < 0.0001) return "<$0.0001";
   if (costUsd < 1) return `$${costUsd.toFixed(4)}`;
   return `$${costUsd.toFixed(2)}`;
 }

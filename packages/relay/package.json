@@ -1,0 +1,19 @@
+{
+  "name": "@agentpilot/relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/relay.ts",
+    "start": "bun src/relay.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.8",
+    "bun-types": "latest",
+    "typescript": "^5.8.3"
+  }
+}
