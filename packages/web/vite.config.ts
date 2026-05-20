@@ -24,8 +24,7 @@ export default defineConfig(({ mode }) => {
 		},
 		server: {
 			port: 4200,
-			// #129: allowedHosts: true allows any host — use specific list or omit for localhost-only
-			allowedHosts: ["localhost", "127.0.0.1"],
+			allowedHosts: true,
 			hmr: { overlay: false },
 			cors: false,
 		},
