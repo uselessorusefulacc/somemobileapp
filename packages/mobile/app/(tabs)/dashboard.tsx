@@ -53,7 +53,7 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   );
 }
 
-function SessionCard({ session, onPress }: { session: Session; onPress: () => void }) {
+function SessionCard({ session, onPress }: { session: AgentSession; onPress: () => void }) {
   const statusColor =
     session.status === "active"
       ? colors.success
@@ -164,11 +164,11 @@ export default function DashboardScreen() {
     }
   }, []);
 
-  // Start/stop polling when screen is focused
+  // Start/stop polling when screen is focused — single load on focus, no duplicate useEffect
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
-      load(true);
+      load(false); // show spinner on first focus
       pollingRef.current = setInterval(() => {
         if (focusedRef.current) load(true);
       }, 10_000);
@@ -178,10 +178,6 @@ export default function DashboardScreen() {
       };
     }, [load])
   );
-
-  useEffect(() => {
-    load();
-  }, []);
 
   const seedDemo = async () => {
     setSeeding(true);
@@ -197,10 +193,13 @@ export default function DashboardScreen() {
   };
 
   const totalCost = parseFloat(analytics?.totalCost || "0");
-  const optimizationScore = Math.min(
-    100,
-    Math.max(0, 100 - Math.floor((totalCost / Math.max(1, totalCost + 1)) * 50))
-  );
+  // #69: use real optimizationScore from API if present
+  const optimizationScore: number = (() => {
+    if (analytics?.optimizationScore != null) return Math.round(analytics.optimizationScore);
+    // fallback: cache hit rate proxy (0–100)
+    const cacheRate = analytics?.cacheHitRate ?? 0;
+    return Math.min(100, Math.round(40 + cacheRate * 60));
+  })();
   const activeSessions = sessions.filter((s) => s.status === "active");
   const secAgo = Math.round((Date.now() - lastRefresh) / 1000);
 

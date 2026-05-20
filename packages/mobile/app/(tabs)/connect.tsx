@@ -241,13 +241,13 @@ export default function ConnectScreen() {
           token events in real time.
         </Text>
         <View style={styles.codeBlock}>
-          <Text style={styles.codeText}>POST /api/events</Text>
+          <Text style={styles.codeText}>POST /api/sessions/:id/tokens</Text>
           <Text style={styles.codeText}>{'{'}</Text>
-          <Text style={styles.codeText}>  "sessionId": "...",</Text>
           <Text style={styles.codeText}>  "model": "claude-sonnet-4-5",</Text>
-          <Text style={styles.codeText}>  "promptTokens": 1024,</Text>
-          <Text style={styles.codeText}>  "completionTokens": 512,</Text>
-          <Text style={styles.codeText}>  "totalTokens": 1536</Text>
+          <Text style={styles.codeText}>  "inputTokens": 1024,</Text>
+          <Text style={styles.codeText}>  "outputTokens": 512,</Text>
+          <Text style={styles.codeText}>  "cacheReadTokens": 256,</Text>
+          <Text style={styles.codeText}>  "cacheWriteTokens": 0</Text>
           <Text style={styles.codeText}>{'}'}</Text>
         </View>
       </View>

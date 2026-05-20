@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { colors, spacing, radius } from "../../lib/theme";
-import { apiClient, type Analytics, type BudgetConfig } from "../../lib/api";
+import { apiClient, type Analytics, type BudgetConfig, type ModelBreakdown } from "../../lib/api";
 
 const MODEL_INPUT_COSTS: Record<string, number> = {
   "claude-opus-4-5": 15,
@@ -38,9 +38,11 @@ const MODEL_OUTPUT_COSTS: Record<string, number> = {
 };
 
 function Bar({ pct, color }: { pct: number; color: string }) {
+  // #92/#93: clamp width to [2, 100] to prevent overflow
+  const clampedPct = Math.min(100, Math.max(2, pct));
   return (
     <View style={styles.barTrack}>
-      <View style={[styles.barFill, { width: `${Math.max(2, pct)}%`, backgroundColor: color }]} />
+      <View style={[styles.barFill, { width: `${clampedPct}%`, backgroundColor: color }]} />
     </View>
   );
 }
@@ -154,10 +156,28 @@ function BudgetModal({ visible, budget, onSave, onClose }: {
   const [alertPct, setAlertPct] = useState(String(budget.alertAtPct));
 
   const save = () => {
+    // #80: validate inputs before saving
+    const monthlyVal = monthly ? parseFloat(monthly) : null;
+    const dailyVal = daily ? parseFloat(daily) : null;
+    const alertVal = parseInt(alertPct, 10);
+
+    if (monthly && (isNaN(monthlyVal!) || monthlyVal! <= 0)) {
+      Alert.alert("Invalid", "Monthly limit must be a positive number.");
+      return;
+    }
+    if (daily && (isNaN(dailyVal!) || dailyVal! <= 0)) {
+      Alert.alert("Invalid", "Daily limit must be a positive number.");
+      return;
+    }
+    if (isNaN(alertVal) || alertVal < 1 || alertVal > 100) {
+      Alert.alert("Invalid", "Alert threshold must be between 1 and 100.");
+      return;
+    }
+
     onSave({
-      monthlyLimitUsd: monthly ? parseFloat(monthly) : null,
-      dailyLimitUsd: daily ? parseFloat(daily) : null,
-      alertAtPct: parseInt(alertPct) || 80,
+      monthlyLimitUsd: monthlyVal,
+      dailyLimitUsd: dailyVal,
+      alertAtPct: alertVal,
     });
     onClose();
   };
@@ -243,13 +263,17 @@ export default function CostScreen() {
       const updated = await apiClient.setBudget(cfg);
       setBudget(updated);
       Alert.alert("Saved", "Budget settings updated.");
+      // #96: re-fetch analytics after saving budget so projections update
+      load(true);
     } catch {
       Alert.alert("Error", "Failed to save budget.");
     }
   };
 
   const totalCost = parseFloat(analytics?.totalCost || "0");
-  const monthlyProjection = analytics?.projectedMonthlyCost ?? totalCost * 30;
+  // #65: use dailyCost field from API, not totalCost (which is lifetime)
+  const todayCost = analytics?.dailyCost ?? 0;
+  const monthlyProjection = analytics?.projectedMonthlyCost ?? analytics?.monthlyCost ?? totalCost;
   const projectionOverBudget = budget.monthlyLimitUsd !== null && monthlyProjection > budget.monthlyLimitUsd;
   const projectionWarning = budget.monthlyLimitUsd !== null && monthlyProjection > budget.monthlyLimitUsd * 0.8;
 
@@ -295,7 +319,7 @@ export default function CostScreen() {
             <View style={styles.summaryRow}>
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryLabel}>TODAY</Text>
-                <Text style={styles.summaryValue}>${totalCost.toFixed(4)}</Text>
+                <Text style={styles.summaryValue}>${todayCost.toFixed(4)}</Text>
               </View>
               <View style={styles.summaryCard}>
                 <Text style={styles.summaryLabel}>PROJECTED / MO</Text>

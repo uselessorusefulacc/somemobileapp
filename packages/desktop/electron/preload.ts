@@ -1,7 +1,8 @@
 import { ipcRenderer, contextBridge } from "electron";
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  platform: process.platform,
+  // #143: do not expose process.platform — not needed by UI and leaks host info
+  // #144: removed dead onDeepLink handler (main never emits "deep-link" event)
 
   // Dialog
   showOpenDialog: (opts: Electron.OpenDialogOptions) =>
@@ -22,10 +23,4 @@ contextBridge.exposeInMainWorld("electronAPI", {
   minimize: () => ipcRenderer.invoke("window:minimize"),
   maximize: () => ipcRenderer.invoke("window:maximize"),
   close: () => ipcRenderer.invoke("window:close"),
-
-  // Events from main → renderer
-  onDeepLink: (cb: (url: string) => void) => {
-    ipcRenderer.on("deep-link", (_, url) => cb(url));
-    return () => ipcRenderer.removeAllListeners("deep-link");
-  },
 });

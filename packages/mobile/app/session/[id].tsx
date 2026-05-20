@@ -15,9 +15,9 @@ import { useFocusEffect } from "expo-router";
 import { colors, spacing, radius } from "../../lib/theme";
 import { apiClient, type AgentSession, type TokenEvent } from "../../lib/api";
 
-// Context size thresholds
-const CTX_WARN = 3000;    // yellow
-const CTX_CRITICAL = 8000; // red
+// Context size thresholds — #67/#68: updated to realistic modern model context sizes
+const CTX_WARN = 50_000;    // yellow
+const CTX_CRITICAL = 200_000; // red
 
 // Models that warrant switch suggestions
 const EXPENSIVE_MODELS = ["claude-opus-4-5", "gpt-4o", "o3", "gemini-2-5-pro"];
@@ -134,6 +134,8 @@ export default function SessionDetailScreen() {
   const router = useRouter();
   const [session, setSession] = useState<AgentSession | null>(null);
   const [events, setEvents] = useState<TokenEvent[]>([]);
+  // #78: store reversed events to avoid reversing on every render
+  const [reversedEvents, setReversedEvents] = useState<TokenEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -145,8 +147,10 @@ export default function SessionDetailScreen() {
           apiClient.getSession(id),
           apiClient.getEvents(id),
         ]);
+        const evts = eventsData.events || [];
         setSession(sessionData);
-        setEvents(eventsData.events || []);
+        setEvents(evts);
+        setReversedEvents([...evts].reverse());
       } catch (e) {
         console.error(e);
       } finally {
@@ -171,7 +175,7 @@ export default function SessionDetailScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await apiClient.patchSession(id, { status: "completed" });
+            await apiClient.patchSessionStatus(id, "completed");
             load(true);
           } catch (e) {
             Alert.alert("Error", "Failed to end session.");
@@ -324,9 +328,14 @@ export default function SessionDetailScreen() {
           </View>
         )}
 
-        {/* Optimization tip */}
+        {/* Optimization tip — #82: show real score from API if present */}
         <View style={styles.tipCard}>
-          <Text style={styles.tipTitle}>OPTIMIZATION TIP</Text>
+          <Text style={styles.tipTitle}>
+            OPTIMIZATION TIP
+            {session.optimizationScore != null
+              ? `  ·  SCORE ${session.optimizationScore}/100`
+              : ""}
+          </Text>
           <Text style={styles.tipText}>
             {isExpensiveModel
               ? `${model_tip(session.model)} — switch to a cheaper model for routine tasks.`
@@ -351,7 +360,7 @@ export default function SessionDetailScreen() {
         ) : (
           <View style={{ height: Math.min(events.length * 80, 400) }}>
             <FlashList
-              data={[...events].reverse()}
+              data={reversedEvents}
               keyExtractor={(item) => item.id}
               estimatedItemSize={80}
               renderItem={({ item }) => <EventRow event={item} />}

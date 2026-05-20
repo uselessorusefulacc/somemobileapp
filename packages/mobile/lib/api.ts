@@ -62,6 +62,13 @@ export interface OptimizationTip {
   createdAt: string;
 }
 
+export interface ModelBreakdown {
+  model: string;
+  totalTokens: number;
+  totalCost: string;
+  sessionCount: number;
+}
+
 export interface Analytics {
   totalSessions: number;
   activeSessions: number;
@@ -75,12 +82,10 @@ export interface Analytics {
   cacheHitRate: number;
   estimatedSavingsPct: number;
   projectedMonthlyCost: number;
-  modelBreakdown: Array<{
-    model: string;
-    totalTokens: number;
-    totalCost: string;
-    sessionCount: number;
-  }>;
+  dailyCost: number;
+  monthlyCost: number;
+  optimizationScore: number | null;
+  modelBreakdown: ModelBreakdown[];
 }
 
 export interface BudgetConfig {

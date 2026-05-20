@@ -1,12 +1,22 @@
-import { app, BrowserWindow, ipcMain, dialog, Notification } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, Notification, session } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs/promises";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const isDev = process.env.NODE_ENV !== "production";
-const WEB_DEV_URL = process.env.WEBSITE_URL ?? "http://localhost:3000";
+// #149: correct dev port is 4200 (vite web), not 3000
+const WEB_DEV_URL = process.env.WEBSITE_URL ?? "http://localhost:4200";
 const WEB_DIST = path.join(__dirname, "../web-dist");
+
+// #4/#5: restrict fs access to user home directory only
+const ALLOWED_BASE = app.getPath("home");
+function assertSafePath(filePath: string): void {
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(ALLOWED_BASE + path.sep) && resolved !== ALLOWED_BASE) {
+    throw new Error(`Access denied: ${filePath} is outside the allowed directory.`);
+  }
+}
 
 let win: BrowserWindow | null;
 
@@ -18,7 +28,23 @@ function createWindow() {
       preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
+      // #146: enable sandbox for renderer process
+      sandbox: true,
     },
+  });
+
+  // #145: set Content-Security-Policy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [
+          isDev
+            ? "default-src 'self' http://localhost:4200; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:4200 ws://localhost:4200"
+            : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
+        ],
+      },
+    });
   });
 
   if (isDev) {
@@ -41,12 +67,14 @@ ipcMain.handle("dialog:save", async (_, opts) => {
   return result.canceled ? null : result.filePath;
 });
 
-// File system
+// File system — #4/#5: path-restricted to user home
 ipcMain.handle("fs:read", async (_, filePath: string) => {
+  assertSafePath(filePath);
   return fs.readFile(filePath, "utf-8");
 });
 
 ipcMain.handle("fs:write", async (_, filePath: string, data: string) => {
+  assertSafePath(filePath);
   await fs.writeFile(filePath, data, "utf-8");
 });
 

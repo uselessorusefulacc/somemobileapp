@@ -30,6 +30,7 @@
 		}
 	},
 	"include": [
-		"src/web"
+		"src/web",
+		"src/api"
 	]
 }

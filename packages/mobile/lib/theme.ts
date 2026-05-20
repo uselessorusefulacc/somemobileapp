@@ -65,15 +65,18 @@ export function getCostColor(costUsd: number): string {
   return colors.costHigh;
 }
 
+// #90: exact match instead of substring — avoids false positives (e.g. "claudette")
 export function getAgentColor(agentType: string): string {
-  if (agentType.includes("claude")) return colors.agentClaude;
-  if (agentType.includes("opencode")) return colors.agentOpencode;
-  if (agentType.includes("codex")) return colors.agentCodex;
+  if (agentType === "claude") return colors.agentClaude;
+  if (agentType === "opencode") return colors.agentOpencode;
+  if (agentType === "codex") return colors.agentCodex;
   return colors.accent;
 }
 
+// #91: drop confusing "m" suffix — use "µ" (micro) or just show full decimals
 export function formatCost(costUsd: number): string {
-  if (costUsd < 0.001) return `$${(costUsd * 1000).toFixed(3)}m`;
+  if (costUsd === 0) return "$0.0000";
+  if (costUsd < 0.0001) return `<$0.0001`;
   if (costUsd < 1) return `$${costUsd.toFixed(4)}`;
   return `$${costUsd.toFixed(2)}`;
 }

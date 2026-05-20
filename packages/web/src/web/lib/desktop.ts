@@ -1,6 +1,7 @@
 /** Type definition for the Electron preload API exposed via contextBridge */
 export interface ElectronAPI {
-  platform: string;
+  // #143: platform removed from preload — not exposed anymore
+  // #144: onDeepLink removed — dead code, main never emits "deep-link"
 
   // Dialog
   showOpenDialog: (opts: {
@@ -25,9 +26,6 @@ export interface ElectronAPI {
   minimize: () => Promise<void>;
   maximize: () => Promise<void>;
   close: () => Promise<void>;
-
-  // Events
-  onDeepLink: (cb: (url: string) => void) => () => void;
 }
 
 declare global {
