@@ -1,0 +1,5 @@
+{
+  "dailyLimitUsd": null,
+  "monthlyLimitUsd": 50,
+  "alertAtPct": 80
+}
