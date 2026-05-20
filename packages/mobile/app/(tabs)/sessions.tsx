@@ -3,79 +3,94 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
-import { FlashList } from "@shopify/flash-list";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, radius } from "../../lib/theme";
 import { apiClient, type AgentSession } from "../../lib/api";
 
-const STATUS_COLORS: Record<string, string> = {
-  active: colors.success,
-  completed: colors.textMuted,
-  error: colors.danger,
-  paused: colors.warning,
+const AGENT_META: Record<string, { color: string; label: string; logo: string }> = {
+  claude:   { color: "#D4B896", label: "Claude Code", logo: "✦" },
+  opencode: { color: "#7C83FD", label: "OpenCode",    logo: "</>" },
+  codex:    { color: "#10A37F", label: "Codex CLI",   logo: "⬡" },
+  gemini:   { color: "#4285F4", label: "Gemini CLI",  logo: "◈" },
+  aider:    { color: "#22c55e", label: "Aider",       logo: "⌥" },
 };
 
-const AGENT_COLORS: Record<string, string> = {
-  claude: colors.agentClaude,
-  opencode: colors.agentOpencode,
-  codex: colors.agentCodex,
-};
-
-function SessionRow({ session, onPress }: { session: AgentSession; onPress: () => void }) {
-  const statusColor = STATUS_COLORS[session.status] || colors.textMuted;
-  const agentColor = AGENT_COLORS[session.agentType] || colors.accent;
-  const cost = parseFloat(session.totalCost || "0");
-  const costColor = cost > 0.1 ? colors.danger : cost > 0.05 ? colors.warning : colors.success;
-  const duration = session.updatedAt && session.status !== "active"
-    ? Math.round((new Date(session.updatedAt).getTime() - new Date(session.createdAt).getTime()) / 1000)
-    : null;
-
-  return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.rowLeft}>
-        <View style={[styles.agentBar, { backgroundColor: agentColor }]} />
-        <View style={styles.rowMid}>
-          <View style={styles.rowTitleRow}>
-            <Text style={styles.rowName} numberOfLines={1}>{session.name}</Text>
-            <View style={[styles.statusPill, { backgroundColor: `${statusColor}15`, borderColor: `${statusColor}30` }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusText, { color: statusColor }]}>{session.status}</Text>
-            </View>
-          </View>
-          <View style={styles.rowMeta}>
-            <Text style={styles.metaText}>{session.model}</Text>
-            <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.metaText}>{(session.totalTokens || 0).toLocaleString()} tok</Text>
-            {duration !== null && <><Text style={styles.metaDot}>·</Text><Text style={styles.metaText}>{duration}s</Text></>}
-          </View>
-        </View>
-      </View>
-      <View style={styles.rowRight}>
-        <Text style={[styles.costText, { color: costColor }]}>${cost.toFixed(4)}</Text>
-        <Text style={styles.chevron}>›</Text>
-      </View>
-    </TouchableOpacity>
-  );
+function getAgent(type: string) {
+  return AGENT_META[type] ?? { color: colors.accent, label: type, logo: "▣" };
 }
 
-function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function SessionCard({ session, onPress }: { session: AgentSession; onPress: () => void }) {
+  const agent = getAgent(session.agentType);
+  const cost = parseFloat(session.totalCost || "0");
+  const costColor = cost > 1 ? colors.danger : cost > 0.1 ? colors.warning : "#22c55e";
+  const isActive = session.status === "active";
+  const totalK = ((session.totalTokens || 0) / 1000).toFixed(1);
+
   return (
-    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress} activeOpacity={0.7}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    <TouchableOpacity
+      style={[styles.card, { borderColor: isActive ? `${agent.color}30` : "#1a1a1e" }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      {/* Left accent bar */}
+      <View style={[styles.cardAccent, { backgroundColor: isActive ? agent.color : "#222" }]} />
+
+      <View style={styles.cardContent}>
+        {/* Top row */}
+        <View style={styles.cardTop}>
+          <View style={[styles.logoSmall, { backgroundColor: `${agent.color}12` }]}>
+            <Text style={[styles.logoSmallText, { color: agent.color }]}>{agent.logo}</Text>
+          </View>
+          <View style={styles.cardTitleArea}>
+            <Text style={styles.cardName} numberOfLines={1}>{session.name}</Text>
+            <Text style={[styles.cardAgent, { color: agent.color }]}>{agent.label}</Text>
+          </View>
+          <View style={[styles.statusBadge, {
+            backgroundColor: isActive ? "#22c55e10" : "#2a2a2a20",
+          }]}>
+            {isActive && <View style={styles.activeDot} />}
+            <Text style={[styles.statusText, { color: isActive ? "#22c55e" : "#444" }]}>
+              {session.status.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        {/* Bottom stats */}
+        <View style={styles.cardStats}>
+          <View style={styles.cardStat}>
+            <Text style={styles.cardStatLabel}>TOKENS</Text>
+            <Text style={styles.cardStatValue}>{totalK}K</Text>
+          </View>
+          <View style={styles.cardStatDivider} />
+          <View style={styles.cardStat}>
+            <Text style={styles.cardStatLabel}>COST</Text>
+            <Text style={[styles.cardStatValue, { color: costColor }]}>${cost.toFixed(4)}</Text>
+          </View>
+          <View style={styles.cardStatDivider} />
+          <View style={styles.cardStat}>
+            <Text style={styles.cardStatLabel}>MODEL</Text>
+            <Text style={styles.cardStatValue} numberOfLines={1}>{session.model?.split("-").slice(-2).join("-") || "—"}</Text>
+          </View>
+          <Text style={styles.cardArrow}>›</Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 export default function SessionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<"all" | "active" | "ended">("all");
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -83,103 +98,188 @@ export default function SessionsScreen() {
       const data = await apiClient.getSessions();
       setSessions(data.sessions || []);
     } catch (e) {
-      console.error("sessions load error:", e);
+      console.error("[sessions]", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(true); }, [load]));
+  useFocusEffect(useCallback(() => { load(false); }, [load]));
 
-  const filters = ["all", "active", "completed", "error"];
-  const filtered = filter === "all" ? sessions : sessions.filter((s) => s.status === filter);
+  const filtered = sessions.filter((s) => {
+    if (filter === "active") return s.status === "active";
+    if (filter === "ended") return s.status !== "active";
+    return true;
+  });
+
+  const activeCount = sessions.filter((s) => s.status === "active").length;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Sessions</Text>
-          <Text style={styles.headerSub}>{sessions.length} total</Text>
+          <Text style={styles.headerTitle}>AGENT SESSIONS</Text>
+          <Text style={styles.headerSub}>
+            {activeCount > 0 ? `${activeCount} ACTIVE` : "NO ACTIVE AGENTS"}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.newBtn} onPress={() => router.push("/new-session")}>
-          <Text style={styles.newBtnText}>+ New</Text>
+        <TouchableOpacity
+          style={styles.newBtn}
+          onPress={() => router.push("/new-session")}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.newBtnText}>+ NEW</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Filter pills */}
       <View style={styles.filterRow}>
-        {filters.map((f) => (
-          <FilterChip key={f} label={f.charAt(0).toUpperCase() + f.slice(1)} active={filter === f} onPress={() => setFilter(f)} />
+        {(["all", "active", "ended"] as const).map((f) => (
+          <TouchableOpacity
+            key={f}
+            style={[styles.filterPill, filter === f && styles.filterPillActive]}
+            onPress={() => setFilter(f)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+              {f.toUpperCase()}
+              {f === "all" ? ` (${sessions.length})` : f === "active" ? ` (${activeCount})` : ` (${sessions.length - activeCount})`}
+            </Text>
+          </TouchableOpacity>
         ))}
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.accent} size="large" />
-        </View>
-      ) : filtered.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>No sessions yet</Text>
-          <Text style={styles.emptySub}>Create a new session or load demo data from Dashboard</Text>
-          <TouchableOpacity style={styles.newBtnLarge} onPress={() => router.push("/new-session")}>
-            <Text style={styles.newBtnLargeText}>Create Session</Text>
-          </TouchableOpacity>
+        <View style={styles.loadWrap}>
+          <ActivityIndicator color={colors.accent} />
         </View>
       ) : (
-        <FlashList
-          data={filtered}
-          {...({
-            keyExtractor: (item: AgentSession) => item.id,
-            estimatedItemSize: 80,
-            renderItem: ({ item }: { item: AgentSession }) => (
-              <SessionRow session={item} onPress={() => router.push(`/session/${item.id}`)} />
-            ),
-          } as any)}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.accent} />}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        />
+        <ScrollView
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); load(true); }}
+              tintColor={colors.accent}
+            />
+          }
+        >
+          {filtered.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>◌</Text>
+              <Text style={styles.emptyTitle}>No sessions</Text>
+              <Text style={styles.emptySub}>Launch an agent to start tracking</Text>
+              <TouchableOpacity
+                style={styles.emptyBtn}
+                onPress={() => router.push("/new-session")}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.emptyBtnText}>LAUNCH AGENT</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            filtered.map((s) => (
+              <SessionCard
+                key={s.id}
+                session={s}
+                onPress={() => router.push(`/session/${s.id}`)}
+              />
+            ))
+          )}
+          <View style={{ height: 24 }} />
+        </ScrollView>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.sm },
-  headerTitle: { color: colors.text, fontSize: 24, fontFamily: "SpaceMono", fontWeight: "700" },
-  headerSub: { color: colors.textMuted, fontSize: 11, fontFamily: "SpaceMono", marginTop: 2 },
-  newBtn: { backgroundColor: colors.accent, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.md },
-  newBtnText: { color: "#fff", fontSize: 12, fontFamily: "SpaceMono", fontWeight: "700" },
+  root: { flex: 1, backgroundColor: "#0c0c0e" },
 
-  filterRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  chip: { paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.accentDim, borderColor: colors.accent },
-  chipText: { color: colors.textMuted, fontSize: 11, fontFamily: "SpaceMono" },
-  chipTextActive: { color: colors.accent },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  headerTitle: { color: "#e0e0e0", fontSize: 13, fontFamily: "monospace", fontWeight: "700", letterSpacing: 2 },
+  headerSub: { color: "#333", fontSize: 9, fontFamily: "monospace", letterSpacing: 1.5, marginTop: 3 },
 
-  loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+  newBtn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+  },
+  newBtnText: { color: "#000", fontFamily: "monospace", fontSize: 11, fontWeight: "900", letterSpacing: 1 },
 
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  emptyText: { color: colors.text, fontSize: 16, fontFamily: "SpaceMono", marginBottom: 8 },
-  emptySub: { color: colors.textMuted, fontSize: 11, fontFamily: "SpaceMono", textAlign: "center", lineHeight: 18, marginBottom: spacing.lg },
-  newBtnLarge: { backgroundColor: colors.accent, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md },
-  newBtnLargeText: { color: "#fff", fontFamily: "SpaceMono", fontWeight: "700", fontSize: 14 },
+  filterRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: "#1e1e22",
+  },
+  filterPillActive: { borderColor: colors.accent, backgroundColor: `${colors.accent}10` },
+  filterText: { color: "#333", fontSize: 9, fontFamily: "monospace", letterSpacing: 1 },
+  filterTextActive: { color: colors.accent },
 
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.md, paddingRight: spacing.md, backgroundColor: colors.bg },
-  rowLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
-  agentBar: { width: 3, height: 44, borderRadius: 2, marginHorizontal: spacing.md },
-  rowMid: { flex: 1 },
-  rowTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4, paddingRight: spacing.sm },
-  rowName: { color: colors.text, fontSize: 14, fontFamily: "SpaceMono", fontWeight: "700", flex: 1 },
-  statusPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.sm, borderWidth: 1, marginLeft: 8 },
-  statusDot: { width: 5, height: 5, borderRadius: 3 },
-  statusText: { fontSize: 9, fontFamily: "SpaceMono", fontWeight: "700" },
-  rowMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { color: colors.textMuted, fontSize: 10, fontFamily: "SpaceMono" },
-  metaDot: { color: colors.textMuted, fontSize: 10 },
-  rowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  costText: { fontSize: 14, fontFamily: "SpaceMono", fontWeight: "700" },
-  chevron: { color: colors.textMuted, fontSize: 18, fontWeight: "300" },
-  separator: { height: 1, backgroundColor: colors.border, marginLeft: spacing.lg },
+  loadWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  list: { paddingHorizontal: spacing.md, gap: spacing.sm },
+
+  card: {
+    flexDirection: "row",
+    backgroundColor: "#0e0e11",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  cardAccent: { width: 3 },
+  cardContent: { flex: 1, padding: spacing.md },
+  cardTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: 10 },
+  logoSmall: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  logoSmallText: { fontSize: 14, fontFamily: "monospace", fontWeight: "700" },
+  cardTitleArea: { flex: 1 },
+  cardName: { color: "#d0d0d0", fontSize: 13, fontFamily: "monospace", fontWeight: "700", marginBottom: 2 },
+  cardAgent: { fontSize: 9, fontFamily: "monospace", letterSpacing: 1 },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  activeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#22c55e" },
+  statusText: { fontSize: 8, fontFamily: "monospace", fontWeight: "700", letterSpacing: 0.5 },
+
+  cardStats: { flexDirection: "row", alignItems: "center", backgroundColor: "#0c0c0e", borderRadius: radius.sm, padding: 10 },
+  cardStat: { flex: 1 },
+  cardStatLabel: { color: "#2a2a2a", fontSize: 7, fontFamily: "monospace", letterSpacing: 1, marginBottom: 3 },
+  cardStatValue: { color: "#555", fontSize: 11, fontFamily: "monospace", fontWeight: "700" },
+  cardStatDivider: { width: 1, height: 24, backgroundColor: "#1a1a1e", marginHorizontal: spacing.sm },
+  cardArrow: { color: "#333", fontSize: 20, fontFamily: "monospace", marginLeft: spacing.sm },
+
+  empty: { alignItems: "center", paddingTop: 80 },
+  emptyIcon: { color: "#1e1e22", fontSize: 60, marginBottom: spacing.md },
+  emptyTitle: { color: "#444", fontFamily: "monospace", fontSize: 14, marginBottom: 6 },
+  emptySub: { color: "#2a2a2a", fontFamily: "monospace", fontSize: 11, marginBottom: spacing.lg },
+  emptyBtn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+  },
+  emptyBtnText: { color: "#000", fontFamily: "monospace", fontSize: 12, fontWeight: "900", letterSpacing: 1 },
 });

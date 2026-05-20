@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,201 +8,142 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-  Animated,
-  Dimensions,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, radius } from "../../lib/theme";
 import { apiClient, type AgentSession, type BudgetAlert } from "../../lib/api";
 import { useRelay } from "../../lib/relay-context";
 import type { TokenPayload } from "../../lib/relay";
 import { useLiveAnalytics } from "../../hooks/use-live-analytics";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const AGENT_META: Record<string, { color: string; label: string; logo: string }> = {
+  claude:   { color: "#D4B896", label: "Claude Code", logo: "✦" },
+  opencode: { color: "#7C83FD", label: "OpenCode",    logo: "</>" },
+  codex:    { color: "#10A37F", label: "Codex CLI",   logo: "⬡" },
+  gemini:   { color: "#4285F4", label: "Gemini CLI",  logo: "◈" },
+  aider:    { color: "#22c55e", label: "Aider",       logo: "⌥" },
+};
 
-function GlowCard({ children, style, glowColor = colors.accentGlow }: { children: React.ReactNode; style?: any; glowColor?: string }) {
+function getAgent(type: string) {
+  return AGENT_META[type] ?? { color: colors.accent, label: type, logo: "▣" };
+}
+
+function formatCost(v: number) {
+  if (v < 0.0001) return "<$0.0001";
+  if (v < 1) return `$${v.toFixed(4)}`;
+  return `$${v.toFixed(2)}`;
+}
+
+function LiveDot({ active }: { active: boolean }) {
   return (
-    <View style={[styles.cardBase, { shadowColor: glowColor }, style]}>
-      {children}
-    </View>
+    <View style={[styles.liveDot, { backgroundColor: active ? "#22c55e" : "#333" }]} />
   );
 }
 
-function LiveCostMeter({ value }: { value: number }) {
-  const dollars = Math.floor(value);
-  const cents = (value - dollars).toFixed(4).slice(2);
+function AlertBanner({ alerts }: { alerts: BudgetAlert[] }) {
+  if (!alerts.length) return null;
+  const a = alerts[0];
+  const c = a.level === "critical" ? colors.danger : colors.warning;
   return (
-    <GlowCard style={styles.costCard} glowColor={colors.accentGlowStrong}>
-      <Text style={styles.costLabel}>TOTAL SPEND</Text>
-      <View style={styles.costRow}>
-        <Text style={styles.costCurrency}>$</Text>
-        <Text style={styles.costDollars}>{dollars}</Text>
-        <Text style={styles.costCents}>.{cents}</Text>
-      </View>
-      <View style={styles.costGlowLine} />
-    </GlowCard>
-  );
-}
-
-function BurnRateBadge({ rate }: { rate: number }) {
-  return (
-    <GlowCard style={styles.burnCard} glowColor={colors.secondaryGlow}>
-      <Text style={styles.metricLabel}>BURN RATE</Text>
-      <Text style={styles.metricValue}>{rate.toFixed(0)}</Text>
-      <Text style={styles.metricUnit}>tok/min</Text>
-    </GlowCard>
-  );
-}
-
-function ProjectionBadge({ hourly }: { hourly: number }) {
-  const color = hourly > 5 ? colors.danger : hourly > 1 ? colors.warning : colors.success;
-  return (
-    <GlowCard style={styles.projectionCard} glowColor={`${color}20`}>
-      <Text style={styles.metricLabel}>HOURLY PROJECTION</Text>
-      <Text style={[styles.metricValue, { color }]}>${hourly.toFixed(2)}</Text>
-      <Text style={styles.metricUnit}>estimated / hr</Text>
-    </GlowCard>
-  );
-}
-
-function ConnectionPill({ connected }: { connected: boolean }) {
-  return (
-    <View style={[styles.pill, { backgroundColor: connected ? `${colors.success}15` : `${colors.danger}15` }]}>
-      <View style={[styles.pillDot, { backgroundColor: connected ? colors.success : colors.danger }]} />
-      <Text style={[styles.pillText, { color: connected ? colors.success : colors.danger }]}>
-        {connected ? "LIVE" : "OFFLINE"}
+    <View style={[styles.alertBanner, { backgroundColor: `${c}10`, borderColor: `${c}25` }]}>
+      <Text style={[styles.alertText, { color: c }]}>
+        {a.level === "critical" ? "⛔" : "⚠"} {a.message}
       </Text>
     </View>
   );
 }
 
-function SessionRow({ session, onPress }: { session: AgentSession; onPress: () => void }) {
-  const agentColor =
-    session.agentType === "claude"
-      ? colors.agentClaude
-      : session.agentType === "opencode"
-      ? colors.agentOpencode
-      : colors.agentCodex;
-  const statusColor =
-    session.status === "active" ? colors.success : session.status === "error" ? colors.danger : colors.textMuted;
-
+function ActiveSessionPill({ session }: { session: AgentSession }) {
+  const router = useRouter();
+  const agent = getAgent(session.agentType);
+  const cost = parseFloat(session.totalCost || "0");
   return (
-    <TouchableOpacity style={styles.sessionRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.sessionAccent, { backgroundColor: agentColor }]} />
-      <View style={styles.sessionBody}>
-        <View style={styles.sessionTop}>
-          <Text style={styles.sessionName} numberOfLines={1}>{session.name}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}12` }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusText, { color: statusColor }]}>{session.status}</Text>
-          </View>
-        </View>
-        <Text style={styles.sessionMeta}>{session.model}</Text>
-        <View style={styles.sessionBottom}>
-          <Text style={styles.sessionTokens}>{(session.totalTokens || 0).toLocaleString()} tokens</Text>
-          <Text style={styles.sessionCost}>{formatCost(parseFloat(session.totalCost || "0"))}</Text>
-        </View>
+    <TouchableOpacity
+      style={[styles.activePill, { borderColor: `${agent.color}30` }]}
+      onPress={() => router.push(`/session/${session.id}`)}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.activePillLogo, { backgroundColor: `${agent.color}15` }]}>
+        <Text style={[styles.activePillLogoText, { color: agent.color }]}>{agent.logo}</Text>
+      </View>
+      <View style={styles.activePillInfo}>
+        <Text style={styles.activePillName} numberOfLines={1}>{session.name}</Text>
+        <Text style={[styles.activePillAgent, { color: agent.color }]}>{agent.label}</Text>
+      </View>
+      <View style={styles.activePillRight}>
+        <Text style={styles.activePillCost}>{formatCost(cost)}</Text>
+        <Text style={styles.activePillArrow}>›</Text>
       </View>
     </TouchableOpacity>
   );
 }
 
-function TipCard({ tip }: { tip: { category: string; message: string; estimatedSaving?: string } }) {
-  const borderColor = tip.category === "urgent" ? colors.danger : tip.category === "model" ? colors.accent : colors.warning;
-  return (
-    <View style={[styles.tipCard, { borderLeftColor: borderColor }]}>
-      <Text style={styles.tipText}>{tip.message}</Text>
-      {tip.estimatedSaving && <Text style={styles.tipSaving}>Save {tip.estimatedSaving}</Text>}
-    </View>
-  );
-}
-
-function BudgetAlertStrip({ alerts }: { alerts: BudgetAlert[] }) {
-  if (!alerts.length) return null;
-  const top = alerts[0];
-  const bg = top.level === "critical" ? `${colors.danger}12` : `${colors.warning}12`;
-  const textColor = top.level === "critical" ? colors.danger : colors.warning;
-  return (
-    <View style={[styles.alertStrip, { backgroundColor: bg }]}>
-      <Text style={[styles.alertText, { color: textColor }]}>{top.level === "critical" ? "⛔" : "⚠️"} {top.message}</Text>
-    </View>
-  );
-}
-
 export default function DashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const relay = useRelay();
 
-  // Live state
   const [liveCost, setLiveCost] = useState(0);
   const [liveTokens, setLiveTokens] = useState(0);
   const [recentEvents, setRecentEvents] = useState<TokenPayload[]>([]);
-  const [isAgentConnected, setIsAgentConnected] = useState(false);
+  const [agentConnected, setAgentConnected] = useState(false);
 
-  // Fallback REST state
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [alerts, setAlerts] = useState<BudgetAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
-  const loadFromRest = useCallback(async (silent = false) => {
+  const loadRest = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [sessionsData, alertsData] = await Promise.all([
-        apiClient.getSessions(),
-        apiClient.getAlerts(),
-      ]);
-      setSessions(sessionsData.sessions || []);
-      setAlerts(alertsData.alerts || []);
+      const [s, a] = await Promise.all([apiClient.getSessions(), apiClient.getAlerts()]);
+      setSessions(s.sessions || []);
+      setAlerts(a.alerts || []);
     } catch (e) {
-      console.error("load error:", e);
+      console.error("[dashboard]", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  // WebSocket listeners
   useEffect(() => {
     if (!relay.client) return;
-    const onTokens = (payload: TokenPayload) => {
-      setLiveCost((prev) => prev + payload.costUsd);
-      setLiveTokens((prev) => prev + payload.inputTokens + payload.outputTokens);
-      setRecentEvents((prev) => [...prev, payload].slice(-60));
+    const onTokens = (p: TokenPayload) => {
+      setLiveCost((c) => c + p.costUsd);
+      setLiveTokens((t) => t + p.inputTokens + p.outputTokens);
+      setRecentEvents((ev) => [...ev, p].slice(-60));
     };
-    const onPeerConnected = () => setIsAgentConnected(true);
-    const onPeerDisconnected = () => setIsAgentConnected(false);
     relay.client.on("tokens", onTokens);
-    relay.client.on("peer_connected", onPeerConnected);
-    relay.client.on("peer_disconnected", onPeerDisconnected);
+    relay.client.on("peer_connected", () => setAgentConnected(true));
+    relay.client.on("peer_disconnected", () => setAgentConnected(false));
     return () => {
       relay.client?.off("tokens", onTokens);
-      relay.client?.off("peer_connected", onPeerConnected);
-      relay.client?.off("peer_disconnected", onPeerDisconnected);
     };
   }, [relay.client]);
 
-  // Fallback polling
   useEffect(() => {
-    if (relay.isConnected && isAgentConnected) return;
-    const interval = setInterval(() => loadFromRest(true), 10000);
+    const interval = setInterval(() => loadRest(true), 12000);
     return () => clearInterval(interval);
-  }, [relay.isConnected, isAgentConnected, loadFromRest]);
+  }, [loadRest]);
 
-  useFocusEffect(useCallback(() => { loadFromRest(false); }, [loadFromRest]));
+  useFocusEffect(useCallback(() => { loadRest(false); }, [loadRest]));
 
   const { burnRate, hourlyProjection, tips } = useLiveAnalytics(recentEvents);
+
   const activeSessions = sessions.filter((s) => s.status === "active");
+  const totalRestCost = sessions.reduce((acc, s) => acc + parseFloat(s.totalCost || "0"), 0);
+  const totalCost = liveCost > 0 ? liveCost : totalRestCost;
 
   const seedDemo = async () => {
     setSeeding(true);
     try {
       await apiClient.seedDemo();
-      await loadFromRest(true);
-      Alert.alert("Demo Loaded", "Realistic agent session data seeded.");
-    } catch (e) {
-      Alert.alert("Error", "Failed to seed demo data.");
+      await loadRest(true);
+    } catch {
+      Alert.alert("Error", "Could not seed demo data.");
     } finally {
       setSeeding(false);
     }
@@ -210,209 +151,295 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <View style={styles.root}>
+      <View style={[styles.root, styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
   }
 
+  const costDollars = Math.floor(totalCost);
+  const costCents = (totalCost - costDollars).toFixed(4).slice(1);
+
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadFromRest(true); }} tintColor={colors.accent} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); loadRest(true); }}
+          tintColor={colors.accent}
+        />
       }
     >
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.brand}>AgentPilot</Text>
-          <Text style={styles.tagline}>AI Cost Intelligence</Text>
+          <Text style={styles.brandSub}>AGENTIC CLI MONITOR</Text>
         </View>
         <View style={styles.headerRight}>
-          <ConnectionPill connected={relay.isConnected && isAgentConnected} />
-          <TouchableOpacity style={styles.addBtn} onPress={() => router.push("/new-session")} activeOpacity={0.8}>
-            <Text style={styles.addBtnText}>+</Text>
+          <View style={[styles.connPill, { backgroundColor: (relay.isConnected && agentConnected) ? "#22c55e10" : "#33333310" }]}>
+            <LiveDot active={relay.isConnected && agentConnected} />
+            <Text style={[styles.connText, { color: (relay.isConnected && agentConnected) ? "#22c55e" : "#444" }]}>
+              {(relay.isConnected && agentConnected) ? "LIVE" : "POLLING"}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.newBtn} onPress={() => router.push("/new-session")} activeOpacity={0.8}>
+            <Text style={styles.newBtnText}>+ NEW</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <BudgetAlertStrip alerts={alerts} />
+      <AlertBanner alerts={alerts} />
 
-      {/* Hero Cost */}
-      <LiveCostMeter value={liveCost} />
+      {/* ── Hero cost ── */}
+      <View style={styles.heroCard}>
+        <Text style={styles.heroLabel}>TOTAL SPEND</Text>
+        <View style={styles.heroAmountRow}>
+          <Text style={styles.heroCurrency}>$</Text>
+          <Text style={styles.heroDollars}>{costDollars}</Text>
+          <Text style={styles.heroCents}>{costCents}</Text>
+        </View>
+        <View style={styles.heroGlow} />
+      </View>
 
-      {/* Metrics Row */}
+      {/* ── Metrics row ── */}
       <View style={styles.metricsRow}>
-        <BurnRateBadge rate={burnRate} />
-        <ProjectionBadge hourly={hourlyProjection} />
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>BURN RATE</Text>
+          <Text style={styles.metricValue}>{burnRate.toFixed(0)}</Text>
+          <Text style={styles.metricUnit}>tok / min</Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>HOURLY EST</Text>
+          <Text style={[styles.metricValue, {
+            color: hourlyProjection > 5 ? colors.danger : hourlyProjection > 1 ? colors.warning : "#22c55e"
+          }]}>${hourlyProjection.toFixed(2)}</Text>
+          <Text style={styles.metricUnit}>/ hr</Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>SESSIONS</Text>
+          <Text style={styles.metricValue}>{sessions.length}</Text>
+          <Text style={styles.metricUnit}>{activeSessions.length} active</Text>
+        </View>
       </View>
 
-      {/* Tokens + Sessions */}
-      <View style={styles.statsRow}>
-        <View style={styles.statPill}>
-          <Text style={styles.statValue}>{liveTokens > 1000 ? `${(liveTokens / 1000).toFixed(1)}K` : liveTokens}</Text>
-          <Text style={styles.statLabel}>TOKENS</Text>
-        </View>
-        <View style={styles.statPill}>
-          <Text style={styles.statValue}>{sessions.length}</Text>
-          <Text style={styles.statLabel}>SESSIONS</Text>
-        </View>
-        <View style={styles.statPill}>
-          <Text style={styles.statValue}>{activeSessions.length}</Text>
-          <Text style={styles.statLabel}>ACTIVE</Text>
-        </View>
-      </View>
-
-      {/* Tips */}
-      {tips.length > 0 && (
+      {/* ── Active agents ── */}
+      {activeSessions.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Optimization Tips</Text>
-          {tips.slice(0, 2).map((tip, i) => <TipCard key={i} tip={tip} />)}
-        </>
-      )}
-
-      {/* Active Sessions */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Active Sessions</Text>
-        {activeSessions.length > 0 && (
-          <View style={styles.liveBadge}>
-            <Animated.View style={styles.livePulse} />
-            <Text style={styles.liveText}>LIVE</Text>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>ACTIVE AGENTS</Text>
+            <View style={styles.sectionBadge}>
+              <LiveDot active />
+              <Text style={styles.sectionBadgeText}>{activeSessions.length} RUNNING</Text>
+            </View>
           </View>
-        )}
-      </View>
-
-      {activeSessions.length === 0 ? (
-        <GlowCard style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No active sessions</Text>
-          <Text style={styles.emptySub}>Connect an agent or load demo data</Text>
-          <TouchableOpacity style={[styles.seedBtn, seeding && { opacity: 0.5 }]} onPress={seedDemo} disabled={seeding}>
-            {seeding ? <ActivityIndicator color={colors.accent} size="small" /> : <Text style={styles.seedBtnText}>Load Demo Data</Text>}
-          </TouchableOpacity>
-        </GlowCard>
-      ) : (
-        activeSessions.map((s) => (
-          <SessionRow key={s.id} session={s} onPress={() => router.push(`/session/${s.id}`)} />
-        ))
-      )}
-
-      {/* Recent */}
-      {sessions.length > activeSessions.length && (
-        <>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent</Text>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/sessions")}>
-              <Text style={styles.seeAll}>See all →</Text>
-            </TouchableOpacity>
-          </View>
-          {sessions.filter((s) => s.status !== "active").slice(0, 3).map((s) => (
-            <SessionRow key={s.id} session={s} onPress={() => router.push(`/session/${s.id}`)} />
+          {activeSessions.map((s) => (
+            <ActiveSessionPill key={s.id} session={s} />
           ))}
         </>
       )}
 
-      <View style={{ height: 40 }} />
+      {/* ── Optimization tips ── */}
+      {tips.length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>OPTIMIZATION TIPS</Text>
+          {tips.map((tip, i) => {
+            const c = tip.category === "urgent" ? colors.danger : tip.category === "model" ? colors.accent : colors.warning;
+            return (
+              <View key={i} style={[styles.tipCard, { borderLeftColor: c }]}>
+                <Text style={[styles.tipCategory, { color: c }]}>{tip.category?.toUpperCase()}</Text>
+                <Text style={styles.tipText}>{tip.message}</Text>
+                {tip.estimatedSaving && <Text style={[styles.tipSaving, { color: c }]}>Save {tip.estimatedSaving}</Text>}
+              </View>
+            );
+          })}
+        </>
+      )}
+
+      {/* ── Recent sessions ── */}
+      {sessions.length > 0 && (
+        <>
+          <View style={[styles.sectionRow, { marginTop: spacing.lg }]}>
+            <Text style={styles.sectionTitle}>RECENT SESSIONS</Text>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/sessions")}>
+              <Text style={styles.seeAll}>SEE ALL →</Text>
+            </TouchableOpacity>
+          </View>
+          {sessions.slice(0, 3).map((s) => {
+            const agent = getAgent(s.agentType);
+            const cost = parseFloat(s.totalCost || "0");
+            const isActive = s.status === "active";
+            return (
+              <TouchableOpacity
+                key={s.id}
+                style={styles.recentRow}
+                onPress={() => router.push(`/session/${s.id}`)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.recentDot, { backgroundColor: isActive ? agent.color : "#222" }]} />
+                <View style={styles.recentInfo}>
+                  <Text style={styles.recentName} numberOfLines={1}>{s.name}</Text>
+                  <Text style={[styles.recentAgent, { color: agent.color }]}>{agent.label}</Text>
+                </View>
+                <Text style={styles.recentCost}>{formatCost(cost)}</Text>
+                <Text style={styles.recentArrow}>›</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </>
+      )}
+
+      {/* ── Empty state / seed ── */}
+      {sessions.length === 0 && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>◌</Text>
+          <Text style={styles.emptyTitle}>No agent sessions</Text>
+          <Text style={styles.emptySub}>Launch your first agentic CLI session</Text>
+          <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/new-session")} activeOpacity={0.8}>
+            <Text style={styles.emptyBtnText}>LAUNCH AGENT</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={seedDemo} style={styles.seedBtn} disabled={seeding}>
+            {seeding ? <ActivityIndicator color="#333" size="small" /> : <Text style={styles.seedText}>Load Demo Data</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingBottom: 40, paddingHorizontal: spacing.md },
+  root: { flex: 1, backgroundColor: "#0c0c0e" },
+  center: { alignItems: "center", justifyContent: "center" },
+  content: { paddingHorizontal: spacing.md, paddingBottom: 32 },
 
   // Header
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: spacing.lg + 8, paddingBottom: spacing.md },
-  brand: { color: colors.text, fontSize: 24, fontFamily: "SpaceMono", fontWeight: "700", letterSpacing: -0.5 },
-  tagline: { color: colors.textMuted, fontSize: 11, fontFamily: "SpaceMono", marginTop: 2 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
+  brand: { color: "#e0e0e0", fontSize: 18, fontFamily: "monospace", fontWeight: "900", letterSpacing: 1 },
+  brandSub: { color: "#2a2a2a", fontSize: 8, fontFamily: "monospace", letterSpacing: 3, marginTop: 2 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  addBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
-  addBtnText: { color: "#fff", fontSize: 18, fontWeight: "700", lineHeight: 22 },
-
-  // Pill
-  pill: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full },
-  pillDot: { width: 6, height: 6, borderRadius: 3 },
-  pillText: { fontSize: 10, fontFamily: "SpaceMono", fontWeight: "700", letterSpacing: 0.5 },
+  connPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  connText: { fontSize: 9, fontFamily: "monospace", fontWeight: "700", letterSpacing: 1 },
+  newBtn: { backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.sm },
+  newBtnText: { color: "#000", fontFamily: "monospace", fontSize: 11, fontWeight: "900", letterSpacing: 1 },
 
   // Alert
-  alertStrip: { borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.md },
-  alertText: { fontSize: 12, fontFamily: "SpaceMono", lineHeight: 18 },
+  alertBanner: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  alertText: { fontFamily: "monospace", fontSize: 11 },
 
-  // Card base
-  cardBase: {
-    backgroundColor: colors.card,
+  // Hero cost
+  heroCard: {
+    backgroundColor: "#0e0e11",
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 4,
+    borderColor: `${colors.accent}20`,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    overflow: "hidden",
+  },
+  heroLabel: { color: "#333", fontSize: 9, fontFamily: "monospace", letterSpacing: 3, marginBottom: spacing.sm },
+  heroAmountRow: { flexDirection: "row", alignItems: "flex-end", gap: 2 },
+  heroCurrency: { color: colors.accent, fontSize: 24, fontFamily: "monospace", fontWeight: "700", marginBottom: 4 },
+  heroDollars: { color: "#e0e0e0", fontSize: 52, fontFamily: "monospace", fontWeight: "900", lineHeight: 56 },
+  heroCents: { color: "#555", fontSize: 24, fontFamily: "monospace", fontWeight: "700", marginBottom: 4 },
+  heroGlow: {
+    position: "absolute",
+    bottom: -40,
+    right: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: `${colors.accent}06`,
   },
 
-  // Cost card
-  costCard: { padding: spacing.lg, marginBottom: spacing.md, borderColor: colors.borderHighlight },
-  costLabel: { color: colors.textMuted, fontSize: 10, fontFamily: "SpaceMono", letterSpacing: 2, marginBottom: 8 },
-  costRow: { flexDirection: "row", alignItems: "flex-end" },
-  costCurrency: { color: colors.accent, fontSize: 24, fontFamily: "SpaceMono", fontWeight: "700", paddingBottom: 8, marginRight: 2 },
-  costDollars: { color: colors.text, fontSize: 56, fontFamily: "SpaceMono", fontWeight: "700", lineHeight: 64 },
-  costCents: { color: colors.textSecondary, fontSize: 28, fontFamily: "SpaceMono", paddingBottom: 8 },
-  costGlowLine: { marginTop: spacing.md, height: 2, backgroundColor: colors.accent, borderRadius: 1, opacity: 0.4 },
-
   // Metrics
-  metricsRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-  burnCard: { flex: 1, padding: spacing.md, alignItems: "center" },
-  projectionCard: { flex: 1, padding: spacing.md, alignItems: "center" },
-  metricLabel: { color: colors.textMuted, fontSize: 9, fontFamily: "SpaceMono", letterSpacing: 1.5, marginBottom: 6 },
-  metricValue: { color: colors.text, fontSize: 22, fontFamily: "SpaceMono", fontWeight: "700" },
-  metricUnit: { color: colors.textMuted, fontSize: 10, fontFamily: "SpaceMono", marginTop: 2 },
+  metricsRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
+  metricCard: {
+    flex: 1,
+    backgroundColor: "#0e0e11",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "#1a1a1e",
+    padding: spacing.md,
+    alignItems: "center",
+  },
+  metricLabel: { color: "#2a2a2a", fontSize: 7, fontFamily: "monospace", letterSpacing: 1.5, marginBottom: 6 },
+  metricValue: { color: "#aaa", fontSize: 18, fontFamily: "monospace", fontWeight: "700" },
+  metricUnit: { color: "#2a2a2a", fontSize: 8, fontFamily: "monospace", marginTop: 3 },
 
-  // Stats row
-  statsRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-  statPill: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.border },
-  statValue: { color: colors.text, fontSize: 18, fontFamily: "SpaceMono", fontWeight: "700" },
-  statLabel: { color: colors.textMuted, fontSize: 9, fontFamily: "SpaceMono", letterSpacing: 1, marginTop: 4 },
+  // Sections
+  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
+  sectionTitle: { color: "#333", fontSize: 9, fontFamily: "monospace", letterSpacing: 2 },
+  sectionBadge: { flexDirection: "row", alignItems: "center", gap: 5 },
+  sectionBadgeText: { color: "#22c55e", fontSize: 8, fontFamily: "monospace", letterSpacing: 1 },
+  seeAll: { color: colors.accent, fontSize: 9, fontFamily: "monospace", letterSpacing: 1 },
 
-  // Section
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm, marginTop: spacing.md },
-  sectionTitle: { color: colors.textMuted, fontSize: 10, fontFamily: "SpaceMono", letterSpacing: 2, textTransform: "uppercase" },
-  seeAll: { color: colors.accent, fontSize: 12, fontFamily: "SpaceMono" },
-
-  // Live badge
-  liveBadge: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: `${colors.success}12`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full },
-  livePulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
-  liveText: { color: colors.success, fontSize: 9, fontFamily: "SpaceMono", fontWeight: "700", letterSpacing: 1 },
-
-  // Session row
-  sessionRow: { flexDirection: "row", backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm, overflow: "hidden" },
-  sessionAccent: { width: 3 },
-  sessionBody: { flex: 1, padding: spacing.md },
-  sessionTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  sessionName: { color: colors.text, fontSize: 14, fontFamily: "SpaceMono", fontWeight: "700", flex: 1 },
-  statusBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm },
-  statusDot: { width: 5, height: 5, borderRadius: 3 },
-  statusText: { fontSize: 9, fontFamily: "SpaceMono", fontWeight: "700" },
-  sessionMeta: { color: colors.textMuted, fontSize: 10, fontFamily: "SpaceMono", marginBottom: 8 },
-  sessionBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  sessionTokens: { color: colors.textSecondary, fontSize: 10, fontFamily: "SpaceMono" },
-  sessionCost: { color: colors.accent, fontSize: 12, fontFamily: "SpaceMono", fontWeight: "700" },
+  // Active agents
+  activePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0e0e11",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  activePillLogo: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  activePillLogoText: { fontSize: 16, fontFamily: "monospace", fontWeight: "700" },
+  activePillInfo: { flex: 1 },
+  activePillName: { color: "#d0d0d0", fontSize: 13, fontFamily: "monospace", fontWeight: "700", marginBottom: 2 },
+  activePillAgent: { fontSize: 9, fontFamily: "monospace", letterSpacing: 1 },
+  activePillRight: { alignItems: "flex-end", gap: 4 },
+  activePillCost: { color: "#555", fontSize: 12, fontFamily: "monospace", fontWeight: "700" },
+  activePillArrow: { color: "#333", fontSize: 18 },
 
   // Tips
-  tipCard: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderLeftWidth: 3, marginBottom: spacing.sm },
-  tipText: { color: colors.textSecondary, fontSize: 12, fontFamily: "SpaceMono", lineHeight: 18 },
-  tipSaving: { color: colors.success, fontSize: 10, fontFamily: "SpaceMono", fontWeight: "700", marginTop: 4 },
+  tipCard: {
+    backgroundColor: "#0e0e11",
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: "#1a1a1e",
+    borderLeftWidth: 3,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  tipCategory: { fontSize: 8, fontFamily: "monospace", letterSpacing: 1.5, marginBottom: 4 },
+  tipText: { color: "#555", fontSize: 12, fontFamily: "monospace", lineHeight: 18 },
+  tipSaving: { fontSize: 10, fontFamily: "monospace", marginTop: 4 },
+
+  // Recent rows
+  recentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#111114",
+    gap: spacing.sm,
+  },
+  recentDot: { width: 6, height: 6, borderRadius: 3 },
+  recentInfo: { flex: 1 },
+  recentName: { color: "#666", fontSize: 12, fontFamily: "monospace", fontWeight: "700", marginBottom: 2 },
+  recentAgent: { fontSize: 9, fontFamily: "monospace", letterSpacing: 1 },
+  recentCost: { color: "#444", fontSize: 11, fontFamily: "monospace" },
+  recentArrow: { color: "#2a2a2a", fontSize: 18 },
 
   // Empty
-  emptyCard: { alignItems: "center", padding: spacing.xl, marginBottom: spacing.md },
-  emptyTitle: { color: colors.text, fontSize: 15, fontFamily: "SpaceMono", fontWeight: "700", marginBottom: 6 },
-  emptySub: { color: colors.textMuted, fontSize: 12, fontFamily: "SpaceMono", textAlign: "center", marginBottom: spacing.md },
-  seedBtn: { backgroundColor: colors.accentGlow, borderWidth: 1, borderColor: colors.accent, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  seedBtnText: { color: colors.accent, fontSize: 13, fontFamily: "SpaceMono", fontWeight: "700" },
+  emptyState: { alignItems: "center", paddingTop: 60 },
+  emptyIcon: { color: "#1a1a1e", fontSize: 64, marginBottom: spacing.md },
+  emptyTitle: { color: "#444", fontFamily: "monospace", fontSize: 16, marginBottom: 6 },
+  emptySub: { color: "#2a2a2a", fontFamily: "monospace", fontSize: 11, marginBottom: spacing.lg, textAlign: "center" },
+  emptyBtn: { backgroundColor: colors.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: radius.sm, marginBottom: spacing.md },
+  emptyBtnText: { color: "#000", fontFamily: "monospace", fontSize: 13, fontWeight: "900", letterSpacing: 1 },
+  seedBtn: { paddingVertical: 8 },
+  seedText: { color: "#333", fontFamily: "monospace", fontSize: 11 },
 });
-
-function formatCost(costUsd: number): string {
-  if (costUsd < 0.0001) return "<$0.0001";
-  if (costUsd < 1) return `$${costUsd.toFixed(4)}`;
-  return `$${costUsd.toFixed(2)}`;
-}
