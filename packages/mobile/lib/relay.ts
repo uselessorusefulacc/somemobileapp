@@ -12,12 +12,31 @@ export interface TokenPayload {
 }
 
 export interface StatusPayload {
-  agentStatus: "idle" | "working" | "error" | "exited";
+  agentStatus: "idle" | "working" | "paused" | "error" | "exited" | "starting";
   currentTask?: string;
 }
 
+export interface ToolCallPayload {
+  tool: string;
+  input?: string;
+  output?: string;
+  timestamp: number;
+}
+
+export interface AgentInfoPayload {
+  type: string;
+  model: string;
+  pid?: number;
+  configSource?: string;
+}
+
+export interface OutputPayload {
+  line: string;
+  timestamp: number;
+}
+
 export interface CommandPayload {
-  action: "pause" | "resume" | "compact" | "switch_model" | "status";
+  action: "pause" | "resume" | "kill" | "compact" | "switch_model" | "inject" | "status";
   params?: Record<string, unknown>;
 }
 
@@ -26,6 +45,9 @@ type RelayEventMap = {
   disconnected: (reason: string) => void;
   tokens: (payload: TokenPayload) => void;
   status: (payload: StatusPayload) => void;
+  tool_call: (payload: ToolCallPayload) => void;
+  agent_info: (payload: AgentInfoPayload) => void;
+  output: (payload: OutputPayload) => void;
   peer_connected: () => void;
   peer_disconnected: () => void;
 };
@@ -40,7 +62,7 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private closed = false;
 
-  constructor(sessionId: string, relayUrl: string = "wss://relay.agentpilot.dev") {
+  constructor(sessionId: string, relayUrl: string = "ws://localhost:8080") {
     super();
     this.sessionId = sessionId;
     this.relayUrl = relayUrl;
@@ -99,6 +121,14 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
 
   sendCommand(action: CommandPayload["action"], params?: Record<string, unknown>) {
     this.send("command", { action, params });
+  }
+
+  sendInject(text: string) {
+    this.send("command", { action: "inject", params: { text } });
+  }
+
+  sendKill() {
+    this.send("command", { action: "kill", params: {} });
   }
 
   disconnect() {

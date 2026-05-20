@@ -1,5 +1,7 @@
 import { WebSocket } from "ws";
-import type { TokenUsage, CommandMessage, RelayMessage } from "./types";
+import type { TokenUsage, CommandMessage, RelayMessage, ToolCall, AgentInfo } from "./types";
+
+type MessageHandler = (cmd: CommandMessage) => void;
 
 export class RelayClient {
   private ws: WebSocket | null = null;
@@ -9,12 +11,14 @@ export class RelayClient {
   private reconnectAttempt = 0;
   private messageQueue: string[] = [];
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-  private onCommandCallback: ((cmd: CommandMessage) => void) | null = null;
+  private onCommandCallback: MessageHandler | null = null;
   private closed = false;
+  private verbose: boolean;
 
-  constructor(sessionId: string, relayUrl: string) {
+  constructor(sessionId: string, relayUrl: string, verbose = false) {
     this.sessionId = sessionId;
     this.relayUrl = relayUrl;
+    this.verbose = verbose;
   }
 
   connect() {
@@ -25,7 +29,7 @@ export class RelayClient {
     this.ws = new WebSocket(url);
 
     this.ws.on("open", () => {
-      console.log("[Daemon] Connected to relay");
+      console.log("[Daemon] ✓ Relay connected — phone can now monitor this session");
       this.reconnectAttempt = 0;
       this.flushQueue();
       this.startHeartbeat();
@@ -35,22 +39,24 @@ export class RelayClient {
       try {
         const msg = JSON.parse(data.toString()) as RelayMessage;
         if (msg.type === "pong") return;
+        if (this.verbose) console.log("[Daemon] ← relay:", msg.type, JSON.stringify(msg.payload).slice(0, 120));
+
         if (msg.type === "command" && this.onCommandCallback) {
           this.onCommandCallback(msg.payload as CommandMessage);
         }
         if (msg.type === "peer_connected") {
-          console.log("[Daemon] Phone connected");
+          console.log("[Daemon] 📱 Phone connected");
         }
         if (msg.type === "peer_disconnected") {
-          console.log("[Daemon] Phone disconnected");
+          console.log("[Daemon] 📱 Phone disconnected");
         }
       } catch {
-        console.warn("[Daemon] Malformed message from relay");
+        console.warn("[Daemon] Malformed relay message");
       }
     });
 
     this.ws.on("close", () => {
-      console.log("[Daemon] Relay connection closed");
+      if (this.verbose) console.log("[Daemon] Relay disconnected");
       this.stopHeartbeat();
       this.scheduleReconnect();
     });
@@ -66,9 +72,7 @@ export class RelayClient {
       this.ws.send(msg);
     } else {
       this.messageQueue.push(msg);
-      if (this.messageQueue.length > 100) {
-        this.messageQueue.shift();
-      }
+      if (this.messageQueue.length > 200) this.messageQueue.shift();
     }
   }
 
@@ -80,22 +84,36 @@ export class RelayClient {
     this.send("status", { agentStatus, currentTask });
   }
 
-  onCommand(cb: (cmd: CommandMessage) => void) {
+  sendToolCall(toolCall: ToolCall) {
+    this.send("tool_call", toolCall);
+  }
+
+  sendAgentInfo(info: AgentInfo) {
+    this.send("agent_info", info);
+  }
+
+  sendOutput(line: string) {
+    this.send("output", { line, timestamp: Date.now() });
+  }
+
+  onCommand(cb: MessageHandler) {
     this.onCommandCallback = cb;
+  }
+
+  get isOpen() {
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 
   private flushQueue() {
     while (this.messageQueue.length > 0) {
-      const msg = this.messageQueue.shift()!;
-      this.ws?.send(msg);
+      this.ws?.send(this.messageQueue.shift()!);
     }
   }
 
   private scheduleReconnect() {
     if (this.closed) return;
     const baseDelay = Math.min(1000 * 2 ** this.reconnectAttempt, 30000);
-    const jitter = baseDelay * 0.2 * (Math.random() - 0.5);
-    const delay = Math.max(1000, baseDelay + jitter);
+    const delay = baseDelay + baseDelay * 0.2 * (Math.random() - 0.5);
     this.reconnectAttempt++;
     console.log(`[Daemon] Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempt})`);
     this.reconnectTimer = setTimeout(() => this.connect(), delay);
@@ -108,7 +126,7 @@ export class RelayClient {
       } else {
         this.stopHeartbeat();
       }
-    }, 30000);
+    }, 20000);
   }
 
   private stopHeartbeat() {

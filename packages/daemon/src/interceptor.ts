@@ -1,63 +1,90 @@
-import type { TokenUsage } from "./types";
-import { calculateCost } from "./pricing";
 import type { RelayClient } from "./relay-client";
+import { calculateCost, normalizeModel } from "./pricing";
+import type { TokenUsage } from "./types";
 
-function extractModelFromRequest(init?: RequestInit): string | undefined {
-  try {
-    if (!init?.body) return undefined;
-    const body = typeof init.body === "string" ? JSON.parse(init.body) : undefined;
-    return body?.model;
-  } catch {
-    return undefined;
-  }
+const LLM_HOSTS = [
+  "api.anthropic.com",
+  "api.openai.com",
+  "generativelanguage.googleapis.com",
+  "openrouter.ai",
+  "api.together.xyz",
+  "api.mistral.ai",
+  "api.groq.com",
+  "api.cohere.ai",
+  "api.perplexity.ai",
+  "bedrock-runtime",
+  "vertexai",
+];
+
+function isLLMHost(url: string): boolean {
+  return LLM_HOSTS.some((h) => url.includes(h));
 }
 
-function extractUsage(body: unknown, init?: RequestInit): Omit<TokenUsage, "costUsd" | "timestamp"> | null {
+function getUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  if (typeof input === "object" && "url" in input) return (input as Request).url;
+  return "";
+}
+
+function extractModelFromRequest(init?: RequestInit): string {
+  try {
+    if (!init?.body) return "unknown";
+    const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+    if (body?.model) return normalizeModel(body.model);
+  } catch {}
+  return "unknown";
+}
+
+function extractUsage(
+  body: unknown,
+  init?: RequestInit
+): Omit<TokenUsage, "costUsd" | "timestamp"> | null {
   if (!body || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
 
-  // OpenAI / Groq / compatible
-  if ("usage" in b && b.usage && typeof b.usage === "object") {
+  // Anthropic
+  if (b.type === "message" && b.usage && typeof b.usage === "object") {
     const u = b.usage as Record<string, unknown>;
-    const model = (b.model as string) || extractModelFromRequest(init) || "unknown";
-    const promptTokens = typeof u.prompt_tokens === "number" ? u.prompt_tokens : 0;
-    const completionTokens = typeof u.completion_tokens === "number" ? u.completion_tokens : 0;
-    const cachedTokens =
-      typeof u.prompt_tokens_details === "object" && u.prompt_tokens_details
-        ? ((u.prompt_tokens_details as Record<string, unknown>).cached_tokens as number) || 0
-        : 0;
+    const model = normalizeModel((b.model as string) || extractModelFromRequest(init));
+    const inputTokens = (u.input_tokens as number) || 0;
+    const outputTokens = (u.output_tokens as number) || 0;
     return {
       model,
-      inputTokens: promptTokens,
-      outputTokens: completionTokens,
-      totalTokens: promptTokens + completionTokens,
-      cacheReadTokens: cachedTokens,
+      inputTokens,
+      outputTokens,
+      totalTokens: inputTokens + outputTokens,
+      cacheReadTokens: (u.cache_read_input_tokens as number) || 0,
+      cacheWriteTokens: (u.cache_creation_input_tokens as number) || 0,
+    };
+  }
+
+  // OpenAI / compatible
+  if (b.usage && typeof b.usage === "object" && !("type" in b && b.type === "message")) {
+    const u = b.usage as Record<string, unknown>;
+    const model = normalizeModel((b.model as string) || extractModelFromRequest(init));
+    const inputTokens = (u.prompt_tokens as number) || 0;
+    const outputTokens = (u.completion_tokens as number) || 0;
+    const details = u.prompt_tokens_details as Record<string, unknown> | undefined;
+    const cacheRead = (details?.cached_tokens as number) || 0;
+    return {
+      model,
+      inputTokens,
+      outputTokens,
+      totalTokens: inputTokens + outputTokens,
+      cacheReadTokens: cacheRead,
       cacheWriteTokens: 0,
     };
   }
 
-  // Anthropic
-  if ("type" in b && b.type === "message" && "usage" in b && b.usage && typeof b.usage === "object") {
-    const u = b.usage as Record<string, unknown>;
-    const inputTokens = typeof u.input_tokens === "number" ? u.input_tokens : 0;
-    const outputTokens = typeof u.output_tokens === "number" ? u.output_tokens : 0;
-    return {
-      model: (b.model as string) || "unknown",
-      inputTokens,
-      outputTokens,
-      totalTokens: inputTokens + outputTokens,
-      cacheReadTokens: (u.cache_creation_input_tokens as number) || 0,
-      cacheWriteTokens: (u.cache_read_input_tokens as number) || 0,
-    };
-  }
-
   // Google Gemini
-  if ("usageMetadata" in b && b.usageMetadata && typeof b.usageMetadata === "object") {
+  if (b.usageMetadata && typeof b.usageMetadata === "object") {
     const u = b.usageMetadata as Record<string, unknown>;
-    const inputTokens = typeof u.promptTokenCount === "number" ? u.promptTokenCount : 0;
-    const outputTokens = typeof u.candidatesTokenCount === "number" ? u.candidatesTokenCount : 0;
+    const inputTokens = (u.promptTokenCount as number) || 0;
+    const outputTokens = (u.candidatesTokenCount as number) || 0;
+    const modelRaw = (b.modelVersion as string) || extractModelFromRequest(init) || "gemini-2-5-pro";
     return {
-      model: (b.modelVersion as string) || "unknown",
+      model: normalizeModel(modelRaw),
       inputTokens,
       outputTokens,
       totalTokens: inputTokens + outputTokens,
@@ -69,18 +96,25 @@ function extractUsage(body: unknown, init?: RequestInit): Omit<TokenUsage, "cost
   return null;
 }
 
-export function installInterceptors(relay: RelayClient) {
+export function installInterceptors(relay: RelayClient, verbose = false) {
   const originalFetch = globalThis.fetch;
+  if (!originalFetch) {
+    console.warn("[Daemon] globalThis.fetch not available — interceptor skipped");
+    return;
+  }
 
-  const interceptedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const startTime = performance.now();
+  const intercepted = async (
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ): Promise<Response> => {
+    const url = getUrl(input);
+    const start = performance.now();
     const response = await originalFetch(input, init);
 
-    // Only intercept LLM API responses (heuristic: JSON with usage field)
+    if (!isLLMHost(url)) return response;
+
     const contentType = response.headers.get("content-type") || "";
-    if (!contentType.includes("application/json")) {
-      return response;
-    }
+    if (!contentType.includes("application/json")) return response;
 
     try {
       const clone = response.clone();
@@ -88,22 +122,26 @@ export function installInterceptors(relay: RelayClient) {
       const usage = extractUsage(body, init);
       if (usage) {
         const costUsd = calculateCost(usage.model, usage);
-        relay.sendTokens({
+        const token: TokenUsage = {
           ...usage,
           costUsd,
-          latencyMs: Math.round(performance.now() - startTime),
+          latencyMs: Math.round(performance.now() - start),
           timestamp: Date.now(),
-        });
+        };
+        relay.sendTokens(token);
+        if (verbose) {
+          console.log(
+            `[Daemon] tokens: ${usage.model} in=${usage.inputTokens} out=${usage.outputTokens} $${costUsd.toFixed(5)}`
+          );
+        }
       }
     } catch {
-      // Not an LLM response — ignore silently
+      // Not an LLM JSON response — ignore
     }
 
     return response;
   };
 
-  // Cast to bypass TypeScript strictness on fetch extra properties
-  globalThis.fetch = interceptedFetch as typeof fetch;
-
-  console.log("[Daemon] Fetch interceptor installed");
+  globalThis.fetch = intercepted as typeof fetch;
+  if (verbose) console.log("[Daemon] Fetch interceptor installed");
 }

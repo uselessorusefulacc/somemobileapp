@@ -1,61 +1,93 @@
-# AgentPilot Daemon
+# agentpilot-daemon
 
-Zero-code agent interceptor. Monkey-patches `global.fetch()` to capture LLM API usage and stream it live to your phone via the AgentPilot relay.
+Control any AI coding agent from your phone. Live token spend, tool calls, pause/kill/inject — all streamed to the AgentPilot mobile app.
 
-## Supported APIs
+## Supported agents (auto-detected)
 
-- **OpenAI** (`api.openai.com`) — GPT-4o, GPT-4o-mini, o3-mini
-- **Anthropic** (`api.anthropic.com`) — Claude Opus, Sonnet, Haiku
-- **Gemini** (`generativelanguage.googleapis.com`) — Gemini Pro, Flash
+| Agent | Command |
+|-------|---------|
+| Claude Code | `claude` |
+| Codex CLI | `codex` |
+| Aider | `aider` |
+| Gemini CLI | `gemini` |
+| OpenCode | `opencode` |
+| GitHub Copilot CLI | `gh copilot` |
+| Cline | `cline` |
+| Hermes Agent | `hermes` |
+| OpenClaw | `openclaw` |
+| **Any agent** | auto-detected via process tree + stdout parsing |
+
+## Install
+
+```bash
+npm install -g agentpilot-daemon
+# or
+bun add -g agentpilot-daemon
+```
 
 ## Usage
 
-```bash
-# Via npx (when published)
-npx @agentpilot/daemon --session <uuid>
+### 1. Wrap mode (recommended)
 
-# Local development
-bun run dev --session <uuid>
+Wrap your agent command — daemon spawns it, intercepts all output:
+
+```bash
+# Get session ID from AgentPilot mobile app, then:
+agentpilot-daemon run -s <session-uuid> -- claude "fix my tests"
+agentpilot-daemon run -s <session-uuid> -- aider --model claude-3-5-sonnet-20241022
+agentpilot-daemon run -s <session-uuid> -- codex "refactor this module"
+agentpilot-daemon run -s <session-uuid> -- gemini
+agentpilot-daemon run -s <session-uuid> -- opencode
+```
+
+### 2. Attach mode
+
+Attach to an already-running agent by scanning your process tree:
+
+```bash
+agentpilot-daemon attach -s <session-uuid>
+```
+
+### 3. Detect only
+
+See what agents are running right now:
+
+```bash
+agentpilot-daemon detect
 ```
 
 ## Options
 
 ```
--s, --session <uuid>  Session ID to pair with mobile app (required)
--r, --relay <url>     Relay server URL (default: ws://localhost:8082)
--v, --verbose         Enable verbose logging
+-s, --session <uuid>   Session ID from AgentPilot app (required)
+-r, --relay <url>      Relay WebSocket URL (default: ws://localhost:8080)
+                       Set AGENTPILOT_RELAY env var to override globally
+-v, --verbose          Verbose logging
 ```
 
 ## How it works
 
-1. Connects to the relay WebSocket with your session UUID
-2. Wraps `global.fetch` to intercept LLM API responses
-3. Extracts token usage from response headers/body
-4. Calculates cost using live pricing tables
-5. Sends `tokens` messages to relay → forwarded to your phone
-6. Listens for `command` messages from phone → logs to stdout
+1. **Wrap mode**: spawns your agent as a child process, pipes stdin/stdout/stderr
+2. **stdout parser**: regex patterns extract model name, tool calls, token counts from agent output
+3. **Config reader**: reads `.claude/settings.json`, `.aider.conf`, `codex.yaml` etc to detect model
+4. **Fetch interceptor**: monkey-patches `globalThis.fetch` to capture Anthropic/OpenAI/Gemini API responses
+5. **Relay**: streams everything over WebSocket to your phone in real-time
+6. **Commands**: phone can pause (SIGSTOP), resume (SIGCONT), kill (SIGTERM), inject text to stdin
 
-## Example output
+## Phone controls
 
-```
-[Daemon] Connecting to relay: ws://localhost:8082?session=...&role=daemon
-[Daemon] Connected to relay
-[Intercept] POST https://api.anthropic.com/v1/messages → 1500 in / 600 out / $0.009
-[Intercept] POST https://api.openai.com/v1/chat/completions → 800 in / 400 out / $0.003
-[Daemon] Phone connected
-[Daemon] Received command: pause
-```
+| Action | What it does |
+|--------|-------------|
+| Pause | Sends SIGSTOP to agent process |
+| Resume | Sends SIGCONT |
+| Kill | Sends SIGTERM → SIGKILL |
+| Inject | Writes text to agent stdin |
+| /compact | Sends `/compact` to agent stdin |
+| Switch model | Sends `/model <name>` to agent stdin |
 
-## Development
+## Environment variables
 
 ```bash
-bun install
-bun run typecheck   # strict TypeScript, no any
+AGENTPILOT_RELAY=wss://your-relay.com  # override relay URL globally
+ANTHROPIC_MODEL=claude-opus-4-5        # override detected model
 ```
-
-## Files
-
-- `daemon.ts` — CLI entry point, argument parsing, lifecycle
-- `interceptor.ts` — `fetch` monkey-patch, usage extraction, cost calculation
-- `relay-client.ts` — WebSocket client with reconnect + heartbeat
-- `types.ts` — Shared type definitions

@@ -10,8 +10,29 @@ export interface TokenUsage {
   timestamp: number;
 }
 
+export interface ToolCall {
+  tool: string;
+  input?: string;
+  output?: string;
+  timestamp: number;
+}
+
+export interface AgentInfo {
+  type: string;       // "claude" | "codex" | "aider" | "gemini" | "opencode" | "copilot" | "cline" | "unknown"
+  model: string;
+  pid?: number;
+  configSource?: string;
+}
+
 export interface CommandMessage {
-  action: "pause" | "resume" | "compact" | "switch_model" | "status";
+  action:
+    | "pause"
+    | "resume"
+    | "kill"
+    | "compact"
+    | "switch_model"
+    | "inject"
+    | "status";
   params?: Record<string, unknown>;
 }
 
