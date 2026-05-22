@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun --watch src/relay.ts",
     "start": "bun src/relay.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src/**/*.test.ts"
   },
   "dependencies": {
     "uuid": "^9.0.1"

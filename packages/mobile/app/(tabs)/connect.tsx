@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Pressable,
   Platform,
+  Image,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
@@ -237,6 +238,19 @@ export default function ConnectScreen() {
           <View style={s.hintBox}>
             <Text style={s.hintTitle}>Remote relay URL</Text>
             <Text style={s.hintValue} selectable>{runCmdFull}</Text>
+          </View>
+
+          {/* QR Pairing Card */}
+          <View style={[s.qrCard, { borderColor: agent.color + "25" }]}>
+            <Text style={s.qrTitle}>Pair instantly via QR</Text>
+            <Text style={s.qrDesc}>Scan this code from your laptop's camera or terminal scanner to copy the pairing details instantly.</Text>
+            <View style={s.qrWrapper}>
+              <Image
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(runCmdFull)}&color=ffffff&bgcolor=111111` }}
+                style={s.qrImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
 
           {/* OR: Attach */}
@@ -573,6 +587,45 @@ const s = StyleSheet.create({
   },
   altTitle: { color: TEXT, fontSize: 14, fontWeight: "600" },
   altDesc: { color: TEXT_3, fontSize: 12, lineHeight: 17 },
+
+  // QR Card
+  qrCard: {
+    backgroundColor: "#0d0d0d",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  qrTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  qrDesc: {
+    color: TEXT_3,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  qrWrapper: {
+    width: 160,
+    height: 160,
+    borderRadius: 12,
+    backgroundColor: SURFACE,
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  qrImage: {
+    width: 140,
+    height: 140,
+  },
 
   // Status banner
   statusBanner: {

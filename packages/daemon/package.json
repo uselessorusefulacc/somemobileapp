@@ -4,14 +4,20 @@
   "description": "AgentPilot daemon — wrap any AI coding agent and control it from your phone",
   "type": "module",
   "bin": {
-    "agentpilot-daemon": "./src/daemon.ts"
+    "agentpilot-daemon": "./dist/daemon.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "bun --watch src/daemon.ts",
     "build": "tsc",
+    "prepublishOnly": "bun run build",
     "start": "bun src/daemon.ts",
     "typecheck": "tsc --noEmit",
-    "detect": "bun src/daemon.ts detect"
+    "detect": "bun src/daemon.ts detect",
+    "test": "bun test src/**/*.test.ts"
   },
   "dependencies": {
     "commander": "^12.0.0",

@@ -28,7 +28,7 @@ program
   .requiredOption("-s, --session <uuid>", "Session ID from the mobile app")
   .option("-r, --relay <url>", "Relay WebSocket URL", DEFAULT_RELAY)
   .option("-v, --verbose", "Verbose logging", false)
-  .allowUnknownOptions(true)
+  .allowUnknownOption(true)
   .argument("[cmd...]", "Agent command to run, e.g: -- claude 'fix my tests'")
   .action(async (args: string[], opts: { session: string; relay: string; verbose: boolean }) => {
     validateSession(opts.session);
@@ -85,6 +85,7 @@ program
         const cost = calculateCost(detectedModel, parsed.tokenUsage);
         const usage: TokenUsage = {
           ...parsed.tokenUsage,
+          totalTokens: parsed.tokenUsage.inputTokens + parsed.tokenUsage.outputTokens,
           model: detectedModel,
           costUsd: cost,
           timestamp: Date.now(),
