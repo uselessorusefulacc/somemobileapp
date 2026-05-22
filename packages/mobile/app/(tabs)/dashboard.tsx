@@ -24,108 +24,33 @@ import {
   getAgentLabel,
   formatCost,
   getStatusColor,
+  formatTokens,
 } from "../../lib/theme";
 
-// ── Status dot (Linear style: 8px filled circle) ───────────────────
-function StatusDot({ color, pulsing = false }: { color: string; pulsing?: boolean }) {
-  return (
-    <View style={[d.statusDot, { backgroundColor: color }, pulsing && d.statusDotPulsing]} />
-  );
-}
+function SessionRow({ session, onPress }: { session: AgentSession; onPress: () => void }) {
+  const statusColor = getStatusColor(session.status);
+  const agentColor = getAgentColor(session.agentType);
+  const cost = parseFloat(session.totalCost || "0");
+  const isActive = session.status === "active";
 
-// ── Hero section (Apple Health ring-style stats) ─────────────────────
-function HeroSection({ cost, isLive }: { cost: number; isLive: boolean }) {
   return (
-    <View style={d.heroCard}>
-      <View style={d.heroTop}>
-        <Text style={d.heroLabel}>Total Spend</Text>
-        <View style={d.liveBadge}>
-          <StatusDot color={isLive ? colors.success : colors.textDisabled} pulsing={isLive} />
-          <Text style={[d.liveText, { color: isLive ? colors.success : colors.textDisabled }]}>
-            {isLive ? "Live" : "Idle"}
+    <TouchableOpacity style={d.row} onPress={onPress} activeOpacity={0.5}>
+      <View style={[d.rowAccent, { backgroundColor: isActive ? statusColor : "transparent" }]} />
+      <View style={d.rowContent}>
+        <View style={d.rowTop}>
+          <Text style={d.rowName} numberOfLines={1}>{session.name}</Text>
+          <Text style={[d.rowCost, cost > 0.5 ? { color: colors.warning } : {}]}>
+            {formatCost(cost)}
           </Text>
         </View>
+        <Text style={[d.rowMeta, { color: agentColor }]}>
+          {getAgentLabel(session.agentType).toUpperCase()}
+        </Text>
       </View>
-      <Text style={d.heroValue}>{formatCost(cost)}</Text>
-      <View style={d.heroBar}>
-        <View style={[d.heroBarFill, { width: `${Math.min(100, cost * 10)}%`, backgroundColor: cost > 1 ? colors.danger : cost > 0.1 ? colors.warning : colors.accent }]} />
-      </View>
-    </View>
-  );
-}
-
-// ── Metric pill (Stripe-style clean data chips) ────────────────────
-function MetricPill({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <View style={d.pill}>
-      <Text style={d.pillLabel}>{label}</Text>
-      <Text style={[d.pillValue, { color: color || colors.text }]}>{value}</Text>
-    </View>
-  );
-}
-
-// ── Section header (Things 3 style: clear, generous) ───────────────
-function SectionHeader({ title, action, actionLabel }: { title: string; action?: () => void; actionLabel?: string }) {
-  return (
-    <View style={d.sectionHeader}>
-      <Text style={d.sectionTitle}>{title}</Text>
-      {action && (
-        <TouchableOpacity onPress={action} activeOpacity={0.7}>
-          <Text style={d.sectionAction}>{actionLabel || "See all"}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
-
-// ── Session row (Linear list style: clean, minimal, full-width) ────
-function SessionRow({ session, onPress }: { session: AgentSession; onPress: () => void }) {
-  const agentColor = getAgentColor(session.agentType);
-  const statusColor = getStatusColor(session.status);
-  const cost = parseFloat(session.totalCost || "0");
-
-  return (
-    <TouchableOpacity style={d.row} onPress={onPress} activeOpacity={0.6}>
-      <StatusDot color={statusColor} />
-      <View style={d.rowContent}>
-        <Text style={d.rowName} numberOfLines={1}>{session.name}</Text>
-        <Text style={[d.rowMeta, { color: agentColor }]}>{getAgentLabel(session.agentType)} · {session.model}</Text>
-      </View>
-      <Text style={[d.rowCost, { color: cost > 0.1 ? colors.warning : colors.textSecondary }]}>
-        {formatCost(cost)}
-      </Text>
     </TouchableOpacity>
   );
 }
 
-// ── Tip card (Linear-style bordered cards with accent left border) ───
-function TipCard({ tip }: { tip: { message: string; category: string; estimatedSaving?: string } }) {
-  const accentColor = tip.category === "urgent" ? colors.danger : tip.category === "model" ? colors.warning : colors.accent;
-  return (
-    <View style={[d.tipCard, { borderLeftColor: accentColor }]}>
-      <View style={d.tipContent}>
-        <Text style={d.tipText}>{tip.message}</Text>
-        {tip.estimatedSaving && (
-          <Text style={[d.tipSaving, { color: accentColor }]}>Save {tip.estimatedSaving}</Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-// ── Budget alert banner (Apple Health-style warning banner) ──────────
-function AlertBanner({ alert }: { alert: BudgetAlert }) {
-  const color = alert.level === "critical" ? colors.danger : colors.warning;
-  const bgColor = alert.level === "critical" ? colors.dangerDim : colors.warningDim;
-  return (
-    <View style={[d.alertBanner, { backgroundColor: bgColor, borderColor: color + "30" }]}>
-      <StatusDot color={color} />
-      <Text style={[d.alertText, { color }]}>{alert.message}</Text>
-    </View>
-  );
-}
-
-// ── Main Dashboard ─────────────────────────────────────────────────
 export default function DashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -186,8 +111,8 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <View style={[d.root, d.center, { paddingTop: insets.top + spacing["2xl"] }]}>
-        <ActivityIndicator color={colors.accent} />
+      <View style={[d.root, d.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator color={colors.textTertiary} size="small" />
       </View>
     );
   }
@@ -195,87 +120,140 @@ export default function DashboardScreen() {
   return (
     <ScrollView
       style={d.root}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: spacing["4xl"] }}
+      contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 40 }}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRest(true); }} tintColor={colors.accent} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { setRefreshing(true); loadRest(true); }}
+          tintColor={colors.textTertiary}
+        />
       }
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
       <View style={d.header}>
-        <View>
-          <Text style={d.headerTitle}>Overview</Text>
-          <Text style={d.headerSubtitle}>AgentPilot</Text>
+        <Text style={d.headerTitle}>Overview</Text>
+        <View style={d.headerRight}>
+          {isLive && (
+            <View style={d.liveChip}>
+              <View style={d.liveDot} />
+              <Text style={d.liveText}>LIVE</Text>
+            </View>
+          )}
+          <TouchableOpacity style={d.newBtn} onPress={() => router.push("/new-session")} activeOpacity={0.7}>
+            <Text style={d.newBtnText}>NEW</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={d.headerBtn} onPress={() => router.push("/new-session")} activeOpacity={0.7}>
-          <Text style={d.headerBtnText}>+ New</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* Alerts */}
-      {alerts.length > 0 && <AlertBanner alert={alerts[0]} />}
+      <View style={d.divider} />
 
-      {/* Hero */}
-      <HeroSection cost={totalCost} isLive={isLive} />
-
-      {/* Metrics */}
-      <View style={d.metricsRow}>
-        <MetricPill label="Sessions" value={String(sessions.length)} />
-        <MetricPill label="Active" value={String(activeSessions.length)} color={activeSessions.length > 0 ? colors.success : colors.textSecondary} />
-        <MetricPill label="Burn" value={burnRate > 0 ? `${burnRate.toFixed(0)}/min` : "—"} color={burnRate > 5000 ? colors.warning : colors.textSecondary} />
-      </View>
-
-      {hourlyProjection > 0 && (
-        <MetricPill label="Est. hourly" value={`$${hourlyProjection.toFixed(2)}`} color={hourlyProjection > 5 ? colors.danger : hourlyProjection > 1 ? colors.warning : colors.success} />
+      {/* Alert */}
+      {alerts.length > 0 && (
+        <View style={[d.alertRow, { borderLeftColor: alerts[0].level === "critical" ? colors.danger : colors.warning }]}>
+          <Text style={[d.alertText, { color: alerts[0].level === "critical" ? colors.danger : colors.warning }]}>
+            {alerts[0].message}
+          </Text>
+        </View>
       )}
+
+      {/* Hero cost */}
+      <View style={d.hero}>
+        <Text style={d.heroLabel}>TOTAL SPEND</Text>
+        <Text style={d.heroValue}>{formatCost(totalCost)}</Text>
+        {burnRate > 0 && (
+          <Text style={d.heroBurn}>
+            {burnRate.toFixed(0)} tokens/min · est. ${hourlyProjection.toFixed(2)}/hr
+          </Text>
+        )}
+      </View>
+
+      <View style={d.divider} />
+
+      {/* Stat row */}
+      <View style={d.statsRow}>
+        <View style={d.statCell}>
+          <Text style={d.statLabel}>SESSIONS</Text>
+          <Text style={d.statValue}>{sessions.length}</Text>
+        </View>
+        <View style={d.statDivider} />
+        <View style={d.statCell}>
+          <Text style={d.statLabel}>ACTIVE</Text>
+          <Text style={[d.statValue, activeSessions.length > 0 ? { color: colors.success } : {}]}>
+            {activeSessions.length}
+          </Text>
+        </View>
+        <View style={d.statDivider} />
+        <View style={d.statCell}>
+          <Text style={d.statLabel}>TOKENS</Text>
+          <Text style={d.statValue}>{formatTokens(liveTokens)}</Text>
+        </View>
+      </View>
+
+      <View style={d.divider} />
 
       {/* Active sessions */}
       {activeSessions.length > 0 && (
-        <View style={d.section}>
-          <SectionHeader title="Active now" action={() => router.push("/(tabs)/sessions")} />
-          <View style={d.listCard}>
-            {activeSessions.map((s) => (
-              <SessionRow key={s.id} session={s} onPress={() => router.push(`/session/${s.id}`)} />
-            ))}
+        <>
+          <View style={d.sectionHeader}>
+            <Text style={d.sectionLabel}>ACTIVE NOW</Text>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/sessions")} activeOpacity={0.6}>
+              <Text style={d.sectionAction}>ALL →</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      )}
-
-      {/* Tips */}
-      {tips.length > 0 && (
-        <View style={d.section}>
-          <SectionHeader title="Suggestions" />
-          {tips.map((tip, i) => (
-            <TipCard key={i} tip={tip} />
+          {activeSessions.map((s) => (
+            <SessionRow key={s.id} session={s} onPress={() => router.push(`/session/${s.id}`)} />
           ))}
-        </View>
+          <View style={d.divider} />
+        </>
       )}
 
-      {/* Recent sessions */}
-      {sessions.length > 0 && (
-        <View style={d.section}>
-          <SectionHeader title="Recent" action={() => router.push("/(tabs)/sessions")} actionLabel="See all" />
-          <View style={d.listCard}>
-            {sessions.slice(0, 5).map((s) => (
-              <SessionRow key={s.id} session={s} onPress={() => router.push(`/session/${s.id}`)} />
-            ))}
+      {/* Suggestions */}
+      {tips.length > 0 && (
+        <>
+          <View style={d.sectionHeader}>
+            <Text style={d.sectionLabel}>SUGGESTIONS</Text>
           </View>
-        </View>
+          {tips.map((tip, i) => (
+            <View key={i} style={[d.tipRow, { borderLeftColor: tip.category === "urgent" ? colors.danger : colors.warning }]}>
+              <Text style={d.tipText}>{tip.message}</Text>
+              {tip.estimatedSaving && (
+                <Text style={d.tipSaving}>Save {tip.estimatedSaving}</Text>
+              )}
+            </View>
+          ))}
+          <View style={d.divider} />
+        </>
       )}
 
-      {/* Empty state */}
+      {/* Recent */}
+      {sessions.length > 0 && (
+        <>
+          <View style={d.sectionHeader}>
+            <Text style={d.sectionLabel}>RECENT</Text>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/sessions")} activeOpacity={0.6}>
+              <Text style={d.sectionAction}>ALL →</Text>
+            </TouchableOpacity>
+          </View>
+          {sessions.slice(0, 5).map((s) => (
+            <SessionRow key={s.id} session={s} onPress={() => router.push(`/session/${s.id}`)} />
+          ))}
+        </>
+      )}
+
+      {/* Empty */}
       {sessions.length === 0 && (
         <View style={d.empty}>
-          <View style={d.emptyIconBg}>
-            <Text style={d.emptyIcon}>◈</Text>
-          </View>
           <Text style={d.emptyTitle}>No sessions yet</Text>
-          <Text style={d.emptySub}>Create a session to start tracking your AI agent costs in real time.</Text>
+          <Text style={d.emptySub}>Create a session to start tracking your agent spend.</Text>
           <TouchableOpacity style={d.emptyBtn} onPress={() => router.push("/new-session")} activeOpacity={0.7}>
-            <Text style={d.emptyBtnText}>Create Session</Text>
+            <Text style={d.emptyBtnText}>CREATE SESSION</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={seedDemo} disabled={seeding}>
-            {seeding ? <ActivityIndicator color={colors.textDisabled} size="small" /> : <Text style={d.emptyLink}>Load demo data</Text>}
+          <TouchableOpacity onPress={seedDemo} disabled={seeding} style={{ marginTop: spacing.base }}>
+            {seeding
+              ? <ActivityIndicator color={colors.textTertiary} size="small" />
+              : <Text style={d.emptyLink}>Load demo data</Text>
+            }
           </TouchableOpacity>
         </View>
       )}
@@ -287,163 +265,131 @@ const d = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: "center", justifyContent: "center" },
 
-  // Header
   header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
     paddingHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.base,
   },
   headerTitle: { ...typography.title1, color: colors.text },
-  headerSubtitle: { ...typography.caption, color: colors.textTertiary, marginTop: spacing.xs },
-  headerBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-  },
-  headerBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 
-  // Hero card
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  heroTop: {
+  liveChip: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.sm,
-  },
-  heroLabel: { ...typography.label, color: colors.textTertiary },
-  liveBadge: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  liveText: { ...typography.caption, fontWeight: "600" },
-  heroValue: { ...typography.hero, color: colors.text, marginBottom: spacing.sm },
-  heroBar: {
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  heroBarFill: { height: 4, borderRadius: 2 },
-
-  // Status dot
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusDotPulsing: {
-    shadowColor: colors.success,
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
-  // Metrics
-  metricsRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  pill: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.base,
+    borderColor: "rgba(40,200,64,0.2)",
+    backgroundColor: colors.successDim,
   },
-  pillLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.xs },
-  pillValue: { ...typography.number, fontWeight: "700" },
+  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.success },
+  liveText: { fontSize: 9, fontWeight: "600", letterSpacing: 0.6, color: colors.success },
 
-  // Section
-  section: { marginTop: spacing["2xl"], paddingHorizontal: spacing.lg },
+  newBtn: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  newBtnText: { ...typography.label, color: colors.text },
+
+  divider: { height: 1, backgroundColor: colors.border },
+
+  alertRow: {
+    borderLeftWidth: 2,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.base,
+    paddingLeft: spacing.sm,
+  },
+  alertText: { ...typography.bodySmall, fontWeight: "500" },
+
+  hero: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing["2xl"],
+  },
+  heroLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.sm },
+  heroValue: { ...typography.hero, color: colors.text, marginBottom: 6 },
+  heroBurn: { ...typography.caption, color: colors.textTertiary },
+
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  statCell: {
+    flex: 1,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    gap: 6,
+  },
+  statDivider: { width: 1, backgroundColor: colors.border },
+  statLabel: { ...typography.label, color: colors.textTertiary },
+  statValue: { ...typography.number, color: colors.text },
+
   sectionHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.base,
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
   },
-  sectionTitle: { ...typography.title3, color: colors.text },
-  sectionAction: { ...typography.caption, color: colors.accent, fontWeight: "500" },
+  sectionLabel: { ...typography.label, color: colors.textTertiary },
+  sectionAction: { ...typography.label, color: colors.textSecondary },
 
-  // List card
-  listCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
-  },
-
-  // Row
   row: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.base,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
+    alignItems: "stretch",
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  rowContent: { flex: 1 },
-  rowName: { ...typography.body, color: colors.text, marginBottom: spacing.px },
-  rowMeta: { ...typography.caption, fontWeight: "500" },
-  rowCost: { ...typography.body, fontWeight: "600" },
-
-  // Tip card
-  tipCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderLeftWidth: 3,
-    padding: spacing.base,
-    marginBottom: spacing.sm,
+  rowAccent: { width: 2, marginVertical: 4 },
+  rowContent: {
+    flex: 1,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.base,
+    gap: 4,
   },
-  tipContent: { flex: 1 },
-  tipText: { ...typography.bodySmall, color: colors.textSecondary, lineHeight: 20 },
-  tipSaving: { ...typography.caption, fontWeight: "600", marginTop: spacing.xs },
-
-  // Alert
-  alertBanner: {
+  rowTop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.base,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    justifyContent: "space-between",
   },
-  alertText: { flex: 1, ...typography.bodySmall, fontWeight: "500" },
+  rowName: { ...typography.body, color: colors.text, flex: 1, marginRight: spacing.sm },
+  rowCost: { ...typography.bodySmall, color: colors.textSecondary, fontWeight: "500" },
+  rowMeta: { fontSize: 9, fontWeight: "600", letterSpacing: 0.5 },
 
-  // Empty
-  empty: { alignItems: "center", paddingTop: spacing["4xl"], paddingHorizontal: spacing["2xl"] },
-  emptyIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.full,
-    backgroundColor: colors.accentDim,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.lg,
-  },
-  emptyIcon: { fontSize: 28, color: colors.accent },
-  emptyTitle: { ...typography.title2, color: colors.text, marginBottom: spacing.sm },
-  emptySub: { ...typography.bodySmall, color: colors.textTertiary, textAlign: "center", lineHeight: 22 },
-  emptyBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.base,
-    borderRadius: radius.md,
-    marginTop: spacing.xl,
+  tipRow: {
+    borderLeftWidth: 2,
+    marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
+    paddingLeft: spacing.sm,
+    paddingVertical: 4,
   },
-  emptyBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  tipText: { ...typography.bodySmall, color: colors.textSecondary },
+  tipSaving: { ...typography.caption, color: colors.textTertiary, marginTop: 2 },
+
+  empty: {
+    alignItems: "center",
+    paddingTop: 80,
+    paddingHorizontal: spacing["2xl"],
+    gap: spacing.sm,
+  },
+  emptyTitle: { ...typography.title3, color: colors.textSecondary },
+  emptySub: { ...typography.caption, color: colors.textTertiary, textAlign: "center", lineHeight: 20 },
+  emptyBtn: {
+    marginTop: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: 10,
+  },
+  emptyBtnText: { ...typography.label, color: colors.text },
   emptyLink: { ...typography.caption, color: colors.textTertiary },
 });

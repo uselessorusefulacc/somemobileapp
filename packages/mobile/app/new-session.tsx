@@ -14,20 +14,14 @@ import {
 import { Stack, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient } from "../lib/api";
-import {
-  colors,
-  spacing,
-  radius,
-  typography,
-  getAgentColor,
-} from "../lib/theme";
+import { colors, spacing, radius, typography } from "../lib/theme";
 
 const AGENTS = [
-  { id: "claude",   name: "Claude Code",     model: "claude-sonnet-4-5", color: "#D4A574" },
-  { id: "opencode", name: "OpenCode",         model: "claude-sonnet-4-5", color: "#818CF8" },
-  { id: "codex",    name: "Codex CLI",        model: "o3",                color: "#10A37F" },
-  { id: "gemini",   name: "Gemini CLI",       model: "gemini-2-5-pro",    color: "#4285F4" },
-  { id: "aider",    name: "Aider",            model: "claude-sonnet-4-5", color: "#4CAF50" },
+  { id: "claude",   name: "Claude Code",  model: "claude-sonnet-4-5" },
+  { id: "opencode", name: "OpenCode",     model: "claude-sonnet-4-5" },
+  { id: "codex",    name: "Codex CLI",    model: "o3"                },
+  { id: "gemini",   name: "Gemini CLI",   model: "gemini-2-5-pro"    },
+  { id: "aider",    name: "Aider",        model: "claude-sonnet-4-5" },
 ];
 
 export default function NewSessionModal() {
@@ -62,43 +56,70 @@ export default function NewSessionModal() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: "New session",
-          headerStyle: { backgroundColor: colors.bgElevated },
-          headerTitleStyle: { color: colors.text, fontSize: 17, fontWeight: "700" },
-          headerTintColor: colors.textSecondary,
+          title: "",
+          headerStyle: { backgroundColor: colors.bg },
           headerShadowVisible: false,
+          headerTintColor: colors.textSecondary,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.dismiss()} style={m.backBtn}>
-              <Text style={m.backArrow}>✕</Text>
+            <TouchableOpacity onPress={() => router.dismiss()} style={m.closeBtn}>
+              <Text style={m.closeText}>✕</Text>
             </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <Text style={m.headerTitle}>NEW SESSION</Text>
           ),
         }}
       />
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: spacing.lg }}
+        contentContainerStyle={m.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={m.label}>Select agent</Text>
-        {AGENTS.map((a) => {
+        {/* ── Agent picker ── */}
+        <Text style={m.sectionLabel}>AGENT</Text>
+
+        {AGENTS.map((a, idx) => {
           const sel = selectedId === a.id;
+          const isLast = idx === AGENTS.length - 1;
           return (
             <TouchableOpacity
               key={a.id}
-              style={[m.agentCard, sel && { borderColor: a.color + "50", backgroundColor: a.color + "08" }]}
+              style={[
+                m.agentRow,
+                sel && m.agentRowSelected,
+                !isLast && m.agentRowBorder,
+              ]}
               onPress={() => setSelectedId(a.id)}
-              activeOpacity={0.7}
+              activeOpacity={0.65}
             >
-              <View style={[m.agentDot, { backgroundColor: sel ? a.color : colors.textDisabled }]} />
-              <Text style={[m.agentName, sel && { color: a.color }]}>{a.name}</Text>
-              {sel && <View style={[m.check, { borderColor: a.color }]}><View style={[m.checkInner, { backgroundColor: a.color }]} /></View>}
+              {/* selection indicator */}
+              {sel ? (
+                <View style={m.selectedBar} />
+              ) : (
+                <View style={m.unselectedBar} />
+              )}
+
+              <View style={m.agentMeta}>
+                <Text style={[m.agentName, sel && m.agentNameSelected]}>
+                  {a.name}
+                </Text>
+                <Text style={m.agentModel}>{a.model}</Text>
+              </View>
+
+              {sel && (
+                <View style={m.checkDot} />
+              )}
             </TouchableOpacity>
           );
         })}
 
-        <Text style={[m.label, { marginTop: spacing.xl }]}>Session name</Text>
+        <View style={m.divider} />
+
+        {/* ── Session name ── */}
+        <Text style={[m.sectionLabel, { marginTop: spacing.xl }]}>SESSION NAME</Text>
+
         <View style={m.inputWrap}>
           <TextInput
             style={m.input}
@@ -112,27 +133,30 @@ export default function NewSessionModal() {
           />
         </View>
 
+        {/* ── Model info ── */}
         <View style={m.modelRow}>
-          <Text style={m.modelLabel}>Model</Text>
-          <Text style={[m.modelValue, { color: selected.color }]}>{selected.model}</Text>
+          <Text style={m.modelKey}>MODEL</Text>
+          <Text style={m.modelVal}>{selected.model}</Text>
         </View>
       </ScrollView>
 
+      {/* ── Footer CTA ── */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={88}
       >
         <View style={m.footer}>
           <TouchableOpacity
-            style={[m.createBtn, { backgroundColor: selected.color }]}
+            style={[m.createBtn, creating && m.createBtnDisabled]}
             onPress={handleCreate}
             disabled={creating}
             activeOpacity={0.8}
           >
-            {creating
-              ? <ActivityIndicator color="#000" />
-              : <Text style={[m.createBtnText, { color: "#000" }]}>Create Session</Text>
-            }
+            {creating ? (
+              <ActivityIndicator color={colors.bg} />
+            ) : (
+              <Text style={m.createBtnText}>CREATE SESSION</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -142,74 +166,151 @@ export default function NewSessionModal() {
 
 const m = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  backBtn: { paddingHorizontal: 4 },
-  backArrow: { color: colors.textSecondary, fontSize: 16 },
 
-  label: {
+  scrollContent: {
+    paddingBottom: spacing["4xl"],
+  },
+
+  // Header
+  closeBtn: { paddingHorizontal: 4 },
+  closeText: { color: colors.textSecondary, fontSize: 16 },
+  headerTitle: {
     ...typography.label,
     color: colors.textTertiary,
-    marginBottom: spacing.base,
+    letterSpacing: 1.5,
+    marginRight: 4,
   },
 
-  agentCard: {
+  // Section label
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textTertiary,
+    letterSpacing: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+
+  // Agent rows
+  agentRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
+    paddingRight: spacing.lg,
+    minHeight: 56,
+  },
+  agentRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  agentRowSelected: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
   },
-  agentDot: { width: 8, height: 8, borderRadius: 4 },
-  agentName: { ...typography.body, color: colors.text },
-  check: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: "auto",
-  },
-  checkInner: { width: 10, height: 10, borderRadius: 5 },
 
+  // Left accent bar (2px — same pattern as sessions list)
+  selectedBar: {
+    width: 2,
+    alignSelf: "stretch",
+    backgroundColor: colors.text,
+    marginRight: spacing.base,
+    marginLeft: spacing.lg,
+  },
+  unselectedBar: {
+    width: 2,
+    alignSelf: "stretch",
+    backgroundColor: "transparent",
+    marginRight: spacing.base,
+    marginLeft: spacing.lg,
+  },
+
+  agentMeta: { flex: 1 },
+  agentName: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontWeight: "400",
+  },
+  agentNameSelected: {
+    color: colors.text,
+    fontWeight: "600",
+  },
+  agentModel: {
+    fontFamily: "monospace",
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+
+  checkDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.text,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginTop: spacing.xs,
+  },
+
+  // Input
   inputWrap: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: colors.border,
-    overflow: "hidden",
+    backgroundColor: colors.surface,
+    marginTop: spacing.xs,
   },
   input: {
     color: colors.text,
     fontSize: 15,
-    paddingHorizontal: spacing.base,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    fontWeight: "400",
   },
 
+  // Model row
   modelRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.base,
   },
-  modelLabel: { ...typography.bodySmall, color: colors.textTertiary },
-  modelValue: { ...typography.body, fontWeight: "600" },
+  modelKey: {
+    ...typography.label,
+    color: colors.textTertiary,
+    letterSpacing: 0.8,
+  },
+  modelVal: {
+    fontFamily: "monospace",
+    fontSize: 12,
+    color: colors.textSecondary,
+    letterSpacing: 0.2,
+  },
 
+  // Footer
   footer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.base,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.bg,
   },
   createBtn: {
-    borderRadius: radius.md,
+    borderRadius: radius.xs,
     paddingVertical: spacing.base,
     alignItems: "center",
+    backgroundColor: colors.text,
   },
-  createBtnText: { fontSize: 15, fontWeight: "600" },
+  createBtnDisabled: {
+    opacity: 0.5,
+  },
+  createBtnText: {
+    ...typography.label,
+    color: colors.bg,
+    letterSpacing: 1.5,
+    fontSize: 12,
+    fontWeight: "700",
+  },
 });

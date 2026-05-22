@@ -19,64 +19,81 @@ import {
   spacing,
   radius,
   typography,
-  getAgentColor,
   getAgentLabel,
   formatCost,
   getStatusColor,
 } from "../../lib/theme";
 
-// ── Event row (Stripe table-style) ────────────────────────────────
-function EventRow({ event }: { event: TokenEvent }) {
+// ── Event row ─────────────────────────────────────────────────────
+function EventRow({ event, last }: { event: TokenEvent; last: boolean }) {
   const cost = event.costUsd ?? 0;
-  const costColor = cost > 0.01 ? colors.danger : cost > 0.005 ? colors.warning : colors.textSecondary;
-  const time = new Date(event.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const costColor =
+    cost > 0.01 ? colors.danger : cost > 0.005 ? colors.warning : colors.textSecondary;
+  const time = new Date(event.createdAt).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const inK = (event.inputTokens / 1000).toFixed(1);
   const outK = (event.outputTokens / 1000).toFixed(1);
 
   return (
-    <View style={d.row}>
+    <View style={[d.row, !last && d.rowBorder]}>
       <Text style={d.rowTime}>{time}</Text>
       <View style={d.rowBody}>
-        <Text style={d.rowModel} numberOfLines={1}>{event.model}</Text>
-        <Text style={d.rowTokens}>↑{inK}K · ↓{outK}K</Text>
+        <Text style={d.rowModel} numberOfLines={1}>
+          {event.model}
+        </Text>
+        <Text style={d.rowTokens}>
+          ↑{inK}K · ↓{outK}K
+        </Text>
       </View>
       <Text style={[d.rowCost, { color: costColor }]}>${cost.toFixed(5)}</Text>
     </View>
   );
 }
 
-// ── Command button (Linear ghost button style) ─────────────────────
-function CmdButton({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
+// ── Context warning ───────────────────────────────────────────────
+function ContextWarning({ tokens }: { tokens: number }) {
+  if (tokens < 50_000) return null;
+  const isCritical = tokens >= 200_000;
+  const color = isCritical ? colors.danger : colors.warning;
+  const title = isCritical ? "CONTEXT CRITICAL" : "CONTEXT HIGH";
+  const message = isCritical
+    ? "Compact now — cuts costs 50–70%"
+    : "Consider compacting to save tokens";
+
+  return (
+    <View style={[d.warn, { borderLeftColor: color }]}>
+      <Text style={[d.warnTitle, { color }]}>{title}</Text>
+      <Text style={d.warnText}>
+        {(tokens / 1000).toFixed(0)}K tokens — {message}
+      </Text>
+    </View>
+  );
+}
+
+// ── Command button ────────────────────────────────────────────────
+function CmdButton({
+  label,
+  color,
+  onPress,
+}: {
+  label: string;
+  color: string;
+  onPress: () => void;
+}) {
   return (
     <TouchableOpacity
-      style={[d.cmdBtn, { borderColor: color + "30", backgroundColor: color + "08" }]}
+      style={[d.cmdBtn, { borderColor: color + "40" }]}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.65}
     >
       <Text style={[d.cmdText, { color }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-// ── Context warning (Apple Health-style banner) ──────────────────
-function ContextWarning({ tokens }: { tokens: number }) {
-  if (tokens < 50_000) return null;
-  const isCritical = tokens >= 200_000;
-  const color = isCritical ? colors.danger : colors.warning;
-  const title = isCritical ? "Context critical" : "Context high";
-  const message = isCritical
-    ? "Compact now to cut costs 50–70%"
-    : "Consider compacting soon to save tokens";
-
-  return (
-    <View style={[d.warnCard, { borderLeftColor: color, backgroundColor: color + "08" }]}>
-      <Text style={[d.warnTitle, { color }]}>{title}</Text>
-      <Text style={d.warnText}>{(tokens / 1000).toFixed(0)}K tokens — {message}</Text>
-    </View>
-  );
-}
-
-// ── Main Screen ────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────
 export default function SessionDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -89,38 +106,62 @@ export default function SessionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async (silent = false) => {
-    if (!id || id === "undefined") { setLoading(false); return; }
-    if (!silent) setLoading(true);
-    try {
-      const [sessionData, eventsData] = await Promise.all([
-        apiClient.getSession(id),
-        apiClient.getEvents(id),
-      ]);
-      setSession(sessionData);
-      setEvents(eventsData.events || []);
-    } catch (e) {
-      console.error("[session detail]", e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [id]);
+  const load = useCallback(
+    async (silent = false) => {
+      if (!id || id === "undefined") {
+        setLoading(false);
+        return;
+      }
+      if (!silent) setLoading(true);
+      try {
+        const [sessionData, eventsData] = await Promise.all([
+          apiClient.getSession(id),
+          apiClient.getEvents(id),
+        ]);
+        setSession(sessionData);
+        setEvents(eventsData.events || []);
+      } catch (e) {
+        console.error("[session detail]", e);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [id]
+  );
 
-  useFocusEffect(useCallback(() => { load(true); }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      load(true);
+    }, [load])
+  );
 
-  const sendCmd = (action: string, cmdParams?: Record<string, unknown>) => {
-    relay.client?.sendCommand(action as "pause" | "resume" | "compact" | "switch_model" | "status", cmdParams);
+  const sendCmd = (
+    action: string,
+    cmdParams?: Record<string, unknown>
+  ) => {
+    relay.client?.sendCommand(
+      action as "pause" | "resume" | "compact" | "switch_model" | "status",
+      cmdParams
+    );
   };
 
+  // ── Error states ──────────────────────────────────────────────
   if (!id || id === "undefined") {
     return (
       <View style={d.root}>
-        <Stack.Screen options={{ title: "Session", headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.textSecondary }} />
+        <Stack.Screen
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: colors.bg },
+            headerShadowVisible: false,
+            headerTintColor: colors.textSecondary,
+          }}
+        />
         <View style={d.center}>
-          <Text style={d.error}>Invalid session</Text>
+          <Text style={d.errText}>Invalid session</Text>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={d.errorAction}>Go back</Text>
+            <Text style={d.errBack}>← BACK</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -130,8 +171,14 @@ export default function SessionDetailScreen() {
   if (loading) {
     return (
       <View style={[d.root, d.center]}>
-        <Stack.Screen options={{ title: "Loading…", headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.textSecondary }} />
-        <ActivityIndicator color={colors.accent} />
+        <Stack.Screen
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: colors.bg },
+            headerShadowVisible: false,
+          }}
+        />
+        <ActivityIndicator color={colors.textSecondary} />
       </View>
     );
   }
@@ -139,21 +186,27 @@ export default function SessionDetailScreen() {
   if (!session) {
     return (
       <View style={[d.root, d.center]}>
-        <Stack.Screen options={{ title: "Not found", headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.textSecondary }} />
-        <Text style={d.error}>Session not found</Text>
+        <Stack.Screen
+          options={{
+            title: "",
+            headerStyle: { backgroundColor: colors.bg },
+            headerShadowVisible: false,
+          }}
+        />
+        <Text style={d.errText}>Session not found</Text>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={d.errorAction}>Go back</Text>
+          <Text style={d.errBack}>← BACK</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const agentColor = getAgentColor(session.agentType);
   const totalCost = parseFloat(session.totalCost || "0");
   const totalTokens = session.totalTokens || 0;
   const totalK = (totalTokens / 1000).toFixed(1);
   const isActive = session.status === "active";
   const statusColor = getStatusColor(session.status);
+  const reversedEvents = events.slice().reverse();
 
   return (
     <View style={[d.root, { paddingBottom: insets.bottom }]}>
@@ -169,9 +222,11 @@ export default function SessionDetailScreen() {
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <View style={[d.statusBadge, { backgroundColor: statusColor + "10" }]}>
+            <View style={d.statusBadge}>
               <View style={[d.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[d.statusText, { color: statusColor }]}>{isActive ? "Active" : "Ended"}</Text>
+              <Text style={[d.statusLabel, { color: statusColor }]}>
+                {isActive ? "ACTIVE" : "ENDED"}
+              </Text>
             </View>
           ),
         }}
@@ -181,46 +236,89 @@ export default function SessionDetailScreen() {
         style={d.scroll}
         contentContainerStyle={d.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.accent} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load(true);
+            }}
+            tintColor={colors.textTertiary}
+          />
         }
       >
-        {/* Title */}
-        <View style={d.titleArea}>
-          <View style={[d.agentTag, { backgroundColor: agentColor + "15" }]}>
-            <Text style={[d.agentTagText, { color: agentColor }]}>{getAgentLabel(session.agentType)}</Text>
+        {/* ── Header ── */}
+        <View style={d.header}>
+          <View style={d.headerLeft}>
+            <Text style={d.agentLabel}>{getAgentLabel(session.agentType).toUpperCase()}</Text>
+            <Text style={d.sessionName} numberOfLines={2}>
+              {session.name}
+            </Text>
+            <Text style={d.sessionModel}>{session.model}</Text>
           </View>
-          <Text style={d.title} numberOfLines={2}>{session.name}</Text>
-          <Text style={d.subtitle}>{session.model}</Text>
+          <Text
+            style={[
+              d.heroCost,
+              {
+                color:
+                  totalCost > 1
+                    ? colors.danger
+                    : totalCost > 0.1
+                    ? colors.warning
+                    : colors.text,
+              },
+            ]}
+          >
+            {formatCost(totalCost)}
+          </Text>
         </View>
 
-        {/* Stats */}
-        <View style={d.statsRow}>
-          <View style={d.statCard}>
-            <Text style={d.statLabel}>Cost</Text>
-            <Text style={[d.statValue, { color: totalCost > 1 ? colors.danger : totalCost > 0.1 ? colors.warning : colors.text }]}>
-              ${totalCost.toFixed(4)}
-            </Text>
-          </View>
-          <View style={d.statCard}>
-            <Text style={d.statLabel}>Tokens</Text>
+        <View style={d.divider} />
+
+        {/* ── Stat row ── */}
+        <View style={d.statRow}>
+          <View style={d.stat}>
+            <Text style={d.statLabel}>TOKENS</Text>
             <Text style={d.statValue}>{totalK}K</Text>
           </View>
-          <View style={d.statCard}>
-            <Text style={d.statLabel}>Calls</Text>
+          <View style={d.statSep} />
+          <View style={d.stat}>
+            <Text style={d.statLabel}>CALLS</Text>
             <Text style={d.statValue}>{events.length}</Text>
+          </View>
+          <View style={d.statSep} />
+          <View style={d.stat}>
+            <Text style={d.statLabel}>STATUS</Text>
+            <Text style={[d.statValue, { color: statusColor }]}>
+              {session.status.toUpperCase()}
+            </Text>
           </View>
         </View>
 
-        {/* Context warning */}
+        <View style={d.divider} />
+
+        {/* ── Context warning ── */}
         <ContextWarning tokens={totalTokens} />
 
-        {/* Commands */}
+        {/* ── Commands ── */}
+        <Text style={d.sectionLabel}>COMMANDS</Text>
         <View style={d.cmdRow}>
-          <CmdButton label="Compact" color={colors.accent} onPress={() => sendCmd("compact")} />
-          <CmdButton label="Pause" color={colors.warning} onPress={() => sendCmd("pause")} />
-          <CmdButton label="Status" color={colors.info} onPress={() => sendCmd("status")} />
           <CmdButton
-            label="End"
+            label="COMPACT"
+            color={colors.textSecondary}
+            onPress={() => sendCmd("compact")}
+          />
+          <CmdButton
+            label="PAUSE"
+            color={colors.warning}
+            onPress={() => sendCmd("pause")}
+          />
+          <CmdButton
+            label="STATUS"
+            color={colors.textSecondary}
+            onPress={() => sendCmd("status")}
+          />
+          <CmdButton
+            label="END"
             color={colors.danger}
             onPress={() =>
               Alert.alert("End Session", "Terminate this agent session?", [
@@ -228,40 +326,44 @@ export default function SessionDetailScreen() {
                 {
                   text: "End",
                   style: "destructive",
-                  onPress: () => apiClient.patchSessionStatus(id, "ended").then(() => load(true)),
+                  onPress: () =>
+                    apiClient.patchSessionStatus(id, "ended").then(() => load(true)),
                 },
               ])
             }
           />
         </View>
 
-        {/* Event feed */}
-        <View style={d.section}>
-          <View style={d.sectionHeader}>
-            <Text style={d.sectionTitle}>API calls</Text>
-            <Text style={d.sectionCount}>{events.length} total</Text>
-          </View>
+        <View style={d.divider} />
 
-          {events.length === 0 ? (
-            <View style={d.emptyCard}>
-              <Text style={d.emptyTitle}>No API calls yet</Text>
-              <Text style={d.emptySub}>LLM calls appear here in real-time</Text>
-            </View>
-          ) : (
-            <View style={d.feedCard}>
-              <View style={d.feedHead}>
-                <Text style={[d.feedHeadCell, { width: 50 }]}>Time</Text>
-                <Text style={[d.feedHeadCell, { flex: 1 }]}>Model</Text>
-                <Text style={[d.feedHeadCell, { width: 80, textAlign: "right" }]}>Cost</Text>
-              </View>
-              {events.slice().reverse().map((e) => (
-                <EventRow key={e.id} event={e} />
-              ))}
-            </View>
-          )}
+        {/* ── API call feed ── */}
+        <View style={d.feedHeader}>
+          <Text style={d.sectionLabel}>API CALLS</Text>
+          <Text style={d.feedCount}>{events.length}</Text>
         </View>
 
-        <View style={{ height: 32 }} />
+        {events.length === 0 ? (
+          <View style={d.empty}>
+            <Text style={d.emptyText}>No API calls yet</Text>
+            <Text style={d.emptySub}>LLM calls appear here in real-time</Text>
+          </View>
+        ) : (
+          <View>
+            {/* Table head */}
+            <View style={[d.row, d.rowBorder, d.tableHead]}>
+              <Text style={[d.rowTime, d.headCell]}>TIME</Text>
+              <View style={d.rowBody}>
+                <Text style={d.headCell}>MODEL</Text>
+              </View>
+              <Text style={[d.rowCost, d.headCell]}>COST</Text>
+            </View>
+            {reversedEvents.map((e, i) => (
+              <EventRow key={e.id} event={e} last={i === reversedEvents.length - 1} />
+            ))}
+          </View>
+        )}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -271,134 +373,203 @@ const d = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { flex: 1 },
-  content: { padding: spacing.lg, paddingBottom: spacing["4xl"] },
+  content: { paddingBottom: spacing["4xl"] },
 
+  // Back / status header
   backBtn: { paddingHorizontal: 4 },
-  backArrow: { color: colors.textSecondary, fontSize: 18 },
+  backArrow: { color: colors.textSecondary, fontSize: 20 },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
     marginRight: 4,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 12, fontWeight: "600" },
+  statusDot: { width: 5, height: 5, borderRadius: 3 },
+  statusLabel: { ...typography.label, letterSpacing: 0.6 },
 
-  error: { ...typography.body, color: colors.textTertiary, marginBottom: spacing.lg },
-  errorAction: { color: colors.accent, fontSize: 15, fontWeight: "500" },
+  // Error
+  errText: { ...typography.body, color: colors.textTertiary, marginBottom: spacing.lg },
+  errBack: { ...typography.label, color: colors.textSecondary, letterSpacing: 1 },
 
-  // Title
-  titleArea: { marginBottom: spacing.xl },
-  agentTag: {
-    alignSelf: "flex-start",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-    marginBottom: spacing.sm,
-  },
-  agentTagText: { ...typography.caption, fontWeight: "600" },
-  title: { ...typography.title2, color: colors.text, lineHeight: 28 },
-  subtitle: { ...typography.caption, color: colors.textTertiary, marginTop: spacing.xs },
-
-  // Stats
-  statsRow: {
+  // ── Header block ──
+  header: {
     flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.base,
+  headerLeft: { flex: 1, paddingRight: spacing.base },
+  agentLabel: {
+    ...typography.label,
+    color: colors.textTertiary,
+    marginBottom: spacing.xs,
+    letterSpacing: 1,
   },
-  statLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.xs },
-  statValue: { ...typography.number, color: colors.text, fontWeight: "700" },
+  sessionName: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+    lineHeight: 26,
+    marginBottom: spacing.xs,
+  },
+  sessionModel: {
+    fontFamily: "monospace",
+    fontSize: 11,
+    color: colors.textTertiary,
+    letterSpacing: 0.2,
+  },
+  heroCost: {
+    fontSize: 28,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    paddingTop: 2,
+  },
 
-  // Warning
-  warnCard: {
-    borderLeftWidth: 3,
-    borderRadius: radius.md,
-    padding: spacing.base,
-    marginBottom: spacing.xl,
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
   },
-  warnTitle: { ...typography.body, fontWeight: "600", marginBottom: 2 },
-  warnText: { ...typography.caption, color: colors.textSecondary, lineHeight: 18 },
 
-  // Commands
+  // ── Stat row ──
+  statRow: {
+    flexDirection: "row",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
+  },
+  stat: { flex: 1, alignItems: "flex-start" },
+  statLabel: {
+    ...typography.label,
+    color: colors.textTertiary,
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+    letterSpacing: 0.2,
+  },
+  statSep: {
+    width: 1,
+    backgroundColor: colors.border,
+    marginVertical: 2,
+    marginHorizontal: spacing.base,
+  },
+
+  // ── Context warning ──
+  warn: {
+    borderLeftWidth: 2,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.base,
+    paddingLeft: spacing.base,
+    paddingVertical: spacing.xs,
+  },
+  warnTitle: {
+    ...typography.label,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  warnText: { ...typography.caption, color: colors.textSecondary, lineHeight: 17 },
+
+  // ── Section label ──
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textTertiary,
+    letterSpacing: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.sm,
+  },
+
+  // ── Commands ──
   cmdRow: {
     flexDirection: "row",
     gap: spacing.sm,
-    marginBottom: spacing["2xl"],
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.base,
   },
   cmdBtn: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
+    paddingVertical: 7,
+    borderRadius: radius.xs,
     borderWidth: 1,
     alignItems: "center",
-  },
-  cmdText: { ...typography.caption, fontWeight: "600" },
-
-  // Section
-  section: { marginBottom: spacing.xl },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.base,
-  },
-  sectionTitle: { ...typography.label, color: colors.textTertiary },
-  sectionCount: { ...typography.caption, color: colors.textDisabled },
-
-  // Feed
-  feedCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
   },
-  feedHead: {
+  cmdText: { ...typography.label, letterSpacing: 0.5 },
+
+  // ── Feed ──
+  feedHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.sm,
+  },
+  feedCount: {
+    ...typography.label,
+    color: colors.textDisabled,
+    letterSpacing: 0.5,
+  },
+  tableHead: {
     backgroundColor: colors.bgElevated,
   },
-  feedHeadCell: { ...typography.label, color: colors.textDisabled },
+  headCell: {
+    ...typography.label,
+    color: colors.textDisabled,
+    letterSpacing: 0.8,
+    fontSize: 9,
+  },
 
+  // ── Rows ──
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
-  rowTime: { width: 50, ...typography.caption, color: colors.textDisabled },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  rowTime: {
+    width: 48,
+    fontFamily: "monospace",
+    fontSize: 11,
+    color: colors.textDisabled,
+  },
   rowBody: { flex: 1 },
-  rowModel: { ...typography.bodySmall, color: colors.textSecondary },
-  rowTokens: { ...typography.caption, color: colors.textDisabled, marginTop: 1 },
-  rowCost: { width: 80, textAlign: "right", ...typography.body, fontSize: 13, fontWeight: "600" },
+  rowModel: {
+    fontFamily: "monospace",
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  rowTokens: {
+    fontFamily: "monospace",
+    fontSize: 10,
+    color: colors.textDisabled,
+    marginTop: 1,
+  },
+  rowCost: {
+    width: 76,
+    textAlign: "right",
+    fontFamily: "monospace",
+    fontSize: 12,
+    fontWeight: "600",
+  },
 
-  // Empty
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing["3xl"],
+  // ── Empty ──
+  empty: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing["3xl"],
     alignItems: "center",
   },
-  emptyTitle: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.xs },
+  emptyText: { ...typography.body, color: colors.textSecondary, marginBottom: 4 },
   emptySub: { ...typography.caption, color: colors.textDisabled, textAlign: "center" },
 });

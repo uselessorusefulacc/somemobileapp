@@ -2,13 +2,11 @@ import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
 import { colors, spacing, radius, typography } from "../../lib/theme";
 
-function TabIcon({ focused, icon, label }: { focused: boolean; icon: string; label: string }) {
+function TabIcon({ focused, label }: { focused: boolean; label: string }) {
   return (
     <View style={s.wrap}>
-      <View style={[s.iconBg, focused && s.iconBgActive]}>
-        <Text style={[s.icon, focused && s.iconActive]}>{icon}</Text>
-      </View>
       <Text style={[s.label, focused && s.labelActive]}>{label}</Text>
+      {focused && <View style={s.dot} />}
     </View>
   );
 }
@@ -25,25 +23,25 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sessions"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◫" label="Sessions" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="SESSIONS" />,
         }}
       />
       <Tabs.Screen
         name="dashboard"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◈" label="Overview" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="OVERVIEW" />,
         }}
       />
       <Tabs.Screen
         name="cost"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◎" label="Costs" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="COSTS" />,
         }}
       />
       <Tabs.Screen
         name="connect"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⟡" label="Connect" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="CONNECT" />,
         }}
       />
     </Tabs>
@@ -52,43 +50,31 @@ export default function TabLayout() {
 
 const s = StyleSheet.create({
   bar: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.bg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    height: 64,
-    paddingTop: 4,
-    paddingBottom: 4,
+    height: 56,
+    paddingBottom: 0,
   },
   wrap: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    paddingTop: 2,
-  },
-  iconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconBgActive: {
-    backgroundColor: colors.accentDim,
-  },
-  icon: {
-    fontSize: 16,
-    color: colors.textDisabled,
-    lineHeight: 20,
-  },
-  iconActive: {
-    color: colors.accent,
+    gap: 4,
+    paddingTop: 4,
   },
   label: {
-    fontSize: 10,
-    color: colors.textDisabled,
+    fontSize: 9,
     fontWeight: "500",
+    letterSpacing: 0.7,
+    color: colors.textTertiary,
   },
   labelActive: {
-    color: colors.accent,
+    color: colors.text,
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.text,
   },
 });

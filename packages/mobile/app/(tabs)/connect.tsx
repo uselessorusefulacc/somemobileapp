@@ -17,23 +17,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { apiClient, API_BASE } from "../../lib/api";
 import { useRelay } from "../../lib/relay-context";
-import {
-  colors,
-  spacing,
-  radius,
-  typography,
-  getAgentColor,
-  getAgentLabel,
-} from "../../lib/theme";
+import { colors, spacing, radius, typography, getAgentColor } from "../../lib/theme";
 
 const AGENTS = [
-  { id: "claude",   name: "Claude Code",     model: "claude-sonnet-4-5", color: "#D4A574" },
-  { id: "opencode", name: "OpenCode",         model: "claude-sonnet-4-5", color: "#818CF8" },
-  { id: "codex",    name: "Codex CLI",        model: "o3",                color: "#10A37F" },
-  { id: "gemini",   name: "Gemini CLI",       model: "gemini-2-5-pro",    color: "#4285F4" },
-  { id: "aider",    name: "Aider",            model: "claude-sonnet-4-5", color: "#4CAF50" },
-  { id: "copilot",  name: "GitHub Copilot",   model: "gpt-4o",            color: "#A78BFA" },
-  { id: "cline",    name: "Cline",            model: "claude-sonnet-4-5", color: "#FB923C" },
+  { id: "claude",   name: "Claude Code",   model: "claude-sonnet-4-5", color: "#C8956B" },
+  { id: "opencode", name: "OpenCode",       model: "claude-sonnet-4-5", color: "#7B7FBF" },
+  { id: "codex",    name: "Codex CLI",      model: "o3",                color: "#10A37F" },
+  { id: "gemini",   name: "Gemini CLI",     model: "gemini-2-5-pro",    color: "#4285F4" },
+  { id: "aider",    name: "Aider",          model: "claude-sonnet-4-5", color: "#3D9E5F" },
+  { id: "copilot",  name: "GitHub Copilot", model: "gpt-4o",            color: "#8B7FB8" },
+  { id: "cline",    name: "Cline",          model: "claude-sonnet-4-5", color: "#C87941" },
 ];
 
 function getRelayWsUrl(): string {
@@ -43,17 +36,6 @@ function getRelayWsUrl(): string {
     .replace(":4201", ":8082");
 }
 
-// ── Agent logo (circular avatar with initial) ──────────────────────
-function AgentAvatar({ color, name, size = 40 }: { color: string; name: string; size?: number }) {
-  const initial = name.charAt(0);
-  return (
-    <View style={[c.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: color + "18" }]}>
-      <Text style={[c.avatarText, { color, fontSize: size * 0.38 }]}>{initial}</Text>
-    </View>
-  );
-}
-
-// ── Copy block (terminal-style command) ────────────────────────────
 function CopyBlock({ cmd, label }: { cmd: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -62,40 +44,19 @@ function CopyBlock({ cmd, label }: { cmd: string; label?: string }) {
     setTimeout(() => setCopied(false), 1800);
   };
   return (
-    <View style={c.copyBlock}>
+    <View style={c.copyWrap}>
       {label && <Text style={c.copyLabel}>{label}</Text>}
-      <TouchableOpacity style={c.copyInner} onPress={copy} activeOpacity={0.7}>
+      <TouchableOpacity style={c.copyBlock} onPress={copy} activeOpacity={0.7}>
         <Text style={c.copyPrompt}>$</Text>
-        <Text style={c.copyText} selectable>{cmd}</Text>
-        <View style={[c.copyBadge, copied && { backgroundColor: colors.successDim, borderColor: colors.success + "40" }]}>
-          <Text style={[c.copyBadgeText, { color: copied ? colors.success : colors.textDisabled }]}>
-            {copied ? "✓" : "Copy"}
-          </Text>
-        </View>
+        <Text style={c.copyCmd} selectable numberOfLines={2}>{cmd}</Text>
+        <Text style={[c.copyBtn, copied && { color: colors.success }]}>
+          {copied ? "✓" : "COPY"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-// ── Status banner ──────────────────────────────────────────────────
-function StatusBanner({ connected }: { connected: boolean }) {
-  return (
-    <View style={[c.statusBanner, connected && { borderColor: colors.success + "30", backgroundColor: colors.successDim }]}>
-      <View style={[c.statusDot, { backgroundColor: connected ? colors.success : colors.textDisabled }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={[c.statusTitle, { color: connected ? colors.success : colors.textSecondary }]}>
-          {connected ? "Relay connected" : "Waiting for daemon"}
-        </Text>
-        <Text style={c.statusSub}>
-          {connected ? "Agent data flowing in real-time" : "Run the command on your machine"}
-        </Text>
-      </View>
-      {!connected && <ActivityIndicator size="small" color={colors.textDisabled} />}
-    </View>
-  );
-}
-
-// ── Main Screen ────────────────────────────────────────────────────
 export default function ConnectScreen() {
   const router = useRouter();
   const relay = useRelay();
@@ -154,89 +115,100 @@ export default function ConnectScreen() {
     }, 8000);
   };
 
-  // ── RUN STEP ────────────────────────────────────────────────────
+  // ── RUN STEP ──────────────────────────────────────────────────────
   if (step === "run") {
     return (
       <View style={[c.root, { paddingTop: insets.top }]}>
-        {/* Header */}
         <View style={c.header}>
-          <TouchableOpacity onPress={() => setStep("pick")} style={c.backBtn} activeOpacity={0.7}>
-            <Text style={c.backArrow}>←</Text>
+          <TouchableOpacity onPress={() => setStep("pick")} activeOpacity={0.6}>
+            <Text style={c.back}>← BACK</Text>
           </TouchableOpacity>
           <Text style={c.headerTitle}>Connect</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 60 }} />
         </View>
+        <View style={c.divider} />
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: insets.bottom + spacing["3xl"] }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Session card */}
-          <View style={[c.sessionCard, { borderColor: agent.color + "30" }]}>
-            <AgentAvatar color={agent.color} name={agent.name} size={44} />
+          {/* Session info row */}
+          <View style={c.sessionInfo}>
+            <View style={[c.agentDot, { backgroundColor: agent.color }]} />
             <View style={{ flex: 1 }}>
-              <Text style={c.sessionCardName}>{agent.name}</Text>
-              <Text style={c.sessionCardId} numberOfLines={1} selectable>{sessionId}</Text>
+              <Text style={c.sessionAgent}>{agent.name.toUpperCase()}</Text>
+              <Text style={c.sessionId} selectable numberOfLines={1}>{sessionId}</Text>
             </View>
-            <View style={[c.readyBadge, { backgroundColor: colors.successDim }]}>
-              <View style={[c.readyDot, { backgroundColor: colors.success }]} />
-              <Text style={[c.readyText, { color: colors.success }]}>Ready</Text>
+            <View style={c.readyTag}>
+              <Text style={c.readyText}>READY</Text>
             </View>
           </View>
 
-          {/* Step 1 */}
-          <Text style={c.stepLabel}>Step 1 — Install</Text>
+          <View style={c.divider} />
+
+          {/* Steps */}
+          <View style={c.steps}>
+            <Text style={c.stepNum}>01</Text>
+            <Text style={c.stepTitle}>Install daemon</Text>
+          </View>
           <CopyBlock cmd={installCmd} />
 
-          {/* Step 2 */}
-          <Text style={c.stepLabel}>Step 2 — Run</Text>
+          <View style={c.divider} />
+
+          <View style={c.steps}>
+            <Text style={c.stepNum}>02</Text>
+            <Text style={c.stepTitle}>Run with session</Text>
+          </View>
           <CopyBlock cmd={runCmd} />
 
-          {/* Remote URL */}
-          <View style={c.hintCard}>
-            <Text style={c.hintLabel}>Full command with relay</Text>
-            <Text style={c.hintValue} selectable>{runCmdFull}</Text>
-          </View>
+          <View style={c.divider} />
 
           {/* QR */}
-          <View style={[c.qrCard, { borderColor: agent.color + "20" }]}>
-            <Text style={c.qrTitle}>Pair via QR</Text>
-            <Text style={c.qrSub}>Scan from your laptop camera</Text>
-            <View style={c.qrWrap}>
+          <View style={c.qrSection}>
+            <Text style={c.qrLabel}>SCAN TO COPY FULL COMMAND</Text>
+            <View style={c.qrBox}>
               <Image
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(runCmdFull)}&color=e0e0e0&bgcolor=141414` }}
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(runCmdFull)}&color=EEEEEE&bgcolor=111111` }}
                 style={c.qrImage}
                 resizeMode="contain"
               />
             </View>
           </View>
 
-          {/* OR attach */}
-          <View style={c.orDivider}>
-            <View style={c.orLine} />
-            <Text style={c.orText}>OR</Text>
-            <View style={c.orLine} />
-          </View>
+          <View style={c.divider} />
 
-          <View style={c.hintCard}>
-            <Text style={c.hintLabel}>Attach to running agent</Text>
+          {/* Attach alt */}
+          <View style={c.altSection}>
+            <Text style={c.altLabel}>OR ATTACH TO RUNNING AGENT</Text>
             <CopyBlock cmd={attachCmd} />
           </View>
 
+          <View style={c.divider} />
+
           {/* Status */}
-          <StatusBanner connected={relay.isConnected} />
+          <View style={c.statusRow}>
+            <View style={[c.statusDot, { backgroundColor: relay.isConnected ? colors.success : colors.textDisabled }]} />
+            <Text style={[c.statusText, { color: relay.isConnected ? colors.text : colors.textSecondary }]}>
+              {relay.isConnected ? "Relay connected — data flowing" : "Waiting for daemon..."}
+            </Text>
+            {!relay.isConnected && <ActivityIndicator size="small" color={colors.textDisabled} />}
+          </View>
+
+          <View style={c.divider} />
 
           {/* CTA */}
           <TouchableOpacity
-            style={[c.ctaBtn, { backgroundColor: relay.isConnected ? colors.success : colors.accent }]}
+            style={[c.cta, relay.isConnected && c.ctaActive]}
             onPress={handleLink}
             disabled={connecting}
             activeOpacity={0.8}
           >
             {connecting
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={c.ctaBtnText}>{relay.isConnected ? "Open dashboard →" : "Link now →"}</Text>
+              ? <ActivityIndicator color={relay.isConnected ? colors.bg : colors.text} />
+              : <Text style={[c.ctaText, relay.isConnected && c.ctaTextActive]}>
+                  {relay.isConnected ? "OPEN DASHBOARD →" : "LINK NOW →"}
+                </Text>
             }
           </TouchableOpacity>
         </ScrollView>
@@ -244,45 +216,45 @@ export default function ConnectScreen() {
     );
   }
 
-  // ── PICK STEP ────────────────────────────────────────────────────
+  // ── PICK STEP ─────────────────────────────────────────────────────
   return (
     <View style={[c.root, { paddingTop: insets.top }]}>
       <View style={c.header}>
         <Text style={c.headerTitle}>New Session</Text>
-        <View style={{ width: 40 }} />
       </View>
+      <View style={c.divider} />
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + spacing["3xl"] }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={c.sectionLabel}>Choose agent</Text>
+        {/* Agent list */}
+        <Text style={c.listLabel}>CHOOSE AGENT</Text>
         {AGENTS.map((a) => {
           const sel = agentId === a.id;
           return (
             <Pressable
               key={a.id}
-              style={[c.agentCard, sel && { borderColor: a.color + "50", backgroundColor: a.color + "08" }]}
+              style={[c.agentRow, sel && c.agentRowSelected]}
               onPress={() => setAgentId(a.id)}
             >
-              <AgentAvatar color={a.color} name={a.name} size={36} />
+              <View style={[c.agentDot, { backgroundColor: sel ? a.color : colors.textDisabled }]} />
               <View style={{ flex: 1 }}>
-                <Text style={[c.agentName, sel && { color: a.color }]}>{a.name}</Text>
+                <Text style={[c.agentName, sel && { color: colors.text }]}>{a.name}</Text>
                 <Text style={c.agentModel}>{a.model}</Text>
               </View>
-              {sel && (
-                <View style={[c.check, { borderColor: a.color }]}>
-                  <View style={[c.checkInner, { backgroundColor: a.color }]} />
-                </View>
-              )}
+              {sel && <Text style={c.check}>✓</Text>}
             </Pressable>
           );
         })}
 
-        <Text style={[c.sectionLabel, { marginTop: spacing.xl }]}>Session name</Text>
-        <View style={[c.inputWrap, { borderColor: agent.color + "30" }]}>
+        <View style={c.divider} />
+
+        {/* Name input */}
+        <Text style={c.listLabel}>SESSION NAME</Text>
+        <View style={c.inputWrap}>
           <TextInput
             style={c.input}
             value={name}
@@ -294,22 +266,18 @@ export default function ConnectScreen() {
           />
         </View>
 
-        <View style={c.modelRow}>
-          <Text style={c.modelRowLabel}>Default model</Text>
-          <View style={[c.modelPill, { borderColor: agent.color + "40", backgroundColor: agent.color + "10" }]}>
-            <Text style={[c.modelPillText, { color: agent.color }]}>{agent.model}</Text>
-          </View>
-        </View>
+        <View style={c.divider} />
 
+        {/* CTA */}
         <TouchableOpacity
-          style={[c.ctaBtn, { backgroundColor: agent.color }]}
+          style={c.cta}
           onPress={handleCreate}
           disabled={creating}
           activeOpacity={0.8}
         >
           {creating
-            ? <ActivityIndicator color="#000" />
-            : <Text style={[c.ctaBtnText, { color: "#000" }]}>Create & connect →</Text>
+            ? <ActivityIndicator color={colors.bg} />
+            : <Text style={c.ctaTextActive}>CREATE & CONNECT →</Text>
           }
         </TouchableOpacity>
       </ScrollView>
@@ -320,61 +288,51 @@ export default function ConnectScreen() {
 const c = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
 
-  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.base,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.base,
   },
   headerTitle: { ...typography.title1, color: colors.text },
-  backBtn: { width: 40, height: 40, alignItems: "flex-start", justifyContent: "center" },
-  backArrow: { color: colors.textSecondary, fontSize: 20 },
+  back: { ...typography.label, color: colors.textSecondary },
 
-  // Section label
-  sectionLabel: {
+  divider: { height: 1, backgroundColor: colors.border },
+
+  listLabel: {
     ...typography.label,
     color: colors.textTertiary,
-    marginBottom: spacing.base,
-    marginTop: spacing.lg,
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
   },
 
-  // Agent card
-  agentCard: {
+  agentRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
+    gap: spacing.base,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  agentRowSelected: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
   },
-  agentName: { ...typography.body, color: colors.text },
-  agentModel: { ...typography.caption, color: colors.textTertiary },
-  check: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkInner: { width: 10, height: 10, borderRadius: 5 },
+  agentDot: { width: 8, height: 8, borderRadius: 4 },
+  agentName: { ...typography.body, color: colors.textSecondary },
+  agentModel: { ...typography.monoSm, color: colors.textTertiary, marginTop: 2 },
+  check: { color: colors.text, fontSize: 14, fontWeight: "600" },
 
-  // Input
   inputWrap: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    overflow: "hidden",
+    marginVertical: spacing.base,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
   },
   input: {
     color: colors.text,
@@ -383,167 +341,106 @@ const c = StyleSheet.create({
     paddingVertical: spacing.md,
   },
 
-  // Model row
-  modelRow: {
+  cta: {
+    margin: spacing.lg,
+    marginTop: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+  },
+  ctaActive: {
+    backgroundColor: colors.text,
+    borderColor: colors.text,
+  },
+  ctaText: { ...typography.label, color: colors.text },
+  ctaTextActive: { ...typography.label, color: colors.bg },
+
+  // Run step
+  sessionInfo: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  modelRowLabel: { ...typography.bodySmall, color: colors.textTertiary },
-  modelPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  modelPillText: { fontSize: 12, fontWeight: "600" },
-
-  // CTA
-  ctaBtn: {
-    borderRadius: radius.md,
+    gap: spacing.base,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.base,
-    alignItems: "center",
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.base,
   },
-  ctaBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  sessionAgent: { fontSize: 10, fontWeight: "600", letterSpacing: 0.7, color: colors.textSecondary },
+  sessionId: { ...typography.monoSm, color: colors.textTertiary, marginTop: 2 },
+  readyTag: {
+    borderWidth: 1,
+    borderColor: "rgba(40,200,64,0.3)",
+    borderRadius: radius.xs,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    backgroundColor: colors.successDim,
+  },
+  readyText: { fontSize: 9, fontWeight: "600", letterSpacing: 0.5, color: colors.success },
 
-  // Session card (run step)
-  sessionCard: {
+  steps: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  stepNum: { ...typography.mono, color: colors.textTertiary, fontSize: 11 },
+  stepTitle: { ...typography.label, color: colors.textSecondary },
+
+  copyWrap: { paddingHorizontal: spacing.lg, paddingBottom: spacing.base },
+  copyLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.xs },
+  copyBlock: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.base,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  sessionCardName: { ...typography.body, color: colors.text },
-  sessionCardId: { ...typography.caption, color: colors.textTertiary, fontFamily: "monospace" },
-  readyBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-  },
-  readyDot: { width: 5, height: 5, borderRadius: 3 },
-  readyText: { ...typography.caption, fontWeight: "700" },
-
-  // Step label
-  stepLabel: {
-    ...typography.label,
-    color: colors.textTertiary,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-
-  // Copy block
-  copyBlock: { marginBottom: spacing.lg, paddingHorizontal: spacing.lg },
-  copyLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.xs },
-  copyInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
-    borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.base,
-    gap: spacing.sm,
   },
-  copyPrompt: { color: colors.textDisabled, fontSize: 13, fontFamily: "monospace" },
-  copyText: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: "monospace",
-    lineHeight: 18,
-    color: colors.textSecondary,
-  },
-  copyBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  copyBadgeText: { fontSize: 11, fontWeight: "600" },
+  copyPrompt: { ...typography.mono, color: colors.textTertiary },
+  copyCmd: { flex: 1, ...typography.mono, color: colors.textSecondary },
+  copyBtn: { ...typography.label, color: colors.textTertiary, fontSize: 9 },
 
-  // Hint
-  hintCard: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.base,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+  qrSection: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    alignItems: "flex-start",
   },
-  hintLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.xs },
-  hintValue: {
-    ...typography.caption,
-    color: colors.textDisabled,
-    fontFamily: "monospace",
-    lineHeight: 18,
-  },
-
-  // QR
-  qrCard: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.xl,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    alignItems: "center",
-  },
-  qrTitle: { ...typography.body, color: colors.text, marginBottom: spacing.xs },
-  qrSub: { ...typography.caption, color: colors.textTertiary, marginBottom: spacing.lg },
-  qrWrap: {
+  qrLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.base },
+  qrBox: {
     width: 140,
     height: 140,
-    borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   qrImage: { width: 120, height: 120 },
 
-  // OR
-  orDivider: { flexDirection: "row", alignItems: "center", gap: spacing.base, marginVertical: spacing.lg, paddingHorizontal: spacing.lg },
-  orLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  orText: { ...typography.label, color: colors.textTertiary },
+  altSection: { paddingTop: spacing.base },
+  altLabel: {
+    ...typography.label,
+    color: colors.textTertiary,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    paddingTop: spacing.lg,
+  },
 
-  // Status
-  statusBanner: {
+  statusRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.base,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusTitle: { ...typography.body, color: colors.textSecondary },
-  statusSub: { ...typography.caption, color: colors.textTertiary, marginTop: 1 },
-
-  // Avatar
-  avatar: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { fontWeight: "800" },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { ...typography.bodySmall, flex: 1 },
 });

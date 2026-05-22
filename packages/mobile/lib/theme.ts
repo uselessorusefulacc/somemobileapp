@@ -1,120 +1,83 @@
-// AgentPilot Design System v3 — Industry-leading mobile UI
-// Inspired by Linear, Things 3, Apple Health, Stripe Dashboard
-// Principles: calm density, generous whitespace, clear hierarchy, purposeful color
+// AgentPilot Design System — Factory.ai inspired
+// Pure black, Geist-style system font, white on black, zero decoration
+// Palette: #020202 bg, white text, razor-thin borders, mono for code
 
-// ── Color system ───────────────────────────────────────────────────
 export const colors = {
-  // Backgrounds (Linear-style pure dark hierarchy)
-  bg: "#0A0A0A",              // Deepest background
-  bgElevated: "#0F0F0F",      // Slightly elevated (tab bar, headers)
-  surface: "#141414",          // Cards, sections
-  surfaceHover: "#1A1A1A",     // Hover states
-  surfacePressed: "#1E1E1E",   // Pressed states
+  // Backgrounds
+  bg: "#020202",
+  bgElevated: "#0a0a0a",
+  surface: "#111111",
+  surfaceHover: "#181818",
 
-  // Accent (Linear purple — professional, calm)
-  accent: "#5E6AD2",
-  accentSoft: "#7B87E8",
-  accentDim: "rgba(94,106,210,0.12)",
-  accentGlow: "rgba(94,106,210,0.08)",
+  // Text
+  text: "#EEEEEE",
+  textSecondary: "#8A8380",
+  textTertiary: "#4D4947",
+  textDisabled: "#2E2C2B",
 
-  // Semantic colors (Linear status palette)
-  success: "#4CAF50",
-  successDim: "rgba(76,175,80,0.12)",
-  warning: "#F2C94C",
-  warningDim: "rgba(242,201,76,0.12)",
-  danger: "#EB5757",
-  dangerDim: "rgba(235,87,87,0.12)",
-  info: "#56CCF2",
-  infoDim: "rgba(86,204,242,0.12)",
+  // Borders
+  border: "rgba(255,255,255,0.07)",
+  borderStrong: "rgba(255,255,255,0.12)",
 
-  // Text (opacity-based hierarchy like Linear)
-  text: "#E6E6E6",             // Primary — 90% white
-  textSecondary: "#999999",    // Secondary — 60% white
-  textTertiary: "#666666",     // Tertiary — 40% white
-  textDisabled: "#444444",     // Disabled — 27% white
+  // Functional only
+  success: "#28C840",
+  warning: "#FEBC2E",
+  danger: "#FF5F57",
+  info: "#58A6FF",
 
-  // Borders (subtle, consistent)
-  border: "rgba(255,255,255,0.06)",
-  borderStrong: "rgba(255,255,255,0.10)",
-  borderAccent: "rgba(94,106,210,0.25)",
+  // Semantic dims
+  successDim: "rgba(40,200,64,0.08)",
+  warningDim: "rgba(254,188,46,0.08)",
+  dangerDim: "rgba(255,95,87,0.08)",
 
-  // Agent colors (muted, professional)
-  agentClaude: "#D4A574",
-  agentOpencode: "#818CF8",
+  // Agent — all muted, not loud
+  agentClaude: "#C8956B",
+  agentOpencode: "#7B7FBF",
   agentCodex: "#10A37F",
   agentGemini: "#4285F4",
-  agentAider: "#4CAF50",
-  agentCopilot: "#A78BFA",
-  agentCline: "#FB923C",
+  agentAider: "#3D9E5F",
+  agentCopilot: "#8B7FB8",
+  agentCline: "#C87941",
 };
 
-// ── Spacing (4px base grid, Things 3 generous whitespace) ──────────
 export const spacing = {
-  px: 2,      // 0.5 unit
-  xs: 4,      // 1 unit
-  sm: 8,      // 2 units
-  md: 12,     // 3 units
-  base: 16,   // 4 units
-  lg: 20,     // 5 units
-  xl: 24,     // 6 units
-  "2xl": 32,  // 8 units
-  "3xl": 40,  // 10 units
-  "4xl": 48,  // 12 units
-  "5xl": 64,  // 16 units
+  px: 1,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  base: 16,
+  lg: 20,
+  xl: 24,
+  "2xl": 32,
+  "3xl": 40,
+  "4xl": 48,
+  "5xl": 64,
 };
 
-// ── Border radius ──────────────────────────────────────────────────
 export const radius = {
-  sm: 6,     // Small buttons, tags
-  md: 8,     // Standard buttons, inputs
-  lg: 12,    // Cards, lists
-  xl: 16,    // Bottom sheets, modals
-  "2xl": 20, // Large cards
-  full: 9999,// Pills, avatars
+  xs: 2,
+  sm: 3,
+  md: 6,
+  lg: 8,
+  xl: 12,
+  full: 9999,
 };
 
-// ── Typography scale ───────────────────────────────────────────────
 export const typography = {
-  // Page titles (28px Bold, -0.5px tracking — Linear style)
-  title1: { fontSize: 28, fontWeight: "700" as const, letterSpacing: -0.5, lineHeight: 34 },
-  // Section headers (20px Semibold)
-  title2: { fontSize: 20, fontWeight: "600" as const, letterSpacing: -0.3, lineHeight: 26 },
-  // Card titles (17px Medium)
-  title3: { fontSize: 17, fontWeight: "600" as const, letterSpacing: -0.2, lineHeight: 22 },
-  // List item titles (16px Medium)
-  body: { fontSize: 16, fontWeight: "500" as const, letterSpacing: 0, lineHeight: 22 },
-  // List item subtitles (14px Regular)
-  bodySmall: { fontSize: 14, fontWeight: "400" as const, letterSpacing: 0.1, lineHeight: 20 },
-  // Captions, meta (13px Regular)
-  caption: { fontSize: 13, fontWeight: "400" as const, letterSpacing: 0.2, lineHeight: 18 },
-  // Labels, badges (11px Semibold, uppercase)
-  label: { fontSize: 11, fontWeight: "600" as const, letterSpacing: 0.5, lineHeight: 14, textTransform: "uppercase" as const },
-  // Large hero numbers (40px Bold)
-  hero: { fontSize: 40, fontWeight: "700" as const, letterSpacing: -1.5, lineHeight: 48 },
-  // Medium numbers (24px Semibold)
-  number: { fontSize: 24, fontWeight: "600" as const, letterSpacing: -0.5, lineHeight: 30 },
+  // Factory uses tight, confident type — no loose tracking
+  title1: { fontSize: 22, fontWeight: "600" as const, letterSpacing: -0.3, lineHeight: 28 },
+  title2: { fontSize: 18, fontWeight: "600" as const, letterSpacing: -0.2, lineHeight: 24 },
+  title3: { fontSize: 15, fontWeight: "600" as const, letterSpacing: -0.1, lineHeight: 20 },
+  body: { fontSize: 15, fontWeight: "400" as const, letterSpacing: 0, lineHeight: 22 },
+  bodySmall: { fontSize: 13, fontWeight: "400" as const, letterSpacing: 0, lineHeight: 18 },
+  // ALL CAPS labels — Factory's signature
+  label: { fontSize: 10, fontWeight: "500" as const, letterSpacing: 0.8, lineHeight: 14, textTransform: "uppercase" as const },
+  caption: { fontSize: 12, fontWeight: "400" as const, letterSpacing: 0, lineHeight: 16 },
+  mono: { fontSize: 12, fontFamily: "monospace" as const, letterSpacing: 0, lineHeight: 18 },
+  monoSm: { fontSize: 11, fontFamily: "monospace" as const, letterSpacing: 0, lineHeight: 16 },
+  hero: { fontSize: 36, fontWeight: "600" as const, letterSpacing: -1, lineHeight: 42 },
+  number: { fontSize: 22, fontWeight: "600" as const, letterSpacing: -0.5, lineHeight: 28 },
 };
-
-// ── Touch targets ──────────────────────────────────────────────────
-export const touch = {
-  min: 44,      // Minimum tap target (Apple HIG)
-  standard: 48, // Standard button height
-  large: 56,    // Primary CTA button height
-};
-
-// ── Timing ─────────────────────────────────────────────────────────
-export const timing = {
-  fast: 100,
-  normal: 200,
-  slow: 300,
-};
-
-// ── Helpers ────────────────────────────────────────────────────────
-export function getCostColor(costUsd: number): string {
-  if (costUsd < 0.1) return colors.textSecondary;
-  if (costUsd < 1) return colors.warning;
-  return colors.danger;
-}
 
 export function getAgentColor(agentType: string): string {
   const map: Record<string, string> = {
@@ -126,7 +89,7 @@ export function getAgentColor(agentType: string): string {
     copilot: colors.agentCopilot,
     cline: colors.agentCline,
   };
-  return map[agentType] || colors.accent;
+  return map[agentType] || colors.textSecondary;
 }
 
 export function getAgentLabel(agentType: string): string {
@@ -157,10 +120,10 @@ export function formatTokens(count: number): string {
 
 export function relativeTime(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return `${diff}s`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 export function getStatusColor(status: string): string {
@@ -171,4 +134,10 @@ export function getStatusColor(status: string): string {
     case "completed": return colors.textTertiary;
     default: return colors.textTertiary;
   }
+}
+
+export function getCostColor(costUsd: number): string {
+  if (costUsd < 0.1) return colors.textSecondary;
+  if (costUsd < 1) return colors.warning;
+  return colors.danger;
 }
