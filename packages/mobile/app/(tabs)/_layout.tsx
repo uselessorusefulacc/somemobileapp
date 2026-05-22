@@ -1,14 +1,13 @@
 import { Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
-
-const BG = "#141414";
-const ACTIVE = "#e0e0e0";
-const INACTIVE = "#333";
+import { colors, spacing, radius, typography } from "../../lib/theme";
 
 function TabIcon({ focused, icon, label }: { focused: boolean; icon: string; label: string }) {
   return (
     <View style={s.wrap}>
-      <Text style={[s.icon, focused && s.iconActive]}>{icon}</Text>
+      <View style={[s.iconBg, focused && s.iconBgActive]}>
+        <Text style={[s.icon, focused && s.iconActive]}>{icon}</Text>
+      </View>
       <Text style={[s.label, focused && s.labelActive]}>{label}</Text>
     </View>
   );
@@ -26,13 +25,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sessions"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="⊞" label="Sessions" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◫" label="Sessions" />,
         }}
       />
       <Tabs.Screen
         name="dashboard"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◫" label="Overview" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon="◈" label="Overview" />,
         }}
       />
       <Tabs.Screen
@@ -53,31 +52,43 @@ export default function TabLayout() {
 
 const s = StyleSheet.create({
   bar: {
-    backgroundColor: BG,
+    backgroundColor: colors.bgElevated,
     borderTopWidth: 1,
-    borderTopColor: "#1e1e1e",
-    height: 58,
-    paddingTop: 0,
-    paddingBottom: 0,
+    borderTopColor: colors.border,
+    height: 64,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   wrap: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    paddingTop: 6,
+    gap: 2,
+    paddingTop: 2,
+  },
+  iconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBgActive: {
+    backgroundColor: colors.accentDim,
   },
   icon: {
-    fontSize: 18,
-    color: INACTIVE,
+    fontSize: 16,
+    color: colors.textDisabled,
+    lineHeight: 20,
   },
   iconActive: {
-    color: ACTIVE,
+    color: colors.accent,
   },
   label: {
     fontSize: 10,
-    color: INACTIVE,
+    color: colors.textDisabled,
+    fontWeight: "500",
   },
   labelActive: {
-    color: ACTIVE,
+    color: colors.accent,
   },
 });

@@ -14,40 +14,27 @@ import {
 import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type Analytics, type BudgetConfig, type ModelBreakdown } from "../../lib/api";
+import {
+  colors,
+  spacing,
+  radius,
+  typography,
+  formatCost,
+} from "../../lib/theme";
 
 const MODEL_INPUT_COSTS: Record<string, number> = {
-  "claude-opus-4-5": 15,
-  "claude-sonnet-4-5": 3,
-  "claude-haiku-3-5": 0.8,
-  "gpt-4o": 5,
-  "gpt-4o-mini": 0.15,
-  "o3-mini": 1.1,
-  "gemini-2-5-pro": 1.25,
-  "gemini-2-5-flash": 0.1,
+  "claude-opus-4-5": 15, "claude-sonnet-4-5": 3, "claude-haiku-3-5": 0.8,
+  "gpt-4o": 5, "gpt-4o-mini": 0.15, "o3-mini": 1.1,
+  "gemini-2-5-pro": 1.25, "gemini-2-5-flash": 0.1,
 };
 const MODEL_OUTPUT_COSTS: Record<string, number> = {
-  "claude-opus-4-5": 75,
-  "claude-sonnet-4-5": 15,
-  "claude-haiku-3-5": 4,
-  "gpt-4o": 15,
-  "gpt-4o-mini": 0.6,
-  "o3-mini": 4.4,
-  "gemini-2-5-pro": 10,
-  "gemini-2-5-flash": 0.4,
+  "claude-opus-4-5": 75, "claude-sonnet-4-5": 15, "claude-haiku-3-5": 4,
+  "gpt-4o": 15, "gpt-4o-mini": 0.6, "o3-mini": 4.4,
+  "gemini-2-5-pro": 10, "gemini-2-5-flash": 0.4,
 };
 
-function formatCost(costUsd: number): string {
-  if (costUsd < 0.0001) return "<$0.0001";
-  if (costUsd < 1) return `$${costUsd.toFixed(4)}`;
-  return `$${costUsd.toFixed(2)}`;
-}
-
-function BudgetModal({
-  visible,
-  budget,
-  onSave,
-  onClose,
-}: {
+// ── Bottom sheet modal (Figma-style) ───────────────────────────────
+function BudgetModal({ visible, budget, onSave, onClose }: {
   visible: boolean;
   budget: BudgetConfig;
   onSave: (b: BudgetConfig) => void;
@@ -68,47 +55,47 @@ function BudgetModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalCard}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Budget Settings</Text>
+      <View style={c.modalOverlay}>
+        <View style={c.modalSheet}>
+          <View style={c.modalHandle} />
+          <Text style={c.modalTitle}>Budget Settings</Text>
 
-          <Text style={styles.fieldLabel}>Monthly limit (USD)</Text>
+          <Text style={c.fieldLabel}>Monthly limit (USD)</Text>
           <TextInput
-            style={styles.fieldInput}
+            style={c.fieldInput}
             value={monthly}
             onChangeText={setMonthly}
             placeholder="50.00"
-            placeholderTextColor="#444"
+            placeholderTextColor={colors.textDisabled}
             keyboardType="decimal-pad"
           />
 
-          <Text style={styles.fieldLabel}>Daily limit (optional)</Text>
+          <Text style={c.fieldLabel}>Daily limit (optional)</Text>
           <TextInput
-            style={styles.fieldInput}
+            style={c.fieldInput}
             value={daily}
             onChangeText={setDaily}
             placeholder="5.00"
-            placeholderTextColor="#444"
+            placeholderTextColor={colors.textDisabled}
             keyboardType="decimal-pad"
           />
 
-          <Text style={styles.fieldLabel}>Alert threshold (%)</Text>
+          <Text style={c.fieldLabel}>Alert at (%)</Text>
           <TextInput
-            style={styles.fieldInput}
+            style={c.fieldInput}
             value={alertPct}
             onChangeText={setAlertPct}
             placeholder="80"
-            placeholderTextColor="#444"
+            placeholderTextColor={colors.textDisabled}
             keyboardType="number-pad"
           />
 
-          <View style={styles.modalBtns}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+          <View style={c.modalBtns}>
+            <TouchableOpacity style={c.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+              <Text style={c.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={save}>
-              <Text style={styles.saveBtnText}>Save</Text>
+            <TouchableOpacity style={c.saveBtn} onPress={save} activeOpacity={0.7}>
+              <Text style={c.saveBtnText}>Save</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -117,13 +104,51 @@ function BudgetModal({
   );
 }
 
+// ── Progress ring (Apple Health-style) ─────────────────────────────
+function ProgressRing({ pct, color, size = 120 }: { pct: number; color: string; size?: number }) {
+  return (
+    <View style={[c.ringWrap, { width: size, height: size }]}>
+      <View style={[c.ringBg, { width: size, height: size, borderRadius: size / 2 }]}>
+        <View style={[c.ringFill, {
+          width: size * 0.85,
+          height: size * 0.85,
+          borderRadius: size * 0.425,
+          borderColor: color,
+          borderWidth: Math.max(3, size * 0.04),
+          opacity: Math.min(1, pct / 100 + 0.3),
+        }]} />
+      </View>
+      <View style={c.ringCenter}>
+        <Text style={c.ringValue}>{Math.round(pct)}%</Text>
+        <Text style={c.ringLabel}>used</Text>
+      </View>
+    </View>
+  );
+}
+
+// ── Model bar (Stripe Dashboard-style data visualization) ────────────
+function ModelBar({ model, cost, maxCost }: { model: string; cost: number; maxCost: number }) {
+  const pct = Math.max(4, (cost / maxCost) * 100);
+  const color = cost > 0.05 ? colors.danger : cost > 0.01 ? colors.warning : colors.success;
+  return (
+    <View style={c.modelBar}>
+      <View style={c.modelBarInfo}>
+        <Text style={c.modelBarName}>{model}</Text>
+        <Text style={[c.modelBarCost, { color }]}>{formatCost(cost)}</Text>
+      </View>
+      <View style={c.modelBarTrack}>
+        <View style={[c.modelBarFill, { width: `${pct}%`, backgroundColor: color + "60" }]} />
+      </View>
+    </View>
+  );
+}
+
+// ── Main Cost Screen ───────────────────────────────────────────────
 export default function CostScreen() {
   const insets = useSafeAreaInsets();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [budget, setBudget] = useState<BudgetConfig>({
-    dailyLimitUsd: null,
-    monthlyLimitUsd: 50,
-    alertAtPct: 80,
+    dailyLimitUsd: null, monthlyLimitUsd: 50, alertAtPct: 80,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -132,14 +157,11 @@ export default function CostScreen() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [analyticsData, budgetData] = await Promise.all([
-        apiClient.getAnalytics(),
-        apiClient.getBudget(),
-      ]);
-      setAnalytics(analyticsData);
-      setBudget(budgetData);
+      const [a, b] = await Promise.all([apiClient.getAnalytics(), apiClient.getBudget()]);
+      setAnalytics(a);
+      setBudget(b);
     } catch (e) {
-      console.error("cost load error:", e);
+      console.error("cost load:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -162,139 +184,98 @@ export default function CostScreen() {
   const monthlyProj = analytics?.projectedMonthlyCost ?? totalCost * 30;
   const modelBreakdown: ModelBreakdown[] = analytics?.modelBreakdown || [];
   const maxCost = Math.max(...modelBreakdown.map((m) => parseFloat(m.totalCost)), 0.0001);
+
   const overBudget = budget.monthlyLimitUsd !== null && monthlyProj > budget.monthlyLimitUsd;
   const warnBudget = budget.monthlyLimitUsd !== null && monthlyProj > budget.monthlyLimitUsd * 0.8;
   const budgetPct = budget.monthlyLimitUsd !== null
     ? Math.min(100, Math.round((monthlyProj / budget.monthlyLimitUsd) * 100))
     : 0;
-  const budgetColor = overBudget ? "#ef4444" : warnBudget ? "#f59e0b" : "#22c55e";
+  const budgetColor = overBudget ? colors.danger : warnBudget ? colors.warning : colors.success;
 
   return (
     <>
       <ScrollView
-        style={styles.root}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+        style={c.root}
+        contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: spacing["4xl"] }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); load(true); }}
-            tintColor="#555"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={colors.accent} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Costs</Text>
-          <TouchableOpacity style={styles.budgetBtn} onPress={() => setShowModal(true)} activeOpacity={0.7}>
-            <Text style={styles.budgetBtnText}>Budget</Text>
+        <View style={c.header}>
+          <Text style={c.headerTitle}>Costs</Text>
+          <TouchableOpacity style={c.headerBtn} onPress={() => setShowModal(true)} activeOpacity={0.7}>
+            <Text style={c.headerBtnText}>Budget</Text>
           </TouchableOpacity>
         </View>
 
         {loading ? (
-          <View style={styles.loadWrap}>
-            <ActivityIndicator color="#888" size="large" />
+          <View style={c.center}>
+            <ActivityIndicator color={colors.accent} />
           </View>
         ) : (
           <>
-            {/* Metric cards */}
-            <View style={styles.metricRow}>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Today</Text>
-                <Text style={styles.metricValue}>{formatCost(totalCost)}</Text>
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>Live</Text>
+            {/* Budget ring */}
+            {budget.monthlyLimitUsd !== null && (
+              <View style={c.ringSection}>
+                <ProgressRing pct={budgetPct} color={budgetColor} />
+                <View style={c.ringInfo}>
+                  <Text style={[c.ringInfoValue, { color: budgetColor }]}>{formatCost(monthlyProj)}</Text>
+                  <Text style={c.ringInfoLabel}>of ${budget.monthlyLimitUsd}/mo</Text>
+                  {overBudget && <Text style={[c.ringInfoStatus, { color: colors.danger }]}>Over budget</Text>}
+                  {warnBudget && !overBudget && <Text style={[c.ringInfoStatus, { color: colors.warning }]}>Approaching limit</Text>}
                 </View>
               </View>
-              <View style={styles.metricCardSmallCol}>
-                <View style={styles.metricCardSmall}>
-                  <Text style={styles.metricLabel}>Projected</Text>
-                  <Text style={[styles.metricValueSm, { color: budgetColor }]}>
-                    {formatCost(monthlyProj)}
-                  </Text>
-                  <Text style={styles.metricUnit}>/mo</Text>
-                </View>
-                <View style={styles.metricCardSmall}>
-                  <Text style={styles.metricLabel}>Sessions</Text>
-                  <Text style={styles.metricValueSm}>{analytics?.totalSessions ?? 0}</Text>
-                  <Text style={styles.metricUnit}>total</Text>
-                </View>
+            )}
+
+            {/* Metrics */}
+            <View style={c.metrics}>
+              <View style={c.metricCard}>
+                <Text style={c.metricLabel}>Today</Text>
+                <Text style={c.metricValue}>{formatCost(totalCost)}</Text>
+              </View>
+              <View style={c.metricCard}>
+                <Text style={c.metricLabel}>Projected</Text>
+                <Text style={[c.metricValue, { color: budgetColor }]}>{formatCost(monthlyProj)}</Text>
+              </View>
+              <View style={c.metricCard}>
+                <Text style={c.metricLabel}>Sessions</Text>
+                <Text style={c.metricValue}>{analytics?.totalSessions ?? 0}</Text>
               </View>
             </View>
 
-            {/* Budget bar */}
-            {budget.monthlyLimitUsd !== null && (
-              <View style={styles.budgetCard}>
-                <View style={styles.budgetCardHeader}>
-                  <Text style={styles.budgetCardLabel}>Monthly budget</Text>
-                  <Text style={[styles.budgetPct, { color: budgetColor }]}>{budgetPct}%</Text>
-                </View>
-                <View style={styles.barTrack}>
-                  <View
-                    style={[
-                      styles.barFill,
-                      { width: `${Math.max(2, budgetPct)}%` as any, backgroundColor: budgetColor },
-                    ]}
-                  />
-                </View>
-                <View style={styles.budgetFooter}>
-                  <Text style={styles.budgetSub}>
-                    {formatCost(monthlyProj)} of ${budget.monthlyLimitUsd}
-                  </Text>
-                  {overBudget && <Text style={styles.budgetWarn}>Over limit</Text>}
-                  {!overBudget && warnBudget && <Text style={[styles.budgetWarn, { color: "#f59e0b" }]}>Approaching</Text>}
-                </View>
-              </View>
-            )}
-
             {/* Model breakdown */}
             {modelBreakdown.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Model breakdown</Text>
-                <View style={styles.tableCard}>
-                  <View style={styles.tableHead}>
-                    <Text style={styles.tableHeadCell}>Model</Text>
-                    <Text style={[styles.tableHeadCell, { textAlign: "right" }]}>Cost</Text>
-                  </View>
-                  {modelBreakdown.map((m, i) => {
-                    const cost = parseFloat(m.totalCost);
-                    const pct = (cost / maxCost) * 100;
-                    const rowColor = cost > 0.05 ? "#ef4444" : cost > 0.01 ? "#f59e0b" : "#22c55e";
-                    return (
-                      <View key={m.model}>
-                        {i > 0 && <View style={styles.divider} />}
-                        <View style={styles.tableRow}>
-                          <View style={styles.tableRowLeft}>
-                            <Text style={styles.tableModel}>{m.model}</Text>
-                            <View style={styles.barTrack}>
-                              <View style={[styles.barFill, { width: `${Math.max(2, pct)}%` as any, backgroundColor: rowColor + "88" }]} />
-                            </View>
-                          </View>
-                          <Text style={[styles.tableCost, { color: rowColor }]}>{formatCost(cost)}</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
+              <View style={c.section}>
+                <Text style={c.sectionTitle}>Model Breakdown</Text>
+                <View style={c.card}>
+                  {modelBreakdown.map((m, i) => (
+                    <View key={m.model}>
+                      {i > 0 && <View style={c.divider} />}
+                      <ModelBar model={m.model} cost={parseFloat(m.totalCost)} maxCost={maxCost} />
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
 
-            {/* Pricing reference */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Pricing reference ($/1M tokens)</Text>
-              <View style={styles.tableCard}>
-                <View style={styles.tableHead}>
-                  <Text style={[styles.tableHeadCell, { flex: 2 }]}>Model</Text>
-                  <Text style={[styles.tableHeadCell, { textAlign: "center" }]}>Input</Text>
-                  <Text style={[styles.tableHeadCell, { textAlign: "right" }]}>Output</Text>
+            {/* Pricing */}
+            <View style={c.section}>
+              <Text style={c.sectionTitle}>Pricing ($/1M tokens)</Text>
+              <View style={c.card}>
+                <View style={c.priceHead}>
+                  <Text style={[c.priceCell, { flex: 2 }]}>Model</Text>
+                  <Text style={[c.priceCell, { textAlign: "center" }]}>Input</Text>
+                  <Text style={[c.priceCell, { textAlign: "right" }]}>Output</Text>
                 </View>
                 {Object.keys(MODEL_INPUT_COSTS).map((model, i) => (
                   <View key={model}>
-                    {i > 0 && <View style={styles.divider} />}
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceModel}>{model}</Text>
-                      <Text style={[styles.priceVal, { textAlign: "center" }]}>${MODEL_INPUT_COSTS[model]}</Text>
-                      <Text style={[styles.priceVal, { textAlign: "right" }]}>${MODEL_OUTPUT_COSTS[model]}</Text>
+                    {i > 0 && <View style={c.divider} />}
+                    <View style={c.priceRow}>
+                      <Text style={[c.priceModel, { flex: 2 }]}>{model}</Text>
+                      <Text style={[c.priceVal, { textAlign: "center" }]}>${MODEL_INPUT_COSTS[model]}</Text>
+                      <Text style={[c.priceVal, { textAlign: "right" }]}>${MODEL_OUTPUT_COSTS[model]}</Text>
                     </View>
                   </View>
                 ))}
@@ -302,166 +283,175 @@ export default function CostScreen() {
             </View>
           </>
         )}
-
-        <View style={{ height: 48 }} />
       </ScrollView>
 
-      <BudgetModal
-        visible={showModal}
-        budget={budget}
-        onSave={saveBudget}
-        onClose={() => setShowModal(false)}
-      />
+      <BudgetModal visible={showModal} budget={budget} onSave={saveBudget} onClose={() => setShowModal(false)} />
     </>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#141414" },
-  content: { paddingHorizontal: 16, paddingBottom: 40 },
+const c = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  center: { alignItems: "center", paddingTop: 80 },
 
+  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  headerTitle: { color: "#e8e8e8", fontSize: 22, fontWeight: "600" },
-  budgetBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
+  headerTitle: { ...typography.title1, color: colors.text },
+  headerBtn: {
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#303030",
+    borderColor: colors.border,
   },
-  budgetBtnText: { color: "#888", fontSize: 13 },
+  headerBtnText: { ...typography.caption, color: colors.textSecondary, fontWeight: "500" },
 
-  loadWrap: { alignItems: "center", paddingTop: 80 },
+  // Ring
+  ringSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    gap: spacing.xl,
+  },
+  ringWrap: { alignItems: "center", justifyContent: "center" },
+  ringBg: {
+    borderWidth: 3,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ringFill: {
+    borderWidth: 3,
+    borderColor: colors.accent,
+    borderRadius: 9999,
+    backgroundColor: "transparent",
+  },
+  ringCenter: { position: "absolute", alignItems: "center" },
+  ringValue: { ...typography.number, color: colors.text, fontWeight: "700" },
+  ringLabel: { ...typography.caption, color: colors.textTertiary },
+  ringInfo: { flex: 1 },
+  ringInfoValue: { ...typography.title2, fontWeight: "700" },
+  ringInfoLabel: { ...typography.caption, color: colors.textTertiary, marginTop: spacing.xs },
+  ringInfoStatus: { ...typography.caption, fontWeight: "600", marginTop: spacing.sm },
 
   // Metrics
-  metricRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  metricCard: {
-    flex: 1.4,
-    backgroundColor: "#1c1c1c",
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#252525",
-    justifyContent: "space-between",
-  },
-  metricCardSmallCol: { flex: 1, gap: 10 },
-  metricCardSmall: {
-    flex: 1,
-    backgroundColor: "#1c1c1c",
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#252525",
-  },
-  metricLabel: { color: "#555", fontSize: 11, marginBottom: 6 },
-  metricValue: { color: "#f0f0f0", fontSize: 26, fontWeight: "600", marginBottom: 8 },
-  metricValueSm: { color: "#e0e0e0", fontSize: 17, fontWeight: "600" },
-  metricUnit: { color: "#444", fontSize: 10, marginTop: 2 },
-  liveBadge: { flexDirection: "row", alignItems: "center", gap: 5 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22c55e" },
-  liveText: { color: "#22c55e", fontSize: 11, fontWeight: "500" },
-
-  // Budget
-  budgetCard: {
-    backgroundColor: "#1c1c1c",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#252525",
-  },
-  budgetCardHeader: {
+  metrics: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing["2xl"],
   },
-  budgetCardLabel: { color: "#666", fontSize: 12 },
-  budgetPct: { fontSize: 14, fontWeight: "600" },
-  barTrack: { height: 4, backgroundColor: "#ffffff0d", borderRadius: 2, overflow: "hidden", marginBottom: 2 },
-  barFill: { height: 4, borderRadius: 2 },
-  budgetFooter: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
-  budgetSub: { color: "#555", fontSize: 11 },
-  budgetWarn: { color: "#ef4444", fontSize: 11 },
+  metricCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.base,
+  },
+  metricLabel: { ...typography.label, color: colors.textTertiary, marginBottom: spacing.xs },
+  metricValue: { ...typography.number, color: colors.text, fontWeight: "700" },
 
   // Section
-  section: { marginTop: 24 },
-  sectionLabel: { color: "#555", fontSize: 12, fontWeight: "500", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 },
-
-  // Table
-  tableCard: {
-    backgroundColor: "#1c1c1c",
-    borderRadius: 14,
+  section: { paddingHorizontal: spacing.lg, marginBottom: spacing["2xl"] },
+  sectionTitle: { ...typography.title3, color: colors.text, marginBottom: spacing.base },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#252525",
+    borderColor: colors.border,
     overflow: "hidden",
   },
-  tableHead: {
+  divider: { height: 1, backgroundColor: colors.border },
+
+  // Model bar
+  modelBar: { padding: spacing.base },
+  modelBarInfo: {
     flexDirection: "row",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: "#181818",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.sm,
   },
-  tableHeadCell: { flex: 1, color: "#444", fontSize: 11, letterSpacing: 0.5 },
-  divider: { height: 1, backgroundColor: "#222" },
-  tableRow: {
+  modelBarName: { ...typography.bodySmall, color: colors.text },
+  modelBarCost: { ...typography.body, fontSize: 14, fontWeight: "600" },
+  modelBarTrack: {
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  modelBarFill: { height: 4, borderRadius: 2 },
+
+  // Price table
+  priceHead: {
+    flexDirection: "row",
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.bgElevated,
+  },
+  priceCell: { ...typography.label, color: colors.textTertiary, flex: 1 },
+  priceRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.md,
   },
-  tableRowLeft: { flex: 1, marginRight: 12 },
-  tableModel: { color: "#aaa", fontSize: 12, marginBottom: 5 },
-  tableCost: { fontSize: 13, fontWeight: "600", minWidth: 60, textAlign: "right" },
-
-  priceRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10 },
-  priceModel: { flex: 2, color: "#888", fontSize: 11 },
-  priceVal: { flex: 1, color: "#555", fontSize: 11 },
+  priceModel: { ...typography.caption, color: colors.textSecondary },
+  priceVal: { ...typography.caption, color: colors.textTertiary, flex: 1 },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: "#000000cc", justifyContent: "flex-end" },
-  modalCard: {
-    backgroundColor: "#1c1c1c",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  modalOverlay: { flex: 1, backgroundColor: "#000000aa", justifyContent: "flex-end" },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
     borderWidth: 1,
-    borderColor: "#2a2a2a",
-    padding: 20,
-    paddingBottom: 40,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    paddingBottom: spacing["4xl"],
   },
-  modalHandle: { width: 36, height: 4, backgroundColor: "#333", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
-  modalTitle: { color: "#e0e0e0", fontSize: 17, fontWeight: "600", marginBottom: 20 },
-  fieldLabel: { color: "#666", fontSize: 12, marginBottom: 6, marginTop: 14 },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.border,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: spacing.lg,
+  },
+  modalTitle: { ...typography.title2, color: colors.text, marginBottom: spacing.xl },
+  fieldLabel: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.sm, marginTop: spacing.lg },
   fieldInput: {
-    backgroundColor: "#252525",
+    backgroundColor: colors.bgElevated,
     borderWidth: 1,
-    borderColor: "#303030",
-    borderRadius: 10,
-    padding: 12,
-    color: "#e0e0e0",
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.base,
+    color: colors.text,
     fontSize: 15,
   },
-  modalBtns: { flexDirection: "row", gap: 10, marginTop: 24 },
+  modalBtns: { flexDirection: "row", gap: spacing.sm, marginTop: spacing["2xl"] },
   cancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#303030",
-    borderRadius: 12,
-    paddingVertical: 13,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.base,
     alignItems: "center",
   },
-  cancelBtnText: { color: "#888", fontSize: 14 },
+  cancelBtnText: { color: colors.textSecondary, fontSize: 15, fontWeight: "500" },
   saveBtn: {
     flex: 1,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 12,
-    paddingVertical: 13,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: spacing.base,
     alignItems: "center",
   },
-  saveBtnText: { color: "#000", fontSize: 14, fontWeight: "600" },
+  saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 });

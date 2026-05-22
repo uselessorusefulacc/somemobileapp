@@ -43,6 +43,7 @@ export interface CommandPayload {
 type RelayEventMap = {
   connected: () => void;
   disconnected: (reason: string) => void;
+  error: (err: Event) => void;
   tokens: (payload: TokenPayload) => void;
   status: (payload: StatusPayload) => void;
   tool_call: (payload: ToolCallPayload) => void;
@@ -106,6 +107,7 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
 
     this.ws.onerror = (error) => {
       console.error("[RelayClient] WebSocket error:", error);
+      this.emit("error", error);
     };
   }
 
