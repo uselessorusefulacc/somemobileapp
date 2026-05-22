@@ -7,61 +7,56 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  TextInput,
 } from "react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type AgentSession } from "../../lib/api";
-import {
-  colors,
-  spacing,
-  radius,
-  typography,
-  getAgentColor,
-  getAgentLabel,
-  formatCost,
-  getStatusColor,
-  relativeTime,
-} from "../../lib/theme";
+import { colors, fonts, type, radius, space } from "../../lib/theme";
 
-function SessionRow({
-  session,
-  onPress,
-}: {
-  session: AgentSession;
-  onPress: () => void;
-}) {
-  const statusColor = getStatusColor(session.status);
-  const agentColor = getAgentColor(session.agentType);
-  const cost = parseFloat(session.totalCost || "0");
-  const time = session.updatedAt ? relativeTime(session.updatedAt) : "";
-  const isActive = session.status === "active";
+function formatCost(c: number) {
+  if (c === 0) return "$0.00";
+  if (c < 0.001) return `$${(c * 100000).toFixed(1)}μ`;
+  if (c < 1) return `$${c.toFixed(4)}`;
+  return `$${c.toFixed(2)}`;
+}
+
+function getStatusColor(s: string) {
+  if (s === "active") return colors.success;
+  if (s === "paused") return colors.warning;
+  if (s === "error") return colors.danger;
+  return colors.textTertiary;
+}
+
+function SessionRow({ item, onPress }: { item: AgentSession; onPress: () => void }) {
+  const cost = parseFloat(item.totalCost || "0");
+  const isActive = item.status === "active";
+  const statusColor = getStatusColor(item.status);
+  const date = new Date(item.createdAt).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const tokens = item.totalTokens ? `${(item.totalTokens / 1000).toFixed(1)}K` : "—";
 
   return (
-    <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.5}>
-      {/* status line on left */}
-      <View style={[s.rowAccent, { backgroundColor: isActive ? statusColor : "transparent" }]} />
+    <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.65}>
+      {/* Left accent — 2px white bar when active */}
+      <View style={[s.accent, { backgroundColor: isActive ? colors.text : "transparent" }]} />
 
-      <View style={s.rowContent}>
+      <View style={s.rowBody}>
         <View style={s.rowTop}>
-          <Text style={s.rowName} numberOfLines={1}>{session.name}</Text>
-          <Text style={[s.rowCost, cost > 0.5 ? { color: colors.warning } : {}]}>
+          <Text style={s.name} numberOfLines={1}>{item.name}</Text>
+          <Text style={[s.cost, { color: cost > 1 ? colors.danger : cost > 0.1 ? colors.warning : colors.textSecondary }]}>
             {formatCost(cost)}
           </Text>
         </View>
-        <View style={s.rowBottom}>
-          <Text style={[s.rowAgent, { color: agentColor }]}>
-            {getAgentLabel(session.agentType).toUpperCase()}
-          </Text>
-          <Text style={s.rowDot}>·</Text>
-          <Text style={s.rowTime}>{time}</Text>
-          {isActive && (
-            <>
-              <Text style={s.rowDot}>·</Text>
-              <View style={[s.activePip, { backgroundColor: statusColor }]} />
-              <Text style={[s.rowActive, { color: statusColor }]}>ACTIVE</Text>
-            </>
-          )}
+        <View style={s.rowMeta}>
+          <View style={[s.statusDot, { backgroundColor: statusColor }]} />
+          <Text style={s.metaText}>{item.agentType.toUpperCase()}</Text>
+          <Text style={s.metaSep}>·</Text>
+          <Text style={s.metaText}>{tokens}</Text>
+          <Text style={s.metaSep}>·</Text>
+          <Text style={s.metaDate}>{date}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -74,8 +69,6 @@ export default function SessionsScreen() {
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -83,92 +76,54 @@ export default function SessionsScreen() {
       const data = await apiClient.getSessions();
       setSessions(data.sessions || []);
     } catch (e) {
-      console.error("[sessions]", e);
+      console.error(e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(false); }, [load]));
+  useFocusEffect(useCallback(() => { load(true); }, [load]));
 
-  const filtered = query
-    ? sessions.filter(
-        (s) =>
-          s.name.toLowerCase().includes(query.toLowerCase()) ||
-          s.agentType.toLowerCase().includes(query.toLowerCase())
-      )
-    : sessions;
-
-  const activeCount = sessions.filter((s) => s.status === "active").length;
+  const active = sessions.filter((s) => s.status === "active");
+  const rest = sessions.filter((s) => s.status !== "active");
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={s.header}>
-        <View style={s.headerLeft}>
-          <Text style={s.headerTitle}>Sessions</Text>
-          {activeCount > 0 && (
-            <View style={s.activeBadge}>
-              <View style={s.activeBadgeDot} />
-              <Text style={s.activeBadgeText}>{activeCount} live</Text>
-            </View>
-          )}
-        </View>
+      {/* ── Top bar ── */}
+      <View style={s.topBar}>
+        <Text style={s.pageTitle}>SESSIONS</Text>
         <TouchableOpacity
           style={s.newBtn}
           onPress={() => router.push("/new-session")}
           activeOpacity={0.7}
         >
-          <Text style={s.newBtnText}>NEW</Text>
+          <Text style={s.newBtnText}>+ NEW</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Divider */}
       <View style={s.divider} />
-
-      {/* Search */}
-      <View style={s.searchRow}>
-        {searching ? (
-          <View style={s.searchActive}>
-            <Text style={s.searchIcon}>⌕</Text>
-            <TextInput
-              style={s.searchInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search sessions..."
-              placeholderTextColor={colors.textDisabled}
-              autoFocus
-              onBlur={() => { if (!query) setSearching(false); }}
-            />
-            {!!query && (
-              <TouchableOpacity onPress={() => { setQuery(""); setSearching(false); }}>
-                <Text style={s.searchClear}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          <TouchableOpacity style={s.searchTrigger} onPress={() => setSearching(true)} activeOpacity={0.6}>
-            <Text style={s.searchIcon}>⌕</Text>
-            <Text style={s.searchLabel}>Search</Text>
-          </TouchableOpacity>
-        )}
-        <Text style={s.countLabel}>{filtered.length} sessions</Text>
-      </View>
 
       {loading ? (
         <View style={s.center}>
-          <ActivityIndicator color={colors.textTertiary} size="small" />
+          <ActivityIndicator color={colors.textTertiary} />
+        </View>
+      ) : sessions.length === 0 ? (
+        <View style={s.center}>
+          <Text style={s.emptyTitle}>NO SESSIONS</Text>
+          <Text style={s.emptySub}>Start your first agent session</Text>
+          <TouchableOpacity
+            style={s.emptyBtn}
+            onPress={() => router.push("/new-session")}
+            activeOpacity={0.7}
+          >
+            <Text style={s.emptyBtnText}>NEW SESSION</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
-          data={filtered}
+          data={[...active, ...rest]}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <SessionRow session={item} onPress={() => router.push(`/session/${item.id}`)} />
-          )}
-          ItemSeparatorComponent={() => <View style={s.separator} />}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -176,20 +131,28 @@ export default function SessionsScreen() {
               tintColor={colors.textTertiary}
             />
           }
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={s.empty}>
-              <Text style={s.emptyTitle}>No sessions</Text>
-              <Text style={s.emptySub}>Create a session to start tracking your agent.</Text>
-              <TouchableOpacity
-                style={s.emptyBtn}
-                onPress={() => router.push("/new-session")}
-                activeOpacity={0.7}
-              >
-                <Text style={s.emptyBtnText}>CREATE SESSION</Text>
-              </TouchableOpacity>
-            </View>
+          ListHeaderComponent={
+            active.length > 0 ? (
+              <Text style={s.sectionLabel}>ACTIVE — {active.length}</Text>
+            ) : null
           }
+          renderItem={({ item, index }) => {
+            const isFirst = index === active.length && active.length > 0;
+            return (
+              <>
+                {isFirst && (
+                  <>
+                    <View style={s.divider} />
+                    <Text style={s.sectionLabel}>RECENT</Text>
+                  </>
+                )}
+                <SessionRow item={item} onPress={() => router.push(`/session/${item.id}`)} />
+                <View style={s.rowDivider} />
+              </>
+            );
+          }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
@@ -198,109 +161,130 @@ export default function SessionsScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
 
-  header: {
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.base,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
   },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  headerTitle: { ...typography.title1, color: colors.text },
-  activeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: colors.successDim,
-    borderRadius: radius.sm,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: "rgba(40,200,64,0.15)",
+  pageTitle: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.8,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
   },
-  activeBadgeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.success },
-  activeBadgeText: { fontSize: 10, fontWeight: "600", letterSpacing: 0.5, color: colors.success },
-
   newBtn: {
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: space.sm + 4,
+    paddingVertical: 5,
+    borderRadius: radius.xs,
   },
-  newBtnText: { ...typography.label, color: colors.text },
+  newBtnText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: colors.text,
+    textTransform: "uppercase",
+  },
 
   divider: { height: 1, backgroundColor: colors.border },
+  rowDivider: { height: 1, backgroundColor: colors.border, marginLeft: 24 },
 
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  sectionLabel: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.sm,
   },
-  searchTrigger: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  searchActive: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginRight: spacing.base,
-  },
-  searchIcon: { color: colors.textTertiary, fontSize: 14 },
-  searchLabel: { ...typography.caption, color: colors.textTertiary },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14, padding: 0 },
-  searchClear: { color: colors.textTertiary, fontSize: 12 },
-  countLabel: { ...typography.label, color: colors.textTertiary },
 
-  separator: { height: 1, backgroundColor: colors.border },
-
+  // Session row
   row: {
     flexDirection: "row",
-    alignItems: "stretch",
-    backgroundColor: colors.bg,
+    paddingVertical: space.md,
+    minHeight: 64,
   },
-  rowAccent: { width: 2, marginVertical: 4 },
-  rowContent: {
-    flex: 1,
-    paddingVertical: spacing.base,
-    paddingHorizontal: spacing.base,
-    gap: 5,
+  accent: {
+    width: 2,
+    alignSelf: "stretch",
+    marginLeft: space.lg - 2,
+    marginRight: space.sm + 2,
+    borderRadius: 1,
   },
+  rowBody: { flex: 1, paddingRight: space.lg, justifyContent: "center" },
   rowTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    marginBottom: 5,
   },
-  rowName: { ...typography.body, color: colors.text, flex: 1, marginRight: spacing.sm },
-  rowCost: { ...typography.bodySmall, color: colors.textSecondary, fontWeight: "500" },
-  rowBottom: { flexDirection: "row", alignItems: "center", gap: 5 },
-  rowAgent: { ...typography.label, fontSize: 9 },
-  rowDot: { color: colors.textTertiary, fontSize: 10 },
-  rowTime: { ...typography.caption, color: colors.textTertiary },
-  activePip: { width: 4, height: 4, borderRadius: 2 },
-  rowActive: { fontSize: 9, fontWeight: "600", letterSpacing: 0.6 },
-
-  empty: {
+  name: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 14,
+    color: colors.text,
+    letterSpacing: -0.1,
+    flex: 1,
+    marginRight: 8,
+  },
+  cost: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    letterSpacing: 0,
+  },
+  rowMeta: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingTop: 80,
-    paddingHorizontal: spacing["2xl"],
-    gap: spacing.sm,
+    gap: 5,
   },
-  emptyTitle: { ...typography.title3, color: colors.textSecondary },
-  emptySub: { ...typography.caption, color: colors.textTertiary, textAlign: "center", lineHeight: 20 },
+  statusDot: { width: 4, height: 4, borderRadius: 2 },
+  metaText: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textTertiary,
+    letterSpacing: 0.3,
+  },
+  metaSep: { color: colors.textTertiary, fontSize: 10 },
+  metaDate: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textTertiary,
+  },
+
+  // Empty
+  emptyTitle: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.8,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  emptySub: {
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: space.xl,
+  },
   emptyBtn: {
-    marginTop: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 10,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm + 2,
+    borderRadius: radius.xs,
   },
-  emptyBtnText: { ...typography.label, color: colors.text },
+  emptyBtnText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: colors.text,
+    textTransform: "uppercase",
+  },
 });

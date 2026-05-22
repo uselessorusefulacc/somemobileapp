@@ -14,24 +14,30 @@ import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type AgentSession, type TokenEvent } from "../../lib/api";
 import { useRelay } from "../../lib/relay-context";
-import {
-  colors,
-  spacing,
-  radius,
-  typography,
-  getAgentLabel,
-  formatCost,
-  getStatusColor,
-} from "../../lib/theme";
+import { colors, fonts, radius, space } from "../../lib/theme";
 
-// ── Event row ─────────────────────────────────────────────────────
+function formatCost(c: number) {
+  if (c === 0) return "$0.00";
+  if (c < 0.001) return `$${(c * 100000).toFixed(1)}μ`;
+  if (c < 1) return `$${c.toFixed(4)}`;
+  return `$${c.toFixed(2)}`;
+}
+
+function getStatusColor(s: string) {
+  if (s === "active") return colors.success;
+  if (s === "paused") return colors.warning;
+  if (s === "error") return colors.danger;
+  return colors.textTertiary;
+}
+
+// ── Event row ──────────────────────────────────────────────────────
 function EventRow({ event, last }: { event: TokenEvent; last: boolean }) {
   const cost = event.costUsd ?? 0;
-  const costColor =
-    cost > 0.01 ? colors.danger : cost > 0.005 ? colors.warning : colors.textSecondary;
+  const costColor = cost > 0.01 ? colors.danger : cost > 0.005 ? colors.warning : colors.textSecondary;
   const time = new Date(event.createdAt).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   });
   const inK = (event.inputTokens / 1000).toFixed(1);
   const outK = (event.outputTokens / 1000).toFixed(1);
@@ -40,14 +46,10 @@ function EventRow({ event, last }: { event: TokenEvent; last: boolean }) {
     <View style={[d.row, !last && d.rowBorder]}>
       <Text style={d.rowTime}>{time}</Text>
       <View style={d.rowBody}>
-        <Text style={d.rowModel} numberOfLines={1}>
-          {event.model}
-        </Text>
-        <Text style={d.rowTokens}>
-          ↑{inK}K · ↓{outK}K
-        </Text>
+        <Text style={d.rowModel} numberOfLines={1}>{event.model}</Text>
+        <Text style={d.rowTokens}>↑{inK}K · ↓{outK}K</Text>
       </View>
-      <Text style={[d.rowCost, { color: costColor }]}>${cost.toFixed(5)}</Text>
+      <Text style={[d.rowCost, { color: costColor }]}>{formatCost(cost)}</Text>
     </View>
   );
 }
@@ -57,31 +59,21 @@ function ContextWarning({ tokens }: { tokens: number }) {
   if (tokens < 50_000) return null;
   const isCritical = tokens >= 200_000;
   const color = isCritical ? colors.danger : colors.warning;
-  const title = isCritical ? "CONTEXT CRITICAL" : "CONTEXT HIGH";
-  const message = isCritical
-    ? "Compact now — cuts costs 50–70%"
-    : "Consider compacting to save tokens";
-
   return (
     <View style={[d.warn, { borderLeftColor: color }]}>
-      <Text style={[d.warnTitle, { color }]}>{title}</Text>
+      <Text style={[d.warnTitle, { color }]}>
+        {isCritical ? "CONTEXT CRITICAL" : "CONTEXT HIGH"}
+      </Text>
       <Text style={d.warnText}>
-        {(tokens / 1000).toFixed(0)}K tokens — {message}
+        {(tokens / 1000).toFixed(0)}K tokens —{" "}
+        {isCritical ? "Compact now — cuts costs 50–70%" : "Consider compacting to save tokens"}
       </Text>
     </View>
   );
 }
 
 // ── Command button ────────────────────────────────────────────────
-function CmdButton({
-  label,
-  color,
-  onPress,
-}: {
-  label: string;
-  color: string;
-  onPress: () => void;
-}) {
+function CmdBtn({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
   return (
     <TouchableOpacity
       style={[d.cmdBtn, { borderColor: color + "40" }]}
@@ -106,62 +98,50 @@ export default function SessionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(
-    async (silent = false) => {
-      if (!id || id === "undefined") {
-        setLoading(false);
-        return;
-      }
-      if (!silent) setLoading(true);
-      try {
-        const [sessionData, eventsData] = await Promise.all([
-          apiClient.getSession(id),
-          apiClient.getEvents(id),
-        ]);
-        setSession(sessionData);
-        setEvents(eventsData.events || []);
-      } catch (e) {
-        console.error("[session detail]", e);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [id]
-  );
+  const load = useCallback(async (silent = false) => {
+    if (!id || id === "undefined") { setLoading(false); return; }
+    if (!silent) setLoading(true);
+    try {
+      const [sessionData, eventsData] = await Promise.all([
+        apiClient.getSession(id),
+        apiClient.getEvents(id),
+      ]);
+      setSession(sessionData);
+      setEvents(eventsData.events || []);
+    } catch (e) {
+      console.error("[session detail]", e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load(true);
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { load(true); }, [load]));
 
-  const sendCmd = (
-    action: string,
-    cmdParams?: Record<string, unknown>
-  ) => {
-    relay.client?.sendCommand(
-      action as "pause" | "resume" | "compact" | "switch_model" | "status",
-      cmdParams
-    );
+  const sendCmd = (action: "pause" | "resume" | "compact" | "switch_model" | "status") => {
+    relay.client?.sendCommand(action);
   };
 
-  // ── Error states ──────────────────────────────────────────────
+  const headerOpts = {
+    title: "",
+    headerStyle: { backgroundColor: colors.bg },
+    headerShadowVisible: false,
+    headerTintColor: colors.textTertiary,
+    headerLeft: () => (
+      <TouchableOpacity onPress={() => router.back()} style={d.backBtn}>
+        <Text style={d.backArrow}>←</Text>
+      </TouchableOpacity>
+    ),
+  };
+
   if (!id || id === "undefined") {
     return (
       <View style={d.root}>
-        <Stack.Screen
-          options={{
-            title: "",
-            headerStyle: { backgroundColor: colors.bg },
-            headerShadowVisible: false,
-            headerTintColor: colors.textSecondary,
-          }}
-        />
+        <Stack.Screen options={headerOpts} />
         <View style={d.center}>
-          <Text style={d.errText}>Invalid session</Text>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={d.errBack}>← BACK</Text>
+          <Text style={d.errText}>INVALID SESSION</Text>
+          <TouchableOpacity onPress={() => router.back()} style={d.errBackBtn}>
+            <Text style={d.errBackText}>BACK</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -171,14 +151,8 @@ export default function SessionDetailScreen() {
   if (loading) {
     return (
       <View style={[d.root, d.center]}>
-        <Stack.Screen
-          options={{
-            title: "",
-            headerStyle: { backgroundColor: colors.bg },
-            headerShadowVisible: false,
-          }}
-        />
-        <ActivityIndicator color={colors.textSecondary} />
+        <Stack.Screen options={headerOpts} />
+        <ActivityIndicator color={colors.textTertiary} />
       </View>
     );
   }
@@ -186,16 +160,10 @@ export default function SessionDetailScreen() {
   if (!session) {
     return (
       <View style={[d.root, d.center]}>
-        <Stack.Screen
-          options={{
-            title: "",
-            headerStyle: { backgroundColor: colors.bg },
-            headerShadowVisible: false,
-          }}
-        />
-        <Text style={d.errText}>Session not found</Text>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={d.errBack}>← BACK</Text>
+        <Stack.Screen options={headerOpts} />
+        <Text style={d.errText}>SESSION NOT FOUND</Text>
+        <TouchableOpacity onPress={() => router.back()} style={d.errBackBtn}>
+          <Text style={d.errBackText}>BACK</Text>
         </TouchableOpacity>
       </View>
     );
@@ -203,7 +171,6 @@ export default function SessionDetailScreen() {
 
   const totalCost = parseFloat(session.totalCost || "0");
   const totalTokens = session.totalTokens || 0;
-  const totalK = (totalTokens / 1000).toFixed(1);
   const isActive = session.status === "active";
   const statusColor = getStatusColor(session.status);
   const reversedEvents = events.slice().reverse();
@@ -212,20 +179,12 @@ export default function SessionDetailScreen() {
     <View style={[d.root, { paddingBottom: insets.bottom }]}>
       <Stack.Screen
         options={{
-          title: "",
-          headerStyle: { backgroundColor: colors.bg },
-          headerShadowVisible: false,
-          headerTintColor: colors.textSecondary,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={d.backBtn}>
-              <Text style={d.backArrow}>←</Text>
-            </TouchableOpacity>
-          ),
+          ...headerOpts,
           headerRight: () => (
             <View style={d.statusBadge}>
               <View style={[d.statusDot, { backgroundColor: statusColor }]} />
               <Text style={[d.statusLabel, { color: statusColor }]}>
-                {isActive ? "ACTIVE" : "ENDED"}
+                {session.status.toUpperCase()}
               </Text>
             </View>
           ),
@@ -234,40 +193,26 @@ export default function SessionDetailScreen() {
 
       <ScrollView
         style={d.scroll}
-        contentContainerStyle={d.content}
+        contentContainerStyle={d.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load(true);
-            }}
+            onRefresh={() => { setRefreshing(true); load(true); }}
             tintColor={colors.textTertiary}
           />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ── */}
+        {/* ── Header block ── */}
         <View style={d.header}>
           <View style={d.headerLeft}>
-            <Text style={d.agentLabel}>{getAgentLabel(session.agentType).toUpperCase()}</Text>
-            <Text style={d.sessionName} numberOfLines={2}>
-              {session.name}
-            </Text>
+            <Text style={d.agentLabel}>{session.agentType.toUpperCase()}</Text>
+            <Text style={d.sessionName} numberOfLines={2}>{session.name}</Text>
             <Text style={d.sessionModel}>{session.model}</Text>
           </View>
-          <Text
-            style={[
-              d.heroCost,
-              {
-                color:
-                  totalCost > 1
-                    ? colors.danger
-                    : totalCost > 0.1
-                    ? colors.warning
-                    : colors.text,
-              },
-            ]}
-          >
+          <Text style={[d.heroCost, {
+            color: totalCost > 1 ? colors.danger : totalCost > 0.1 ? colors.warning : colors.text,
+          }]}>
             {formatCost(totalCost)}
           </Text>
         </View>
@@ -278,11 +223,11 @@ export default function SessionDetailScreen() {
         <View style={d.statRow}>
           <View style={d.stat}>
             <Text style={d.statLabel}>TOKENS</Text>
-            <Text style={d.statValue}>{totalK}K</Text>
+            <Text style={d.statValue}>{(totalTokens / 1000).toFixed(1)}K</Text>
           </View>
           <View style={d.statSep} />
           <View style={d.stat}>
-            <Text style={d.statLabel}>CALLS</Text>
+            <Text style={d.statLabel}>API CALLS</Text>
             <Text style={d.statValue}>{events.length}</Text>
           </View>
           <View style={d.statSep} />
@@ -302,22 +247,10 @@ export default function SessionDetailScreen() {
         {/* ── Commands ── */}
         <Text style={d.sectionLabel}>COMMANDS</Text>
         <View style={d.cmdRow}>
-          <CmdButton
-            label="COMPACT"
-            color={colors.textSecondary}
-            onPress={() => sendCmd("compact")}
-          />
-          <CmdButton
-            label="PAUSE"
-            color={colors.warning}
-            onPress={() => sendCmd("pause")}
-          />
-          <CmdButton
-            label="STATUS"
-            color={colors.textSecondary}
-            onPress={() => sendCmd("status")}
-          />
-          <CmdButton
+          <CmdBtn label="COMPACT" color={colors.textSecondary} onPress={() => sendCmd("compact")} />
+          <CmdBtn label="PAUSE" color={colors.warning} onPress={() => sendCmd("pause")} />
+          <CmdBtn label="STATUS" color={colors.textSecondary} onPress={() => sendCmd("status")} />
+          <CmdBtn
             label="END"
             color={colors.danger}
             onPress={() =>
@@ -326,8 +259,7 @@ export default function SessionDetailScreen() {
                 {
                   text: "End",
                   style: "destructive",
-                  onPress: () =>
-                    apiClient.patchSessionStatus(id, "ended").then(() => load(true)),
+                  onPress: () => apiClient.patchSessionStatus(id, "ended").then(() => load(true)),
                 },
               ])
             }
@@ -337,23 +269,23 @@ export default function SessionDetailScreen() {
         <View style={d.divider} />
 
         {/* ── API call feed ── */}
-        <View style={d.feedHeader}>
+        <View style={d.feedHead}>
           <Text style={d.sectionLabel}>API CALLS</Text>
           <Text style={d.feedCount}>{events.length}</Text>
         </View>
 
         {events.length === 0 ? (
           <View style={d.empty}>
-            <Text style={d.emptyText}>No API calls yet</Text>
+            <Text style={d.emptyTitle}>NO CALLS YET</Text>
             <Text style={d.emptySub}>LLM calls appear here in real-time</Text>
           </View>
         ) : (
           <View>
-            {/* Table head */}
+            {/* Table header */}
             <View style={[d.row, d.rowBorder, d.tableHead]}>
               <Text style={[d.rowTime, d.headCell]}>TIME</Text>
               <View style={d.rowBody}>
-                <Text style={d.headCell}>MODEL</Text>
+                <Text style={d.headCell}>MODEL / TOKENS</Text>
               </View>
               <Text style={[d.rowCost, d.headCell]}>COST</Text>
             </View>
@@ -363,7 +295,7 @@ export default function SessionDetailScreen() {
           </View>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 48 }} />
       </ScrollView>
     </View>
   );
@@ -371,205 +303,249 @@ export default function SessionDetailScreen() {
 
 const d = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   scroll: { flex: 1 },
-  content: { paddingBottom: spacing["4xl"] },
+  scrollContent: { paddingBottom: 24 },
+  divider: { height: 1, backgroundColor: colors.border },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
 
-  // Back / status header
   backBtn: { paddingHorizontal: 4 },
-  backArrow: { color: colors.textSecondary, fontSize: 20 },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginRight: 4,
+  backArrow: {
+    fontFamily: fonts.sans,
+    fontSize: 20,
+    color: colors.textSecondary,
+    lineHeight: 24,
   },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 5, marginRight: 4 },
   statusDot: { width: 5, height: 5, borderRadius: 3 },
-  statusLabel: { ...typography.label, letterSpacing: 0.6 },
+  statusLabel: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
 
-  // Error
-  errText: { ...typography.body, color: colors.textTertiary, marginBottom: spacing.lg },
-  errBack: { ...typography.label, color: colors.textSecondary, letterSpacing: 1 },
+  // Error states
+  errText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.8,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
+  },
+  errBackBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: space.lg,
+    paddingVertical: 8,
+    borderRadius: radius.xs,
+  },
+  errBackText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+  },
 
-  // ── Header block ──
+  // Header
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: space.lg,
+    paddingTop: space.xl,
+    paddingBottom: space.lg,
   },
-  headerLeft: { flex: 1, paddingRight: spacing.base },
+  headerLeft: { flex: 1, paddingRight: space.md },
   agentLabel: {
-    ...typography.label,
+    fontFamily: fonts.sansMedium,
+    fontSize: 9,
+    letterSpacing: 1.4,
     color: colors.textTertiary,
-    marginBottom: spacing.xs,
-    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 6,
   },
   sessionName: {
+    fontFamily: fonts.sans,
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "400",
+    letterSpacing: -0.5,
     color: colors.text,
     lineHeight: 26,
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
   sessionModel: {
-    fontFamily: "monospace",
+    fontFamily: fonts.mono,
     fontSize: 11,
     color: colors.textTertiary,
     letterSpacing: 0.2,
   },
   heroCost: {
+    fontFamily: fonts.sans,
     fontSize: 28,
-    fontWeight: "700",
-    letterSpacing: -0.5,
+    fontWeight: "400",
+    letterSpacing: -1,
+    lineHeight: 32,
     paddingTop: 2,
   },
 
-  // Divider
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.lg,
-  },
-
-  // ── Stat row ──
+  // Stats
   statRow: {
     flexDirection: "row",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.base,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md + 4,
   },
-  stat: { flex: 1, alignItems: "flex-start" },
+  stat: { flex: 1 },
   statLabel: {
-    ...typography.label,
+    fontFamily: fonts.sansMedium,
+    fontSize: 9,
+    letterSpacing: 1.4,
     color: colors.textTertiary,
-    letterSpacing: 0.8,
-    marginBottom: 3,
+    textTransform: "uppercase",
+    marginBottom: 4,
   },
   statValue: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: fonts.sans,
+    fontSize: 16,
+    fontWeight: "400",
+    letterSpacing: -0.3,
     color: colors.text,
-    letterSpacing: 0.2,
   },
   statSep: {
     width: 1,
     backgroundColor: colors.border,
+    alignSelf: "stretch",
+    marginHorizontal: space.sm,
     marginVertical: 2,
-    marginHorizontal: spacing.base,
   },
 
-  // ── Context warning ──
+  // Context warning
   warn: {
     borderLeftWidth: 2,
-    marginHorizontal: spacing.lg,
-    marginVertical: spacing.base,
-    paddingLeft: spacing.base,
-    paddingVertical: spacing.xs,
+    marginHorizontal: space.lg,
+    marginVertical: space.md,
+    paddingLeft: space.md,
+    paddingVertical: 8,
   },
   warnTitle: {
-    ...typography.label,
-    letterSpacing: 1,
-    marginBottom: 2,
+    fontFamily: fonts.sansMedium,
+    fontSize: 9,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginBottom: 3,
   },
-  warnText: { ...typography.caption, color: colors.textSecondary, lineHeight: 17 },
+  warnText: {
+    fontFamily: fonts.sans,
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 17,
+  },
 
-  // ── Section label ──
+  // Section label
   sectionLabel: {
-    ...typography.label,
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.4,
     color: colors.textTertiary,
-    letterSpacing: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
+    textTransform: "uppercase",
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    paddingBottom: space.sm,
   },
 
-  // ── Commands ──
+  // Commands
   cmdRow: {
     flexDirection: "row",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.base,
+    gap: space.sm - 2,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
   },
   cmdBtn: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: radius.xs,
     borderWidth: 1,
     alignItems: "center",
     backgroundColor: colors.surface,
   },
-  cmdText: { ...typography.label, letterSpacing: 0.5 },
+  cmdText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 9,
+    letterSpacing: 1.0,
+    textTransform: "uppercase",
+  },
 
-  // ── Feed ──
-  feedHeader: {
+  // Feed
+  feedHead: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.sm,
+    paddingRight: space.lg,
   },
   feedCount: {
-    ...typography.label,
-    color: colors.textDisabled,
-    letterSpacing: 0.5,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textTertiary,
   },
-  tableHead: {
-    backgroundColor: colors.bgElevated,
-  },
+  tableHead: { backgroundColor: colors.surfaceRaised },
   headCell: {
-    ...typography.label,
-    color: colors.textDisabled,
-    letterSpacing: 0.8,
+    fontFamily: fonts.sansMedium,
     fontSize: 9,
+    letterSpacing: 1.2,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
   },
 
-  // ── Rows ──
+  // Rows
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: space.lg,
+    gap: space.sm,
   },
   rowTime: {
-    width: 48,
-    fontFamily: "monospace",
-    fontSize: 11,
-    color: colors.textDisabled,
+    width: 60,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textTertiary,
   },
   rowBody: { flex: 1 },
   rowModel: {
-    fontFamily: "monospace",
+    fontFamily: fonts.mono,
     fontSize: 12,
     color: colors.textSecondary,
   },
   rowTokens: {
-    fontFamily: "monospace",
+    fontFamily: fonts.mono,
     fontSize: 10,
-    color: colors.textDisabled,
-    marginTop: 1,
+    color: colors.textTertiary,
+    marginTop: 2,
   },
   rowCost: {
-    width: 76,
+    width: 72,
     textAlign: "right",
-    fontFamily: "monospace",
+    fontFamily: fonts.mono,
     fontSize: 12,
-    fontWeight: "600",
   },
 
-  // ── Empty ──
+  // Empty
   empty: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing["3xl"],
+    paddingVertical: 48,
     alignItems: "center",
   },
-  emptyText: { ...typography.body, color: colors.textSecondary, marginBottom: 4 },
-  emptySub: { ...typography.caption, color: colors.textDisabled, textAlign: "center" },
+  emptyTitle: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 10,
+    letterSpacing: 1.8,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  emptySub: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    color: colors.textTertiary,
+  },
 });

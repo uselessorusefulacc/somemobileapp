@@ -1,80 +1,95 @@
 import { Tabs } from "expo-router";
-import { View, Text, StyleSheet } from "react-native";
-import { colors, spacing, radius, typography } from "../../lib/theme";
+import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, fonts, type } from "../../lib/theme";
 
-function TabIcon({ focused, label }: { focused: boolean; label: string }) {
+function TabLabel({ focused, label }: { focused: boolean; label: string }) {
   return (
-    <View style={s.wrap}>
-      <Text style={[s.label, focused && s.labelActive]}>{label}</Text>
-      {focused && <View style={s.dot} />}
-    </View>
+    <Text
+      style={{
+        fontFamily: fonts.sansMedium,
+        fontSize: 10,
+        letterSpacing: 1.2,
+        textTransform: "uppercase",
+        color: focused ? colors.text : colors.textTertiary,
+        marginTop: 3,
+      }}
+    >
+      {label}
+    </Text>
+  );
+}
+
+function TabIcon({ focused }: { focused: boolean }) {
+  return (
+    <View
+      style={{
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: focused ? colors.text : "transparent",
+        borderWidth: 1,
+        borderColor: focused ? colors.text : colors.textTertiary,
+        marginBottom: 1,
+      }}
+    />
   );
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: s.bar,
-        tabBarShowLabel: false,
+        tabBarStyle: {
+          backgroundColor: colors.bg,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom + 6,
+          paddingTop: 10,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarActiveTintColor: colors.text,
+        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarShowLabel: true,
       }}
     >
       <Tabs.Screen
         name="sessions"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="SESSIONS" />,
+          title: "Sessions",
+          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="Sessions" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="dashboard"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="OVERVIEW" />,
+          title: "Dashboard",
+          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="Dashboard" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="cost"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="COSTS" />,
+          title: "Cost",
+          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="Cost" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="connect"
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="CONNECT" />,
+          title: "Connect",
+          tabBarLabel: ({ focused }) => <TabLabel focused={focused} label="Connect" />,
+          tabBarIcon: ({ focused }) => <TabIcon focused={focused} />,
         }}
       />
     </Tabs>
   );
 }
-
-const s = StyleSheet.create({
-  bar: {
-    backgroundColor: colors.bg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    height: 56,
-    paddingBottom: 0,
-  },
-  wrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingTop: 4,
-  },
-  label: {
-    fontSize: 9,
-    fontWeight: "500",
-    letterSpacing: 0.7,
-    color: colors.textTertiary,
-  },
-  labelActive: {
-    color: colors.text,
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.text,
-  },
-});
