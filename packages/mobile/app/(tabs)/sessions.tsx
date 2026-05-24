@@ -47,7 +47,7 @@ function PulseDot({ color, size = 6 }: { color: string; size?: number }) {
 }
 
 // ── Session row ────────────────────────────────────────────────────────────
-function SessionRow({ item, onPress }: { item: AgentSession; onPress: () => void }) {
+function SessionRow({ item, onPress, index = 0 }: { item: AgentSession; onPress: () => void; index?: number }) {
   const cost = parseFloat(item.totalCost || "0");
   const isActive = item.status === "active";
   const statusColor = getStatusColor(item.status);
@@ -58,11 +58,29 @@ function SessionRow({ item, onPress }: { item: AgentSession; onPress: () => void
     cost > 0.1 ? colors.warning :
     colors.textSecondary;
 
+  const rowOpacity = useRef(new Animated.Value(0)).current;
+  const rowSlide = useRef(new Animated.Value(18)).current;
+  const rowScale = useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    const delay = Math.min(index * 55, 300);
+    Animated.parallel([
+      Animated.timing(rowOpacity, { toValue: 1, duration: 320, delay, useNativeDriver: true }),
+      Animated.timing(rowSlide, { toValue: 0, duration: 320, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const onPressIn = () => Animated.spring(rowScale, { toValue: 0.98, useNativeDriver: true, speed: 50 }).start();
+  const onPressOut = () => Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, speed: 40 }).start();
+
   return (
+    <Animated.View style={{ opacity: rowOpacity, transform: [{ translateX: rowSlide }, { scale: rowScale }] }}>
     <TouchableOpacity
       style={[s.row, isActive && s.rowActive]}
       onPress={onPress}
-      activeOpacity={0.55}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      activeOpacity={1}
     >
       {/* Left accent bar — glows when active */}
       <View style={[s.accentBar, {
@@ -96,6 +114,7 @@ function SessionRow({ item, onPress }: { item: AgentSession; onPress: () => void
 
       <Text style={s.chevron}>›</Text>
     </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -197,8 +216,8 @@ export default function SessionsScreen() {
         <FlatList
           data={sessions}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <SessionRow item={item} onPress={() => router.push(`/session/${item.id}`)} />
+          renderItem={({ item, index }) => (
+            <SessionRow item={item} index={index} onPress={() => router.push(`/session/${item.id}`)} />
           )}
           ItemSeparatorComponent={() => <View style={s.divider} />}
           ListEmptyComponent={<EmptyState onNew={() => router.push("/new-session")} />}
@@ -237,7 +256,7 @@ const s = StyleSheet.create({
   sessionCount: {
     fontFamily: fonts.mono,
     fontSize: 10,
-    color: colors.textTertiary,
+    color: colors.textSecondary,
     backgroundColor: colors.surfaceRaised,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -263,7 +282,7 @@ const s = StyleSheet.create({
   newBtnText: { fontFamily: fonts.sans, fontSize: 17, color: colors.accent, lineHeight: 22 },
 
   loadWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  loadText: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 2, color: colors.textTertiary, textTransform: "uppercase" },
+  loadText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 2, color: colors.textSecondary, textTransform: "uppercase" },
 
   // Row
   row: {
@@ -298,10 +317,10 @@ const s = StyleSheet.create({
   rowMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
   statusDot: { width: 4, height: 4, borderRadius: 2 },
   metaStatus: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 1.0, textTransform: "uppercase" },
-  metaText: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 1.0, color: colors.textTertiary, textTransform: "uppercase" },
-  metaSep: { fontFamily: fonts.sans, fontSize: 9, color: colors.textTertiary },
-  metaDate: { fontFamily: fonts.mono, fontSize: 9, color: colors.textTertiary },
-  chevron: { fontFamily: fonts.sans, fontSize: 18, color: colors.textTertiary, marginLeft: space.sm, lineHeight: 22 },
+  metaText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.0, color: colors.textSecondary, textTransform: "uppercase" },
+  metaSep: { fontFamily: fonts.sans, fontSize: 10, color: colors.textSecondary },
+  metaDate: { fontFamily: fonts.mono, fontSize: 10, color: colors.textSecondary },
+  chevron: { fontFamily: fonts.sans, fontSize: 18, color: colors.textSecondary, marginLeft: space.sm, lineHeight: 22 },
 
   // Empty / error
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: space.xl },
@@ -312,9 +331,9 @@ const s = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
     marginBottom: 4,
   },
-  emptyGlyphText: { fontFamily: fonts.sans, fontSize: 20, color: colors.textTertiary },
-  emptyTitle: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8, color: colors.textTertiary, textTransform: "uppercase" },
-  emptySub: { fontFamily: fonts.sans, fontSize: 13, color: colors.textTertiary, textAlign: "center" },
+  emptyGlyphText: { fontFamily: fonts.sans, fontSize: 20, color: colors.textSecondary },
+  emptyTitle: { fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.8, color: colors.textSecondary, textTransform: "uppercase" },
+  emptySub: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, textAlign: "center" },
   emptyBtn: {
     borderWidth: 1, borderColor: colors.borderStrong,
     paddingHorizontal: space.lg, paddingVertical: 10,

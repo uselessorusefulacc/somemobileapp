@@ -11,8 +11,9 @@ function TabLabel({ focused, label }: { focused: boolean; label: string }) {
         fontSize: 10,
         letterSpacing: 1.2,
         textTransform: "uppercase",
-        color: focused ? colors.text : colors.textTertiary,
+        color: focused ? colors.text : colors.textSecondary,
         marginTop: 3,
+        opacity: focused ? 1 : 0.75,
       }}
     >
       {label}
@@ -27,9 +28,9 @@ function TabIcon({ focused }: { focused: boolean }) {
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: focused ? colors.text : "transparent",
+        backgroundColor: focused ? colors.accent : "transparent",
         borderWidth: 1,
-        borderColor: focused ? colors.text : colors.textTertiary,
+        borderColor: focused ? colors.accent : colors.textSecondary,
         marginBottom: 1,
       }}
     />
@@ -54,7 +55,7 @@ export default function TabLayout() {
           shadowOpacity: 0,
         },
         tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarShowLabel: true,
       }}
     >

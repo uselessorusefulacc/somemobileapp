@@ -48,15 +48,31 @@ function PulseDot({ color }: { color: string }) {
 }
 
 // ── Neon stat card ────────────────────────────────────────────────────────
-function StatCard({ label, value, valueColor, accent }: {
-  label: string; value: string; valueColor?: string; accent?: string;
+function StatCard({ label, value, valueColor, accent, delay = 0 }: {
+  label: string; value: string; valueColor?: string; accent?: string; delay?: number;
 }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const slideY = useRef(new Animated.Value(12)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 350, delay, useNativeDriver: true }),
+      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 200, delay } as any),
+    ]).start();
+  }, []);
+
+  const onPressIn = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 40 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+
   return (
-    <View style={[sc.card, accent ? { borderColor: accent + "40", borderWidth: 1 } : {}]}>
-      {accent && <View style={[sc.cardGlow, { backgroundColor: accent + "08" }]} />}
-      <Text style={sc.cardLabel}>{label}</Text>
-      <Text style={[sc.cardValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
-    </View>
+    <Animated.View style={[sc.card, accent ? { borderColor: accent + "50", borderWidth: 1 } : {}, { opacity, transform: [{ translateY: slideY }, { scale }] }]}>
+      <TouchableOpacity activeOpacity={1} onPressIn={onPressIn} onPressOut={onPressOut} style={{ flex: 1 }}>
+        {accent && <View style={[sc.cardGlow, { backgroundColor: accent + "10" }]} />}
+        <Text style={sc.cardLabel}>{label}</Text>
+        <Text style={[sc.cardValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -127,6 +143,41 @@ function ModelBar({ model, cost, pct, isTop }: { model: string; cost: number; pc
         }]} />
       </View>
       <Text style={[d.modelCost, isTop && { color: colors.accent }]}>{formatCost(cost)}</Text>
+    </View>
+  );
+}
+
+// ── Animated action buttons ───────────────────────────────────────────────
+function ActionButtons({ router }: { router: ReturnType<typeof useRouter> }) {
+  const primaryScale = useRef(new Animated.Value(1)).current;
+  const secondaryScale = useRef(new Animated.Value(1)).current;
+  const press = (anim: Animated.Value, to: number) =>
+    Animated.spring(anim, { toValue: to, useNativeDriver: true, speed: 40 }).start();
+  return (
+    <View style={d.actionGrid}>
+      <Animated.View style={[{ flex: 2 }, { transform: [{ scale: primaryScale }] }]}>
+        <TouchableOpacity
+          style={d.actionPrimary}
+          onPress={() => router.push("/new-session")}
+          onPressIn={() => press(primaryScale, 0.96)}
+          onPressOut={() => press(primaryScale, 1)}
+          activeOpacity={1}
+        >
+          <View style={d.actionGlow} />
+          <Text style={d.actionPrimaryText}>⊕  NEW SESSION</Text>
+        </TouchableOpacity>
+      </Animated.View>
+      <Animated.View style={[{ flex: 1 }, { transform: [{ scale: secondaryScale }] }]}>
+        <TouchableOpacity
+          style={[d.actionSecondary, { flex: undefined }]}
+          onPress={() => router.push("/(tabs)/cost")}
+          onPressIn={() => press(secondaryScale, 0.96)}
+          onPressOut={() => press(secondaryScale, 1)}
+          activeOpacity={1}
+        >
+          <Text style={d.actionSecondaryText}>COSTS ↗</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -260,15 +311,17 @@ export default function DashboardScreen() {
                 value={formatCost(todayCost)}
                 valueColor={todayCost > 1 ? colors.warning : colors.text}
                 accent={todayCost > 1 ? colors.warning : undefined}
+                delay={0}
               />
-              <StatCard label="TOKENS" value={formatTokens(totalTokens)} accent={colors.accent} />
+              <StatCard label="TOKENS" value={formatTokens(totalTokens)} accent={colors.accent} delay={60} />
               <StatCard
                 label="CACHE HIT"
                 value={`${Math.round(cacheHitRate * 100)}%`}
                 valueColor={cacheHitRate > 0.5 ? colors.success : colors.text}
                 accent={cacheHitRate > 0.5 ? colors.success : undefined}
+                delay={120}
               />
-              <StatCard label="SESSIONS" value={String(totalSessions)} />
+              <StatCard label="SESSIONS" value={String(totalSessions)} delay={180} />
             </View>
 
             {/* ── Model breakdown ── */}
@@ -297,23 +350,7 @@ export default function DashboardScreen() {
               <Text style={d.sectionLabel}>ACTIONS</Text>
               <View style={d.sectionLine} />
             </View>
-            <View style={d.actionGrid}>
-              <TouchableOpacity
-                style={d.actionPrimary}
-                onPress={() => router.push("/new-session")}
-                activeOpacity={0.75}
-              >
-                <View style={d.actionGlow} />
-                <Text style={d.actionPrimaryText}>⊕  NEW SESSION</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={d.actionSecondary}
-                onPress={() => router.push("/(tabs)/cost")}
-                activeOpacity={0.7}
-              >
-                <Text style={d.actionSecondaryText}>COSTS ↗</Text>
-              </TouchableOpacity>
-            </View>
+            <ActionButtons router={router} />
           </>
         )}
         <View style={{ height: 48 }} />
@@ -339,15 +376,15 @@ const sc = StyleSheet.create({
   },
   cardLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1.6,
-    color: colors.textTertiary,
+    color: colors.textSecondary,
     textTransform: "uppercase",
     marginBottom: 6,
   },
   cardValue: {
     fontFamily: fonts.sans,
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: "300",
     letterSpacing: -0.8,
     color: colors.text,
@@ -376,14 +413,14 @@ const d = StyleSheet.create({
   },
   pageDate: {
     fontFamily: fonts.mono,
-    fontSize: 9,
-    color: colors.textTertiary,
+    fontSize: 10,
+    color: colors.textSecondary,
     letterSpacing: 0.5,
   },
   pageTime: {
     fontFamily: fonts.mono,
-    fontSize: 9,
-    color: colors.textTertiary,
+    fontSize: 10,
+    color: colors.textSecondary,
     letterSpacing: 0.5,
   },
   topBorderAccent: {
@@ -437,9 +474,9 @@ const d = StyleSheet.create({
   },
   heroLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 2.4,
-    color: colors.textTertiary,
+    color: colors.textSecondary,
     textTransform: "uppercase",
     marginBottom: 10,
   },
@@ -452,7 +489,7 @@ const d = StyleSheet.create({
     marginBottom: 12,
   },
   heroMeta: { flexDirection: "row", alignItems: "center", gap: 12 },
-  heroSub: { fontFamily: fonts.mono, fontSize: 10, color: colors.textTertiary, letterSpacing: 0.3 },
+  heroSub: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, letterSpacing: 0.3 },
   liveChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: colors.successMuted, borderWidth: 1, borderColor: colors.successBorder,
@@ -471,8 +508,8 @@ const d = StyleSheet.create({
   // Section
   sectionHead: { flexDirection: "row", alignItems: "center", paddingHorizontal: space.lg, marginBottom: 2, marginTop: space.sm, gap: 10 },
   sectionLabel: {
-    fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 2.0,
-    color: colors.textTertiary, textTransform: "uppercase", flexShrink: 0,
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 2.0,
+    color: colors.textSecondary, textTransform: "uppercase", flexShrink: 0,
   },
   sectionLine: { flex: 1, height: 1, backgroundColor: colors.border },
 
@@ -489,10 +526,10 @@ const d = StyleSheet.create({
     gap: 10,
   },
   modelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  modelName: { fontFamily: fonts.mono, fontSize: 9, color: colors.textTertiary, width: 80 },
+  modelName: { fontFamily: fonts.mono, fontSize: 10, color: colors.textSecondary, width: 80 },
   barTrack: { flex: 1, height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" },
   barFill: { height: "100%", borderRadius: 2 },
-  modelCost: { fontFamily: fonts.mono, fontSize: 10, color: colors.textTertiary, width: 62, textAlign: "right" },
+  modelCost: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, width: 62, textAlign: "right" },
 
   // Actions
   actionGrid: { flexDirection: "row", gap: 8, paddingHorizontal: space.md, marginBottom: space.md },

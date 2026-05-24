@@ -302,9 +302,9 @@ const c = StyleSheet.create({
   },
   codeLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1.4,
-    color: colors.textTertiary,
+    color: colors.textSecondary,
     textTransform: "uppercase",
   },
   codeRow: {
@@ -314,8 +314,8 @@ const c = StyleSheet.create({
   },
   codeText: {
     fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.textSecondary,
+    fontSize: 12,
+    color: colors.text,
     flex: 1,
     paddingVertical: 10,
   },
@@ -327,9 +327,9 @@ const c = StyleSheet.create({
   },
   copyText: {
     fontFamily: fonts.sansMedium,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1.2,
-    color: colors.textTertiary,
+    color: colors.textSecondary,
     textTransform: "uppercase",
   },
   copyTextActive: {
