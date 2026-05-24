@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Animated,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,6 +15,46 @@ import { colors, fonts, radius, space } from "../../lib/theme";
 const RELAY_URL = "wss://81ylvadrgdbxmql33216v-preview-8080.runable.site";
 const EXPO_URL  = "exp://81ylvadrgdbxmql33216v-preview-4300.runable.site";
 
+// ─── PulseDot ──────────────────────────────────────────────────────────────
+function PulseDot({ color }: { color: string }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.delay(500),
+        Animated.parallel([
+          Animated.timing(scale,   { toValue: 2.2, duration: 900, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0,   duration: 900, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(scale,   { toValue: 1, duration: 0, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 1, duration: 0, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  return (
+    <View style={{ width: 10, height: 10, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View
+        style={{
+          position: "absolute",
+          width: 8, height: 8, borderRadius: 4,
+          backgroundColor: color,
+          transform: [{ scale }],
+          opacity,
+        }}
+      />
+      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: color }} />
+    </View>
+  );
+}
+
+// ─── CopyBlock ─────────────────────────────────────────────────────────────
 function CopyBlock({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -38,6 +79,7 @@ function CopyBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
+// ─── ConnectScreen ─────────────────────────────────────────────────────────
 export default function ConnectScreen() {
   const insets = useSafeAreaInsets();
   const relay  = useRelay();
@@ -45,23 +87,30 @@ export default function ConnectScreen() {
 
   return (
     <View style={[c.root, { paddingTop: insets.top }]}>
+      {/* Top bar */}
       <View style={c.topBar}>
         <Text style={c.pageTitle}>CONNECT</Text>
         <View style={[c.statusPill, connected && c.statusPillActive]}>
-          <View style={[c.dot, { backgroundColor: connected ? colors.success : colors.textTertiary }]} />
+          {connected
+            ? <PulseDot color={colors.success} />
+            : <View style={[c.dot, { backgroundColor: colors.textTertiary }]} />
+          }
           <Text style={[c.statusText, { color: connected ? colors.success : colors.textTertiary }]}>
             {connected ? "LIVE" : "OFFLINE"}
           </Text>
         </View>
       </View>
-
-      <View style={c.divider} />
+      <View style={c.accentLine} />
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+
         {/* ── Status block ── */}
-        <View style={c.statusBlock}>
-          <Text style={c.sectionLabel}>RELAY STATUS</Text>
-          <Text style={c.statusMain}>
+        <View style={[c.statusBlock, connected && c.statusBlockConnected]}>
+          <View style={c.statusLabelRow}>
+            <Text style={c.sectionLabel}>RELAY STATUS</Text>
+            <View style={c.sectionLine} />
+          </View>
+          <Text style={[c.statusMain, connected && c.statusMainConnected]}>
             {connected ? "Relay connected" : "Waiting for relay"}
           </Text>
           <Text style={c.statusSub}>
@@ -117,6 +166,7 @@ export default function ConnectScreen() {
 const c = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   divider: { height: 1, backgroundColor: colors.border },
+  accentLine: { height: 1, backgroundColor: colors.accent + "30" },
 
   topBar: {
     flexDirection: "row",
@@ -127,15 +177,15 @@ const c = StyleSheet.create({
   },
   pageTitle: {
     fontFamily: fonts.sansMedium,
-    fontSize: 9,
-    letterSpacing: 2.0,
-    color: colors.textSecondary,
+    fontSize: 10,
+    letterSpacing: 3,
+    color: colors.accent,
     textTransform: "uppercase",
   },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 10,
@@ -146,7 +196,7 @@ const c = StyleSheet.create({
     borderColor: colors.successBorder,
     backgroundColor: colors.successMuted,
   },
-  dot: { width: 4, height: 4, borderRadius: 2 },
+  dot: { width: 5, height: 5, borderRadius: 3 },
   statusText: {
     fontFamily: fonts.sansMedium,
     fontSize: 8,
@@ -160,13 +210,30 @@ const c = StyleSheet.create({
     letterSpacing: 1.8,
     color: colors.textTertiary,
     textTransform: "uppercase",
-    marginBottom: space.sm,
+  },
+  sectionLine: { flex: 1, height: 1, backgroundColor: colors.border, marginLeft: 12 },
+  statusLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: space.md,
   },
 
   // Status block
   statusBlock: {
     paddingHorizontal: space.lg,
     paddingVertical: space.xl,
+    borderWidth: 1,
+    borderColor: "transparent",
+    margin: space.md,
+    borderRadius: 3,
+  },
+  statusBlockConnected: {
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successMuted,
+    shadowColor: colors.success,
+    shadowRadius: 18,
+    shadowOpacity: 0.22,
+    shadowOffset: { width: 0, height: 0 },
   },
   statusMain: {
     fontFamily: fonts.sans,
@@ -175,6 +242,12 @@ const c = StyleSheet.create({
     letterSpacing: -0.8,
     color: colors.text,
     marginBottom: 8,
+  },
+  statusMainConnected: {
+    color: colors.success,
+    textShadowColor: colors.success + "60",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14,
   },
   statusSub: {
     fontFamily: fonts.sans,
@@ -191,7 +264,7 @@ const c = StyleSheet.create({
   stepNum: {
     fontFamily: fonts.mono,
     fontSize: 9,
-    color: colors.textTertiary,
+    color: colors.accent + "80",
     letterSpacing: 0.5,
     marginBottom: 5,
   },
@@ -214,7 +287,7 @@ const c = StyleSheet.create({
   // Copy block
   codeBlock: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: 2,
     marginBottom: space.sm,
     backgroundColor: colors.surface,
@@ -261,5 +334,8 @@ const c = StyleSheet.create({
   },
   copyTextActive: {
     color: colors.success,
+    textShadowColor: colors.success + "80",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
 });
