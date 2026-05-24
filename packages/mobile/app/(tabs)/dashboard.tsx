@@ -17,17 +17,17 @@ import { formatCost, formatTokens } from "../../lib/format";
 
 // ── Pulsing live dot ──────────────────────────────────────────────────────
 function PulseDot({ color }: { color: string }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale   = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0.6)).current;
   React.useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(scale, { toValue: 1.8, duration: 800, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+          Animated.timing(scale,   { toValue: 1.9, duration: 850, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0,   duration: 850, useNativeDriver: true }),
         ]),
         Animated.parallel([
-          Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
+          Animated.timing(scale,   { toValue: 1, duration: 0, useNativeDriver: true }),
           Animated.timing(opacity, { toValue: 0.6, duration: 0, useNativeDriver: true }),
         ]),
         Animated.delay(400),
@@ -37,10 +37,8 @@ function PulseDot({ color }: { color: string }) {
   return (
     <View style={{ width: 10, height: 10, alignItems: "center", justifyContent: "center" }}>
       <Animated.View style={{
-        position: "absolute",
-        width: 10, height: 10, borderRadius: 5,
-        backgroundColor: color,
-        opacity, transform: [{ scale }],
+        position: "absolute", width: 10, height: 10, borderRadius: 5,
+        backgroundColor: color, opacity, transform: [{ scale }],
       }} />
       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
     </View>
@@ -51,33 +49,24 @@ function PulseDot({ color }: { color: string }) {
 function StatCard({ label, value, valueColor, accent, delay = 0 }: {
   label: string; value: string; valueColor?: string; accent?: string; delay?: number;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale   = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const slideY = useRef(new Animated.Value(12)).current;
+  const slideY  = useRef(new Animated.Value(16)).current;
 
   React.useEffect(() => {
-    if (delay > 0) {
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-          Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 200 }),
-        ]).start();
-      }, delay);
-    } else {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-        Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 200 }),
-      ]).start();
-    }
+    const run = () => Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
+      Animated.spring(slideY,  { toValue: 0, delay, useNativeDriver: true, damping: 18, stiffness: 200 }),
+    ]).start();
+    if (delay > 0) setTimeout(run, 0); else run();
   }, []);
 
-  const onPressIn = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 40 }).start();
-  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
+  const press = (v: number) => Animated.spring(scale, { toValue: v, useNativeDriver: true, speed: 40 }).start();
 
   return (
-    <Animated.View style={[sc.card, accent ? { borderColor: accent + "50", borderWidth: 1 } : {}, { opacity, transform: [{ translateY: slideY }, { scale }] }]}>
-      <TouchableOpacity activeOpacity={1} onPressIn={onPressIn} onPressOut={onPressOut} style={{ flex: 1 }}>
-        {accent && <View style={[sc.cardGlow, { backgroundColor: accent + "10" }]} />}
+    <Animated.View style={[sc.card, accent ? { borderColor: accent + "55", borderWidth: 1 } : {}, { opacity, transform: [{ translateY: slideY }, { scale }] }]}>
+      <TouchableOpacity activeOpacity={1} onPressIn={() => press(0.94)} onPressOut={() => press(1)} style={{ flex: 1 }}>
+        {accent && <View style={[sc.cardGlow, { backgroundColor: accent + "12" }]} />}
         <Text style={sc.cardLabel}>{label}</Text>
         <Text style={[sc.cardValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
       </TouchableOpacity>
@@ -85,15 +74,13 @@ function StatCard({ label, value, valueColor, accent, delay = 0 }: {
   );
 }
 
-// ── Budget Alert Banner ───────────────────────────────────────────────────
+// ── Budget alert banner ───────────────────────────────────────────────────
 function BudgetAlertBanner() {
-  const [alerts, setAlerts] = useState<Array<{ level: "warn" | "critical"; message: string }>>([]);
+  const [alerts, setAlerts]       = useState<Array<{ level: "warn" | "critical"; message: string }>>([]);
   const [dismissed, setDismissed] = useState(false);
   useFocusEffect(useCallback(() => {
     let alive = true;
-    apiClient.getAlerts()
-      .then((r) => { if (alive) setAlerts(r.alerts); })
-      .catch(() => {});
+    apiClient.getAlerts().then((r) => { if (alive) setAlerts(r.alerts); }).catch(() => {});
     return () => { alive = false; };
   }, []));
   if (dismissed || alerts.length === 0) return null;
@@ -102,7 +89,7 @@ function BudgetAlertBanner() {
   const c = isCritical ? colors.danger : colors.warning;
   return (
     <TouchableOpacity
-      style={[d.alertBanner, { borderColor: c + "50", backgroundColor: c + "0D" }]}
+      style={[d.alertBanner, { borderColor: c + "55", backgroundColor: c + "0D" }]}
       onPress={() => setDismissed(true)}
       activeOpacity={0.8}
     >
@@ -120,9 +107,7 @@ function BudgetAlertBanner() {
 function ErrorBlock({ onRetry }: { onRetry: () => void }) {
   return (
     <View style={d.errorBlock}>
-      <View style={d.errorIcon}>
-        <Text style={d.errorIconText}>!</Text>
-      </View>
+      <View style={d.errorIcon}><Text style={d.errorIconText}>!</Text></View>
       <Text style={d.errorLabel}>FETCH FAILED</Text>
       <Text style={d.errorSub}>Could not reach the API</Text>
       <TouchableOpacity style={d.retryBtn} onPress={onRetry} activeOpacity={0.7}>
@@ -136,19 +121,19 @@ function ErrorBlock({ onRetry }: { onRetry: () => void }) {
 function ModelBar({ model, cost, pct, isTop }: { model: string; cost: number; pct: number; isTop: boolean }) {
   const w = useRef(new Animated.Value(0)).current;
   React.useEffect(() => {
-    Animated.timing(w, { toValue: pct, duration: 600, delay: 100, useNativeDriver: false }).start();
+    Animated.timing(w, { toValue: pct, duration: 650, delay: 100, useNativeDriver: false }).start();
   }, [pct]);
-  const barColor = isTop ? colors.accent : colors.textTertiary;
+  const barColor = isTop ? colors.accent : colors.borderStrong;
   return (
     <View style={d.modelRow}>
-      <Text style={[d.modelName, isTop && { color: colors.textSecondary }]} numberOfLines={1}>{model}</Text>
+      <Text style={[d.modelName, isTop && { color: colors.text }]} numberOfLines={1}>{model}</Text>
       <View style={d.barTrack}>
         <Animated.View style={[d.barFill, {
           width: w.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }),
           backgroundColor: barColor,
           shadowColor: isTop ? colors.accent : "transparent",
-          shadowRadius: isTop ? 4 : 0,
-          shadowOpacity: isTop ? 0.8 : 0,
+          shadowRadius: isTop ? 5 : 0,
+          shadowOpacity: isTop ? 0.85 : 0,
         }]} />
       </View>
       <Text style={[d.modelCost, isTop && { color: colors.accent }]}>{formatCost(cost)}</Text>
@@ -158,30 +143,29 @@ function ModelBar({ model, cost, pct, isTop }: { model: string; cost: number; pc
 
 // ── Animated action buttons ───────────────────────────────────────────────
 function ActionButtons({ router }: { router: ReturnType<typeof useRouter> }) {
-  const primaryScale = useRef(new Animated.Value(1)).current;
-  const secondaryScale = useRef(new Animated.Value(1)).current;
-  const press = (anim: Animated.Value, to: number) =>
-    Animated.spring(anim, { toValue: to, useNativeDriver: true, speed: 40 }).start();
+  const s1 = useRef(new Animated.Value(1)).current;
+  const s2 = useRef(new Animated.Value(1)).current;
+  const press = (a: Animated.Value, v: number) => Animated.spring(a, { toValue: v, useNativeDriver: true, speed: 40 }).start();
   return (
     <View style={d.actionGrid}>
-      <Animated.View style={[{ flex: 2 }, { transform: [{ scale: primaryScale }] }]}>
+      <Animated.View style={[{ flex: 2 }, { transform: [{ scale: s1 }] }]}>
         <TouchableOpacity
           style={d.actionPrimary}
           onPress={() => router.push("/new-session")}
-          onPressIn={() => press(primaryScale, 0.96)}
-          onPressOut={() => press(primaryScale, 1)}
+          onPressIn={() => press(s1, 0.96)}
+          onPressOut={() => press(s1, 1)}
           activeOpacity={1}
         >
           <View style={d.actionGlow} />
           <Text style={d.actionPrimaryText}>⊕  NEW SESSION</Text>
         </TouchableOpacity>
       </Animated.View>
-      <Animated.View style={[{ flex: 1 }, { transform: [{ scale: secondaryScale }] }]}>
+      <Animated.View style={[{ flex: 1 }, { transform: [{ scale: s2 }] }]}>
         <TouchableOpacity
-          style={[d.actionSecondary, { flex: undefined }]}
+          style={d.actionSecondary}
           onPress={() => router.push("/(tabs)/cost")}
-          onPressIn={() => press(secondaryScale, 0.96)}
-          onPressOut={() => press(secondaryScale, 1)}
+          onPressIn={() => press(s2, 0.96)}
+          onPressOut={() => press(s2, 1)}
           activeOpacity={1}
         >
           <Text style={d.actionSecondaryText}>COSTS ↗</Text>
@@ -191,7 +175,7 @@ function ActionButtons({ router }: { router: ReturnType<typeof useRouter> }) {
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────
+// ── Clock ─────────────────────────────────────────────────────────────────
 function useLocalTime() {
   const [time, setTime] = useState(() =>
     new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
@@ -205,32 +189,51 @@ function useLocalTime() {
   return time;
 }
 
+// ── Swipe hint indicator ──────────────────────────────────────────────────
+function SwipeHint() {
+  const op = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 0.3, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  return (
+    <Animated.View style={[d.swipeHint, { opacity: op }]}>
+      <Text style={d.swipeArrow}>‹</Text>
+      <Text style={d.swipeText}>SWIPE</Text>
+      <Text style={d.swipeArrow}>›</Text>
+    </Animated.View>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const insets    = useSafeAreaInsets();
+  const router    = useRouter();
   const localTime = useLocalTime();
-  const [stats, setStats] = useState<Analytics | null>(null);
+  const [stats, setStats]           = useState<Analytics | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError]           = useState(false);
   const heroOpacity = useRef(new Animated.Value(0)).current;
-  const heroSlide = useRef(new Animated.Value(12)).current;
+  const heroSlide   = useRef(new Animated.Value(16)).current;
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     setError(false);
-    const ctrl = new AbortController();
+    const ctrl  = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10_000);
     try {
       const data = await apiClient.getAnalytics();
       setStats(data);
       Animated.parallel([
         Animated.timing(heroOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.timing(heroSlide, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.spring(heroSlide,   { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 200 }),
       ]).start();
     } catch (e: unknown) {
-      if (e instanceof Error && e.name !== "AbortError") {
-        setError(true);
-      }
+      if (e instanceof Error && e.name !== "AbortError") setError(true);
     } finally {
       clearTimeout(timer);
       setRefreshing(false);
@@ -239,19 +242,19 @@ export default function DashboardScreen() {
 
   useFocusEffect(useCallback(() => { load(true); }, [load]));
 
-  const totalCost = parseFloat(String(stats?.totalCost || "0"));
-  const todayCost = parseFloat(String(stats?.dailyCost || "0"));
-  const totalTokens = stats?.totalTokens || 0;
+  const totalCost      = parseFloat(String(stats?.totalCost  || "0"));
+  const todayCost      = parseFloat(String(stats?.dailyCost  || "0"));
+  const totalTokens    = stats?.totalTokens    || 0;
   const activeSessions = stats?.activeSessions || 0;
-  const totalSessions = stats?.totalSessions || 0;
-  const cacheHitRate = stats?.cacheHitRate ?? 0;
+  const totalSessions  = stats?.totalSessions  || 0;
+  const cacheHitRate   = stats?.cacheHitRate   ?? 0;
 
   const heroCostColor =
     totalCost > 50 ? colors.danger :
     totalCost > 10 ? colors.warning :
     colors.success;
 
-  const sorted = stats?.modelBreakdown
+  const sorted  = stats?.modelBreakdown
     ? [...stats.modelBreakdown].sort((a, b) => parseFloat(b.totalCost) - parseFloat(a.totalCost))
     : [];
   const maxCost = sorted.length > 0 ? parseFloat(sorted[0].totalCost) : 1;
@@ -279,19 +282,24 @@ export default function DashboardScreen() {
       <ScrollView
         style={{ flex: 1 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(false); }} tintColor={colors.accent} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load(false); }}
+            tintColor={colors.accent}
+          />
         }
         showsVerticalScrollIndicator={false}
       >
         {error ? <ErrorBlock onRetry={() => load(false)} /> : (
           <>
-            {/* ── Hero cost ── */}
+            {/* Hero */}
             <Animated.View style={[d.heroBlock, { opacity: heroOpacity, transform: [{ translateY: heroSlide }] }]}>
               <Text style={d.heroLabel}>TOTAL SPEND</Text>
-              <Text style={[d.heroCost, { color: heroCostColor,
+              <Text style={[d.heroCost, {
+                color: heroCostColor,
                 textShadowColor: heroCostColor + "60",
                 textShadowOffset: { width: 0, height: 0 },
-                textShadowRadius: 20,
+                textShadowRadius: 22,
               }]}>
                 {formatCost(totalCost)}
               </Text>
@@ -306,14 +314,14 @@ export default function DashboardScreen() {
               </View>
             </Animated.View>
 
-            {/* ── Scan line separator ── */}
+            {/* Scan line */}
             <View style={d.scanLine}>
               <View style={d.scanFill} />
               <Text style={d.scanLabel}>◆</Text>
               <View style={d.scanFill} />
             </View>
 
-            {/* ── Stat cards ── */}
+            {/* Stat cards */}
             <View style={d.cardGrid}>
               <StatCard
                 label="TODAY"
@@ -322,18 +330,18 @@ export default function DashboardScreen() {
                 accent={todayCost > 1 ? colors.warning : undefined}
                 delay={0}
               />
-              <StatCard label="TOKENS" value={formatTokens(totalTokens)} accent={colors.accent} delay={60} />
+              <StatCard label="TOKENS" value={formatTokens(totalTokens)} accent={colors.accent} delay={70} />
               <StatCard
                 label="CACHE HIT"
                 value={`${Math.round(cacheHitRate * 100)}%`}
                 valueColor={cacheHitRate > 0.5 ? colors.success : colors.text}
                 accent={cacheHitRate > 0.5 ? colors.success : undefined}
-                delay={120}
+                delay={140}
               />
-              <StatCard label="SESSIONS" value={String(totalSessions)} delay={180} />
+              <StatCard label="SESSIONS" value={String(totalSessions)} delay={210} />
             </View>
 
-            {/* ── Model breakdown ── */}
+            {/* Model breakdown */}
             {sorted.length > 0 && (
               <>
                 <View style={d.sectionHead}>
@@ -354,7 +362,7 @@ export default function DashboardScreen() {
               </>
             )}
 
-            {/* ── Quick actions ── */}
+            {/* Quick actions */}
             <View style={d.sectionHead}>
               <Text style={d.sectionLabel}>ACTIONS</Text>
               <View style={d.sectionLine} />
@@ -362,41 +370,30 @@ export default function DashboardScreen() {
             <ActionButtons router={router} />
           </>
         )}
+
+        {/* Swipe hint */}
+        <SwipeHint />
         <View style={{ height: 48 }} />
       </ScrollView>
     </View>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────
 const sc = StyleSheet.create({
   card: {
-    flex: 1,
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
-    overflow: "hidden",
-    minHeight: 68,
-    justifyContent: "space-between",
+    flex: 1, backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    padding: 14, overflow: "hidden", minHeight: 74, justifyContent: "space-between",
   },
-  cardGlow: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.sm,
-  },
+  cardGlow: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.sm },
   cardLabel: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 9,
-    letterSpacing: 1.6,
-    color: colors.textSecondary,
-    textTransform: "uppercase",
-    marginBottom: 6,
+    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.6,
+    color: colors.textSecondary, textTransform: "uppercase", marginBottom: 6,
   },
   cardValue: {
-    fontFamily: fonts.sans,
-    fontSize: 19,
-    fontWeight: "300",
-    letterSpacing: -0.8,
-    color: colors.text,
+    fontFamily: fonts.sans, fontSize: 21, fontWeight: "300",
+    letterSpacing: -0.8, color: colors.text,
   },
 });
 
@@ -404,112 +401,66 @@ const d = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
 
   topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: space.lg,
-    paddingVertical: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: space.lg, paddingVertical: 14,
   },
-  topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  logoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  logoImg: { width: 22, height: 22, opacity: 0.9 },
+  topRight:  { flexDirection: "row", alignItems: "center", gap: 8 },
+  logoRow:   { flexDirection: "row", alignItems: "center", gap: 8 },
+  logoImg:   { width: 22, height: 22, opacity: 0.9 },
   pageTitle: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 10,
-    letterSpacing: 3,
-    color: colors.accent,
-    textTransform: "uppercase",
+    fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 3,
+    color: colors.accent, textTransform: "uppercase",
   },
-  pageDate: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  pageTime: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  topBorderAccent: {
-    height: 1,
-    backgroundColor: colors.accent + "30",
-  },
+  pageDate: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, letterSpacing: 0.5 },
+  pageTime: { fontFamily: fonts.mono, fontSize: 11, color: colors.text, letterSpacing: 0.5 },
+  topBorderAccent: { height: 1, backgroundColor: colors.accent + "35" },
 
   // Alert
-  alertBanner: {
-    margin: space.md,
-    marginBottom: 0,
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    overflow: "hidden",
-    flexDirection: "row",
-  },
+  alertBanner: { margin: space.md, marginBottom: 0, borderWidth: 1, borderRadius: radius.sm, overflow: "hidden", flexDirection: "row" },
   alertStripe: { width: 3 },
-  alertInner: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: space.md,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  alertText: { flex: 1, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
-  alertDismiss: { fontFamily: fonts.sans, fontSize: 14, opacity: 0.7 },
+  alertInner: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: space.md, paddingVertical: 10, gap: 8 },
+  alertText:  { flex: 1, fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
+  alertDismiss: { fontFamily: fonts.sans, fontSize: 15, opacity: 0.7 },
 
   // Error
   errorBlock: { padding: space.xl, alignItems: "center", gap: 12, marginTop: space.xl },
   errorIcon: {
-    width: 40, height: 40, borderRadius: 20,
-    borderWidth: 1, borderColor: colors.dangerBorder,
-    backgroundColor: colors.dangerMuted,
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 1, borderColor: colors.dangerBorder, backgroundColor: colors.dangerMuted,
     alignItems: "center", justifyContent: "center",
   },
-  errorIconText: { fontFamily: fonts.sansMedium, fontSize: 18, color: colors.danger, lineHeight: 22 },
-  errorLabel: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8, color: colors.danger, textTransform: "uppercase" },
-  errorSub: { fontFamily: fonts.sans, fontSize: 13, color: colors.textTertiary },
-  retryBtn: {
+  errorIconText: { fontFamily: fonts.sansMedium, fontSize: 20, color: colors.danger, lineHeight: 24 },
+  errorLabel: { fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.8, color: colors.danger, textTransform: "uppercase" },
+  errorSub:   { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary },
+  retryBtn:   {
     borderWidth: 1, borderColor: colors.accentBorder, backgroundColor: colors.accentMuted,
     paddingHorizontal: space.lg, paddingVertical: 10, borderRadius: radius.xs, marginTop: 4,
   },
-  retryText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8, color: colors.accent, textTransform: "uppercase" },
+  retryText: { fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.8, color: colors.accent, textTransform: "uppercase" },
 
   // Hero
-  heroBlock: {
-    paddingHorizontal: space.lg,
-    paddingTop: space.xl + 4,
-    paddingBottom: space.xl,
-  },
+  heroBlock: { paddingHorizontal: space.lg, paddingTop: space.xl + 4, paddingBottom: space.xl },
   heroLabel: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 9,
-    letterSpacing: 2.4,
-    color: colors.textSecondary,
-    textTransform: "uppercase",
-    marginBottom: 10,
+    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 2.4,
+    color: colors.textSecondary, textTransform: "uppercase", marginBottom: 10,
   },
   heroCost: {
-    fontFamily: fonts.sans,
-    fontSize: 58,
-    fontWeight: "300",
-    letterSpacing: -4,
-    lineHeight: 58,
-    marginBottom: 12,
+    fontFamily: fonts.sans, fontSize: 60, fontWeight: "300",
+    letterSpacing: -4, lineHeight: 60, marginBottom: 12,
   },
   heroMeta: { flexDirection: "row", alignItems: "center", gap: 12 },
-  heroSub: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, letterSpacing: 0.3 },
+  heroSub:  { fontFamily: fonts.mono, fontSize: 12, color: colors.textSecondary, letterSpacing: 0.3 },
   liveChip: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: colors.successMuted, borderWidth: 1, borderColor: colors.successBorder,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 2,
   },
-  liveChipText: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 1.4, color: colors.success, textTransform: "uppercase" },
+  liveChipText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.4, color: colors.success, textTransform: "uppercase" },
 
   // Scan line
-  scanLine: { flexDirection: "row", alignItems: "center", paddingHorizontal: space.lg, marginBottom: space.md },
-  scanFill: { flex: 1, height: 1, backgroundColor: colors.border },
-  scanLabel: { fontFamily: fonts.mono, fontSize: 8, color: colors.textTertiary, marginHorizontal: space.md },
+  scanLine:  { flexDirection: "row", alignItems: "center", paddingHorizontal: space.lg, marginBottom: space.md },
+  scanFill:  { flex: 1, height: 1, backgroundColor: colors.border },
+  scanLabel: { fontFamily: fonts.mono, fontSize: 9, color: colors.textTertiary, marginHorizontal: space.md },
 
   // Cards
   cardGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: space.md, marginBottom: space.md },
@@ -517,52 +468,41 @@ const d = StyleSheet.create({
   // Section
   sectionHead: { flexDirection: "row", alignItems: "center", paddingHorizontal: space.lg, marginBottom: 2, marginTop: space.sm, gap: 10 },
   sectionLabel: {
-    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 2.0,
+    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 2.0,
     color: colors.textSecondary, textTransform: "uppercase", flexShrink: 0,
   },
   sectionLine: { flex: 1, height: 1, backgroundColor: colors.border },
 
   // Model bars
   modelBlock: {
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-    backgroundColor: colors.surface,
-    marginHorizontal: space.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: space.md,
-    gap: 10,
+    paddingHorizontal: space.lg, paddingVertical: space.sm,
+    backgroundColor: colors.surface, marginHorizontal: space.md,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    marginBottom: space.md, gap: 12,
   },
-  modelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  modelName: { fontFamily: fonts.mono, fontSize: 10, color: colors.textSecondary, width: 80 },
-  barTrack: { flex: 1, height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" },
-  barFill: { height: "100%", borderRadius: 2 },
-  modelCost: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, width: 62, textAlign: "right" },
+  modelRow:  { flexDirection: "row", alignItems: "center", gap: 10 },
+  modelName: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, width: 88 },
+  barTrack:  { flex: 1, height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden" },
+  barFill:   { height: "100%", borderRadius: 2 },
+  modelCost: { fontFamily: fonts.mono, fontSize: 12, color: colors.textSecondary, width: 64, textAlign: "right" },
 
   // Actions
   actionGrid: { flexDirection: "row", gap: 8, paddingHorizontal: space.md, marginBottom: space.md },
   actionPrimary: {
-    flex: 2,
-    backgroundColor: colors.accent,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderRadius: radius.sm,
-    overflow: "hidden",
+    flex: 2, backgroundColor: colors.accent,
+    paddingVertical: 16, alignItems: "center", borderRadius: radius.sm, overflow: "hidden",
   },
-  actionGlow: {
-    position: "absolute", top: -20, left: -20, right: -20, bottom: -20,
-    backgroundColor: colors.accent + "20",
-  },
-  actionPrimaryText: { fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.6, color: "#000", textTransform: "uppercase" },
+  actionGlow: { position: "absolute", top: -20, left: -20, right: -20, bottom: -20, backgroundColor: colors.accent + "20" },
+  actionPrimaryText: { fontFamily: fonts.sansMedium, fontSize: 11, letterSpacing: 1.6, color: "#000", textTransform: "uppercase" },
   actionSecondary: {
-    flex: 1,
-    backgroundColor: "transparent",
-    paddingVertical: 14,
-    alignItems: "center",
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    flex: 1, backgroundColor: "transparent",
+    paddingVertical: 16, alignItems: "center", borderRadius: radius.sm,
+    borderWidth: 1, borderColor: colors.borderStrong,
   },
-  actionSecondaryText: { fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.4, color: colors.textSecondary, textTransform: "uppercase" },
+  actionSecondaryText: { fontFamily: fonts.sansMedium, fontSize: 11, letterSpacing: 1.4, color: colors.text, textTransform: "uppercase" },
+
+  // Swipe hint
+  swipeHint: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16 },
+  swipeArrow: { fontFamily: fonts.mono, fontSize: 16, color: colors.textTertiary },
+  swipeText:  { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 2.4, color: colors.textTertiary, textTransform: "uppercase" },
 });

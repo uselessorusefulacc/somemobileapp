@@ -8,6 +8,7 @@ import {
   Animated,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRelay } from "../../lib/relay-context";
 import { colors, fonts, radius, space } from "../../lib/theme";
@@ -57,11 +58,18 @@ function PulseDot({ color }: { color: string }) {
 // ─── CopyBlock ─────────────────────────────────────────────────────────────
 function CopyBlock({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
   const copy = () => {
     Clipboard.setStringAsync(value);
     setCopied(true);
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.94, duration: 80, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1,    duration: 120, useNativeDriver: true }),
+    ]).start();
     setTimeout(() => setCopied(false), 1500);
   };
+
   return (
     <View style={c.codeBlock}>
       <View style={c.codeLabelRow}>
@@ -69,11 +77,13 @@ function CopyBlock({ label, value }: { label: string; value: string }) {
       </View>
       <View style={c.codeRow}>
         <Text style={c.codeText} numberOfLines={1}>{value}</Text>
-        <TouchableOpacity onPress={copy} activeOpacity={0.65} style={c.copyBtn}>
-          <Text style={[c.copyText, copied && c.copyTextActive]}>
-            {copied ? "COPIED" : "COPY"}
-          </Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale }] }}>
+          <TouchableOpacity onPress={copy} activeOpacity={0.65} style={c.copyBtn} hitSlop={12}>
+            <Text style={[c.copyText, copied && c.copyTextActive]}>
+              {copied ? "COPIED" : "COPY"}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </View>
   );
@@ -82,14 +92,31 @@ function CopyBlock({ label, value }: { label: string; value: string }) {
 // ─── ConnectScreen ─────────────────────────────────────────────────────────
 export default function ConnectScreen() {
   const insets = useSafeAreaInsets();
-  const relay  = useRelay();
+  const router  = useRouter();
+  const relay   = useRelay();
   const connected = relay.isConnected;
+
+  // Fade in on mount
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+  }, []);
 
   return (
     <View style={[c.root, { paddingTop: insets.top }]}>
       {/* Top bar */}
       <View style={c.topBar}>
-        <Text style={c.pageTitle}>CONNECT</Text>
+        <View style={c.topBarLeft}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.65}
+            hitSlop={12}
+            style={c.backBtn}
+          >
+            <Text style={c.backArrow}>←</Text>
+          </TouchableOpacity>
+          <Text style={c.pageTitle}>CONNECT</Text>
+        </View>
         <View style={[c.statusPill, connected && c.statusPillActive]}>
           {connected
             ? <PulseDot color={colors.success} />
@@ -102,63 +129,70 @@ export default function ConnectScreen() {
       </View>
       <View style={c.accentLine} />
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
 
-        {/* ── Status block ── */}
-        <View style={[c.statusBlock, connected && c.statusBlockConnected]}>
-          <View style={c.statusLabelRow}>
-            <Text style={c.sectionLabel}>RELAY STATUS</Text>
-            <View style={c.sectionLine} />
+          {/* ── Status block ── */}
+          <View style={[c.statusBlock, connected && c.statusBlockConnected]}>
+            <View style={c.statusLabelRow}>
+              <Text style={c.sectionLabel}>RELAY STATUS</Text>
+              <View style={c.sectionLine} />
+            </View>
+            <Text style={[c.statusMain, connected && c.statusMainConnected]}>
+              {connected ? "Relay connected" : "Waiting for relay"}
+            </Text>
+            <Text style={c.statusSub}>
+              {connected
+                ? "MAFA is receiving real-time events from your agents."
+                : "Open the relay on your machine to start monitoring."}
+            </Text>
           </View>
-          <Text style={[c.statusMain, connected && c.statusMainConnected]}>
-            {connected ? "Relay connected" : "Waiting for relay"}
-          </Text>
-          <Text style={c.statusSub}>
-            {connected
-              ? "MAFA is receiving real-time events from your agents."
-              : "Open the relay on your machine to start monitoring."}
-          </Text>
-        </View>
 
-        <View style={c.divider} />
+          <View style={c.divider} />
 
-        {/* ── Step 01 ── */}
-        <View style={c.stepBlock}>
-          <Text style={c.stepNum}>01</Text>
-          <Text style={c.stepTitle}>Install relay</Text>
-          <Text style={c.stepDesc}>
-            Run the relay server on your machine. It bridges your AI agents to this app.
-          </Text>
-          <CopyBlock label="INSTALL" value="npx mafa-relay" />
-        </View>
+          {/* ── Step 01 ── */}
+          <View style={c.stepBlock}>
+            <Text style={c.stepNum}>01</Text>
+            <Text style={c.stepTitle}>Install relay</Text>
+            <Text style={c.stepDesc}>
+              Run the relay server on your machine. It bridges your AI agents to this app.
+            </Text>
+            <CopyBlock label="INSTALL" value="npx mafa-relay" />
+          </View>
 
-        <View style={c.divider} />
+          <View style={c.divider} />
 
-        {/* ── Step 02 ── */}
-        <View style={c.stepBlock}>
-          <Text style={c.stepNum}>02</Text>
-          <Text style={c.stepTitle}>Configure relay URL</Text>
-          <Text style={c.stepDesc}>
-            Set this WebSocket URL in your relay config or environment variable.
-          </Text>
-          <CopyBlock label="RELAY URL" value={RELAY_URL} />
-          <CopyBlock label="EXPO URL"  value={EXPO_URL} />
-        </View>
+          {/* ── Step 02 ── */}
+          <View style={c.stepBlock}>
+            <Text style={c.stepNum}>02</Text>
+            <Text style={c.stepTitle}>Configure relay URL</Text>
+            <Text style={c.stepDesc}>
+              Set this WebSocket URL in your relay config or environment variable.
+            </Text>
+            <CopyBlock label="RELAY URL" value={RELAY_URL} />
+            <CopyBlock label="EXPO URL"  value={EXPO_URL} />
+          </View>
 
-        <View style={c.divider} />
+          <View style={c.divider} />
 
-        {/* ── Step 03 ── */}
-        <View style={c.stepBlock}>
-          <Text style={c.stepNum}>03</Text>
-          <Text style={c.stepTitle}>Wrap your agent</Text>
-          <Text style={c.stepDesc}>
-            Use the MAFA SDK to instrument Claude Code, Codex, or any LLM agent.
-          </Text>
-          <CopyBlock label="ENV" value="MAFA_URL=wss://..." />
-        </View>
+          {/* ── Step 03 ── */}
+          <View style={c.stepBlock}>
+            <Text style={c.stepNum}>03</Text>
+            <Text style={c.stepTitle}>Wrap your agent</Text>
+            <Text style={c.stepDesc}>
+              Use the MAFA SDK to instrument Claude Code, Codex, or any LLM agent.
+            </Text>
+            <CopyBlock label="ENV" value="MAFA_URL=wss://..." />
+          </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          {/* ── Swipe hint ── */}
+          <View style={c.swipeHint}>
+            <Text style={c.swipeText}>‹ SWIPE TABS ›</Text>
+          </View>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </Animated.View>
     </View>
   );
 }
@@ -175,9 +209,23 @@ const c = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: 13,
   },
+  topBarLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  backBtn: {
+    paddingRight: 4,
+  },
+  backArrow: {
+    fontFamily: fonts.sans,
+    fontSize: 20,
+    color: colors.text,
+    lineHeight: 24,
+  },
   pageTitle: {
     fontFamily: fonts.sansMedium,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 3,
     color: colors.accent,
     textTransform: "uppercase",
@@ -199,14 +247,14 @@ const c = StyleSheet.create({
   dot: { width: 5, height: 5, borderRadius: 3 },
   statusText: {
     fontFamily: fonts.sansMedium,
-    fontSize: 8,
+    fontSize: 9,
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
 
   sectionLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.8,
     color: colors.textTertiary,
     textTransform: "uppercase",
@@ -237,7 +285,7 @@ const c = StyleSheet.create({
   },
   statusMain: {
     fontFamily: fonts.sans,
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: "300",
     letterSpacing: -0.8,
     color: colors.text,
@@ -251,9 +299,10 @@ const c = StyleSheet.create({
   },
   statusSub: {
     fontFamily: fonts.sans,
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 21,
+    opacity: 0.7,
   },
 
   // Steps
@@ -263,14 +312,14 @@ const c = StyleSheet.create({
   },
   stepNum: {
     fontFamily: fonts.mono,
-    fontSize: 9,
+    fontSize: 10,
     color: colors.accent + "80",
     letterSpacing: 0.5,
     marginBottom: 5,
   },
   stepTitle: {
     fontFamily: fonts.sans,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "300",
     letterSpacing: -0.5,
     color: colors.text,
@@ -278,10 +327,11 @@ const c = StyleSheet.create({
   },
   stepDesc: {
     fontFamily: fonts.sans,
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 22,
     marginBottom: space.md,
+    opacity: 0.65,
   },
 
   // Copy block
@@ -302,7 +352,7 @@ const c = StyleSheet.create({
   },
   codeLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.4,
     color: colors.textSecondary,
     textTransform: "uppercase",
@@ -314,7 +364,7 @@ const c = StyleSheet.create({
   },
   codeText: {
     fontFamily: fonts.mono,
-    fontSize: 12,
+    fontSize: 13,
     color: colors.text,
     flex: 1,
     paddingVertical: 10,
@@ -327,7 +377,7 @@ const c = StyleSheet.create({
   },
   copyText: {
     fontFamily: fonts.sansMedium,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.2,
     color: colors.textSecondary,
     textTransform: "uppercase",
@@ -337,5 +387,20 @@ const c = StyleSheet.create({
     textShadowColor: colors.success + "80",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
+  },
+
+  // Swipe hint
+  swipeHint: {
+    alignItems: "center",
+    paddingVertical: space.xl,
+    paddingTop: space.lg,
+  },
+  swipeText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 9,
+    letterSpacing: 3,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
+    opacity: 0.5,
   },
 });

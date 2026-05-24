@@ -567,7 +567,7 @@ const d = StyleSheet.create({
   loadText: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 2, color: colors.textTertiary, textTransform: "uppercase" },
 
   backBtn: { paddingHorizontal: 4 },
-  backArrow: { fontFamily: fonts.sans, fontSize: 20, color: colors.textSecondary, lineHeight: 24 },
+  backArrow: { fontFamily: fonts.sans, fontSize: 20, color: colors.text, lineHeight: 24 },
 
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginRight: 4 },
   statusPill: {
