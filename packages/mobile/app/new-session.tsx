@@ -83,7 +83,6 @@ export default function NewSessionModal() {
 
         {AGENTS.map((a, idx) => {
           const sel = selectedId === a.id;
-          const isLast = idx === AGENTS.length - 1;
           return (
             <TouchableOpacity
               key={a.id}
@@ -91,14 +90,11 @@ export default function NewSessionModal() {
               onPress={() => setSelectedId(a.id)}
               activeOpacity={0.65}
             >
-              {/* 2px left accent */}
-              <View style={[m.accent, { backgroundColor: sel ? colors.text : "transparent" }]} />
-
+              <View style={[m.accent, { backgroundColor: sel ? colors.success : "transparent" }]} />
               <View style={m.agentMeta}>
                 <Text style={[m.agentName, sel && m.agentNameSel]}>{a.name}</Text>
                 <Text style={m.agentModel}>{a.model}</Text>
               </View>
-
               {sel && <View style={m.checkDot} />}
             </TouchableOpacity>
           );
@@ -123,14 +119,12 @@ export default function NewSessionModal() {
 
         <View style={m.divider} />
 
-        {/* ── Model display ── */}
         <View style={m.modelRow}>
           <Text style={m.modelKey}>MODEL</Text>
           <Text style={m.modelVal}>{selected.model}</Text>
         </View>
       </ScrollView>
 
-      {/* ── Footer CTA ── */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={88}
@@ -159,7 +153,6 @@ const m = StyleSheet.create({
   scrollContent: { paddingBottom: 40 },
   divider: { height: 1, backgroundColor: colors.border },
 
-  // Header
   closeBtn: { paddingHorizontal: 4 },
   closeX: {
     fontFamily: fonts.sans,
@@ -168,18 +161,17 @@ const m = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: fonts.sansMedium,
-    fontSize: 10,
-    letterSpacing: 1.8,
+    fontSize: 9,
+    letterSpacing: 2.0,
     color: colors.textTertiary,
     textTransform: "uppercase",
     marginRight: 4,
   },
 
-  // Section label
   sectionLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 10,
-    letterSpacing: 1.4,
+    fontSize: 9,
+    letterSpacing: 1.8,
     color: colors.textTertiary,
     textTransform: "uppercase",
     paddingHorizontal: space.lg,
@@ -187,11 +179,10 @@ const m = StyleSheet.create({
     paddingBottom: space.sm,
   },
 
-  // Agent rows
   agentRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 60,
+    minHeight: 58,
   },
   agentRowSel: {
     backgroundColor: colors.surface,
@@ -206,10 +197,9 @@ const m = StyleSheet.create({
   agentMeta: { flex: 1, paddingVertical: 14 },
   agentName: {
     fontFamily: fonts.sans,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "400",
     color: colors.textSecondary,
-    letterSpacing: 0,
     marginBottom: 3,
   },
   agentNameSel: {
@@ -218,28 +208,27 @@ const m = StyleSheet.create({
   },
   agentModel: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textTertiary,
+    letterSpacing: 0.2,
   },
   checkDot: {
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: colors.text,
+    backgroundColor: colors.success,
     marginRight: space.lg,
   },
 
-  // Input
   input: {
     fontFamily: fonts.sans,
     color: colors.text,
     fontSize: 15,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
-    letterSpacing: 0,
+    letterSpacing: -0.1,
   },
 
-  // Model row
   modelRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -249,18 +238,17 @@ const m = StyleSheet.create({
   },
   modelKey: {
     fontFamily: fonts.sansMedium,
-    fontSize: 9,
-    letterSpacing: 1.4,
+    fontSize: 8,
+    letterSpacing: 1.6,
     color: colors.textTertiary,
     textTransform: "uppercase",
   },
   modelVal: {
     fontFamily: fonts.mono,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
 
-  // Footer
   footer: {
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
@@ -272,12 +260,12 @@ const m = StyleSheet.create({
     backgroundColor: colors.text,
     paddingVertical: 13,
     alignItems: "center",
-    borderRadius: radius.xs,
+    borderRadius: 2,
   },
   createBtnText: {
     fontFamily: fonts.sansMedium,
-    fontSize: 11,
-    letterSpacing: 1.8,
+    fontSize: 10,
+    letterSpacing: 2.0,
     color: colors.bg,
     textTransform: "uppercase",
   },

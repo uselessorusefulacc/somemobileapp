@@ -6,29 +6,32 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-// BUG-23 FIX: use expo-clipboard instead of deprecated react-native Clipboard
 import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRelay } from "../../lib/relay-context";
 import { colors, fonts, radius, space } from "../../lib/theme";
 
 const RELAY_URL = "wss://81ylvadrgdbxmql33216v-preview-8080.runable.site";
-const EXPO_URL = "exp://81ylvadrgdbxmql33216v-preview-4300.runable.site";
+const EXPO_URL  = "exp://81ylvadrgdbxmql33216v-preview-4300.runable.site";
 
 function CopyBlock({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    Clipboard.setStringAsync(value); // async, fire-and-forget is fine for copy UX
+    Clipboard.setStringAsync(value);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
   return (
     <View style={c.codeBlock}>
-      <Text style={c.codeLabel}>{label}</Text>
+      <View style={c.codeLabelRow}>
+        <Text style={c.codeLabel}>{label}</Text>
+      </View>
       <View style={c.codeRow}>
         <Text style={c.codeText} numberOfLines={1}>{value}</Text>
         <TouchableOpacity onPress={copy} activeOpacity={0.65} style={c.copyBtn}>
-          <Text style={c.copyText}>{copied ? "COPIED" : "COPY"}</Text>
+          <Text style={[c.copyText, copied && c.copyTextActive]}>
+            {copied ? "COPIED" : "COPY"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -37,14 +40,14 @@ function CopyBlock({ label, value }: { label: string; value: string }) {
 
 export default function ConnectScreen() {
   const insets = useSafeAreaInsets();
-  const relay = useRelay();
+  const relay  = useRelay();
   const connected = relay.isConnected;
 
   return (
     <View style={[c.root, { paddingTop: insets.top }]}>
       <View style={c.topBar}>
         <Text style={c.pageTitle}>CONNECT</Text>
-        <View style={c.statusPill}>
+        <View style={[c.statusPill, connected && c.statusPillActive]}>
           <View style={[c.dot, { backgroundColor: connected ? colors.success : colors.textTertiary }]} />
           <Text style={[c.statusText, { color: connected ? colors.success : colors.textTertiary }]}>
             {connected ? "LIVE" : "OFFLINE"}
@@ -63,8 +66,8 @@ export default function ConnectScreen() {
           </Text>
           <Text style={c.statusSub}>
             {connected
-              ? "AgentPilot is receiving real-time events from your agents"
-              : "Open the relay on your machine to start monitoring"}
+              ? "AgentPilot is receiving real-time events from your agents."
+              : "Open the relay on your machine to start monitoring."}
           </Text>
         </View>
 
@@ -75,7 +78,7 @@ export default function ConnectScreen() {
           <Text style={c.stepNum}>01</Text>
           <Text style={c.stepTitle}>Install relay</Text>
           <Text style={c.stepDesc}>
-            Run the relay server on your development machine. It bridges your AI agents to this app.
+            Run the relay server on your machine. It bridges your AI agents to this app.
           </Text>
           <CopyBlock label="INSTALL" value="npx agentpilot-relay" />
         </View>
@@ -87,10 +90,10 @@ export default function ConnectScreen() {
           <Text style={c.stepNum}>02</Text>
           <Text style={c.stepTitle}>Configure relay URL</Text>
           <Text style={c.stepDesc}>
-            Set this WebSocket URL in your relay config or environment.
+            Set this WebSocket URL in your relay config or environment variable.
           </Text>
           <CopyBlock label="RELAY URL" value={RELAY_URL} />
-          <CopyBlock label="EXPO URL" value={EXPO_URL} />
+          <CopyBlock label="EXPO URL"  value={EXPO_URL} />
         </View>
 
         <View style={c.divider} />
@@ -120,12 +123,12 @@ const c = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: space.lg,
-    paddingVertical: space.md,
+    paddingVertical: 13,
   },
   pageTitle: {
     fontFamily: fonts.sansMedium,
-    fontSize: 10,
-    letterSpacing: 1.8,
+    fontSize: 9,
+    letterSpacing: 2.0,
     color: colors.textSecondary,
     textTransform: "uppercase",
   },
@@ -136,21 +139,25 @@ const c = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.xs,
+    paddingVertical: 5,
+    borderRadius: 2,
+  },
+  statusPillActive: {
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successMuted,
   },
   dot: { width: 4, height: 4, borderRadius: 2 },
   statusText: {
     fontFamily: fonts.sansMedium,
-    fontSize: 9,
-    letterSpacing: 1.2,
+    fontSize: 8,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
   },
 
   sectionLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 10,
-    letterSpacing: 1.4,
+    fontSize: 9,
+    letterSpacing: 1.8,
     color: colors.textTertiary,
     textTransform: "uppercase",
     marginBottom: space.sm,
@@ -163,11 +170,11 @@ const c = StyleSheet.create({
   },
   statusMain: {
     fontFamily: fonts.sans,
-    fontSize: 22,
-    fontWeight: "400",
-    letterSpacing: -0.5,
+    fontSize: 20,
+    fontWeight: "300",
+    letterSpacing: -0.8,
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   statusSub: {
     fontFamily: fonts.sans,
@@ -183,16 +190,16 @@ const c = StyleSheet.create({
   },
   stepNum: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 9,
     color: colors.textTertiary,
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 5,
   },
   stepTitle: {
     fontFamily: fonts.sans,
-    fontSize: 18,
-    fontWeight: "400",
-    letterSpacing: -0.3,
+    fontSize: 17,
+    fontWeight: "300",
+    letterSpacing: -0.5,
     color: colors.text,
     marginBottom: 8,
   },
@@ -208,22 +215,24 @@ const c = StyleSheet.create({
   codeBlock: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: 2,
     marginBottom: space.sm,
     backgroundColor: colors.surface,
     overflow: "hidden",
   },
-  codeLabel: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    color: colors.textTertiary,
-    textTransform: "uppercase",
-    paddingHorizontal: space.md,
-    paddingTop: 10,
-    paddingBottom: 4,
+  codeLabelRow: {
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    paddingHorizontal: space.md,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  codeLabel: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 8,
+    letterSpacing: 1.4,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
   },
   codeRow: {
     flexDirection: "row",
@@ -232,7 +241,7 @@ const c = StyleSheet.create({
   },
   codeText: {
     fontFamily: fonts.mono,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     flex: 1,
     paddingVertical: 10,
@@ -245,9 +254,12 @@ const c = StyleSheet.create({
   },
   copyText: {
     fontFamily: fonts.sansMedium,
-    fontSize: 9,
+    fontSize: 8,
     letterSpacing: 1.2,
     color: colors.textTertiary,
     textTransform: "uppercase",
+  },
+  copyTextActive: {
+    color: colors.success,
   },
 });

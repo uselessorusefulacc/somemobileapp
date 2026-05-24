@@ -135,11 +135,28 @@ function generateOptimizationTips(session: typeof schema.agentSessions.$inferSel
   return tips;
 }
 
+// ─── DB query timeout helper ──────────────────────────────────────────────
+// BUG-13 (backend): wrap any DB promise in a race with a timeout signal
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`DB timeout after ${ms}ms [${label}]`)), ms)
+    ),
+  ]);
+}
+
 // Fix #41: add leading slash to basePath
 const app = new Hono()
   .basePath("/api")
   // Fix #54: request logging
   .use(logger())
+  // X-Response-Time on every response
+  .use(async (c, next) => {
+    const t0 = Date.now();
+    await next();
+    c.res.headers.set("X-Response-Time", `${Date.now() - t0}ms`);
+  })
   // Fix #1: restrict CORS to specific allowed origins (not reflect-any)
   .use(cors({
     origin: (origin) => {
@@ -162,10 +179,15 @@ const app = new Hono()
     }
   })
 
-  .get("/pricing", (c) => c.json({ pricing: MODEL_PRICING }, 200))
+  .get("/pricing", (c) => {
+    // Static pricing — cache 5 min in CDN/browser
+    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=60");
+    return c.json({ pricing: MODEL_PRICING }, 200);
+  })
 
   // ─── Sessions ───────────────────────────────────────────────────────────
   .get("/sessions", async (c) => {
+    c.header("Cache-Control", "no-store");
     const rawSessions = await db
       .select()
       .from(schema.agentSessions)
@@ -196,6 +218,7 @@ const app = new Hono()
   })
 
   .get("/sessions/:id", async (c) => {
+    c.header("Cache-Control", "no-store");
     const { id } = c.req.param();
     if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
     const raw = await db.select().from(schema.agentSessions).where(eq(schema.agentSessions.id, id)).limit(1);
@@ -434,8 +457,14 @@ const app = new Hono()
 
   // ─── Analytics / Dashboard ────────────────────────────────────────────────
   .get("/analytics", async (c) => {
+    // Live data — never cache
+    c.header("Cache-Control", "no-store");
     // Fix #22: limit to 500 most recent sessions to avoid unbounded memory
-    const sessions = await db.select().from(schema.agentSessions).orderBy(desc(schema.agentSessions.updatedAt)).limit(500);
+    // BUG-13 (backend): 8s timeout on DB aggregation
+    const sessions = await withTimeout(
+      db.select().from(schema.agentSessions).orderBy(desc(schema.agentSessions.updatedAt)).limit(500),
+      8000, "analytics:sessions"
+    );
     const totalSessions = sessions.length;
     const totalCostRaw = sessions.reduce((s, x) => s + x.totalCostUsd, 0);
     const totalInputTokens = sessions.reduce((s, x) => s + x.totalInputTokens, 0);
@@ -618,19 +647,31 @@ const app = new Hono()
 
   // ─── Alerts — Fix #9: use real daily/monthly spend ──────────────────────
   .get("/alerts", async (c) => {
+    // Live data — never cache
+    c.header("Cache-Control", "no-store");
     const cfg = await loadBudget();
     // Fix #23: use SQL aggregation instead of fetching all rows
-    const [{ total }] = await db.select({ total: sql<number>`coalesce(sum(total_cost_usd), 0)` }).from(schema.agentSessions);
+    // BUG-13 (backend): 8s timeout on each DB aggregation
+    const [{ total }] = await withTimeout(
+      db.select({ total: sql<number>`coalesce(sum(total_cost_usd), 0)` }).from(schema.agentSessions),
+      8000, "alerts:total"
+    );
 
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
     const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
 
-    const [{ daily }] = await db.select({ daily: sql<number>`coalesce(sum(total_cost_usd), 0)` })
-      .from(schema.agentSessions)
-      .where(gte(schema.agentSessions.updatedAt, startOfDay));
-    const [{ monthly }] = await db.select({ monthly: sql<number>`coalesce(sum(total_cost_usd), 0)` })
-      .from(schema.agentSessions)
-      .where(gte(schema.agentSessions.updatedAt, startOfMonth));
+    const [{ daily }] = await withTimeout(
+      db.select({ daily: sql<number>`coalesce(sum(total_cost_usd), 0)` })
+        .from(schema.agentSessions)
+        .where(gte(schema.agentSessions.updatedAt, startOfDay)),
+      8000, "alerts:daily"
+    );
+    const [{ monthly }] = await withTimeout(
+      db.select({ monthly: sql<number>`coalesce(sum(total_cost_usd), 0)` })
+        .from(schema.agentSessions)
+        .where(gte(schema.agentSessions.updatedAt, startOfMonth)),
+      8000, "alerts:monthly"
+    );
 
     const totalCost = Number(total) || 0;
     const dailyCost = Number(daily) || 0;
