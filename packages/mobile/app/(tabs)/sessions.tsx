@@ -47,7 +47,8 @@ function PulseDot({ color, size = 6 }: { color: string; size?: number }) {
 }
 
 // ── Session row ────────────────────────────────────────────────────────────
-function SessionRow({ item, onPress, index = 0 }: { item: AgentSession; onPress: () => void; index?: number }) {
+function SessionRow({ item, onPress, index }: { item: AgentSession; onPress: () => void; index?: number }) {
+  const rowIndex = index ?? 0;
   const cost = parseFloat(item.totalCost || "0");
   const isActive = item.status === "active";
   const statusColor = getStatusColor(item.status);
@@ -63,7 +64,7 @@ function SessionRow({ item, onPress, index = 0 }: { item: AgentSession; onPress:
   const rowScale = useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
-    const delay = Math.min(index * 55, 300);
+    const delay = Math.min(rowIndex * 55, 300);
     Animated.parallel([
       Animated.timing(rowOpacity, { toValue: 1, duration: 320, delay, useNativeDriver: true }),
       Animated.timing(rowSlide, { toValue: 0, duration: 320, delay, useNativeDriver: true }),

@@ -56,10 +56,19 @@ function StatCard({ label, value, valueColor, accent, delay = 0 }: {
   const slideY = useRef(new Animated.Value(12)).current;
 
   React.useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 350, delay, useNativeDriver: true }),
-      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 200, delay } as any),
-    ]).start();
+    if (delay > 0) {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+          Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 200 }),
+        ]).start();
+      }, delay);
+    } else {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 200 }),
+      ]).start();
+    }
   }, []);
 
   const onPressIn = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 40 }).start();
