@@ -17,6 +17,7 @@ import { useRelay } from "../../lib/relay-context";
 import type { TokenPayload, StatusPayload, OutputPayload, ToolCallPayload } from "../../lib/relay";
 import { colors, fonts, radius, space } from "../../lib/theme";
 import { formatCost, getStatusColor } from "../../lib/format";
+import { useLiveAnalytics } from "../../hooks/use-live-analytics";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveLine {
@@ -174,6 +175,7 @@ export default function SessionDetailScreen() {
   const [liveLines, setLiveLines] = useState<LiveLine[]>([]);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [liveCost, setLiveCost] = useState(0);
+  const [liveTokenEvents, setLiveTokenEvents] = useState<TokenPayload[]>([]);
   const liveScrollRef = useRef<ScrollView>(null);
   const headerOpacity = useRef(new Animated.Value(0)).current;
 
@@ -211,6 +213,15 @@ export default function SessionDetailScreen() {
   useFocusEffect(useCallback(() => { load(true); }, [load]));
 
   // ── Wire relay ────────────────────────────────────────────────────────
+  const optimizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleOptimize = useCallback(() => {
+    if (!id) return;
+    if (optimizeTimerRef.current) clearTimeout(optimizeTimerRef.current);
+    optimizeTimerRef.current = setTimeout(() => {
+      apiClient.optimize(id).catch(() => {}); // fire-and-forget
+    }, 30_000);
+  }, [id]);
+
   useEffect(() => {
     const { client } = relay;
     if (!client) return;
@@ -224,7 +235,12 @@ export default function SessionDetailScreen() {
     const onOutput = (p: OutputPayload) => addLine({ id: `o-${p.timestamp}-${Math.random()}`, text: p.line, ts: p.timestamp, kind: "output" });
     const onTokens = (p: TokenPayload) => {
       setLiveCost((prev) => prev + p.costUsd);
+      setLiveTokenEvents((prev) => {
+        const next = [...prev, p];
+        return next.length > 100 ? next.slice(next.length - 100) : next;
+      });
       addLine({ id: `t-${p.timestamp}-${Math.random()}`, text: `${p.model} · ↑${(p.inputTokens / 1000).toFixed(1)}K ↓${(p.outputTokens / 1000).toFixed(1)}K · ${formatCost(p.costUsd)}`, ts: p.timestamp, kind: "tool" });
+      scheduleOptimize();
     };
     const onStatus = (p: StatusPayload) => {
       setLiveStatus(p.agentStatus);
@@ -240,15 +256,16 @@ export default function SessionDetailScreen() {
       client.off("tokens", onTokens);
       client.off("status", onStatus);
       client.off("tool_call", onToolCall);
+      if (optimizeTimerRef.current) clearTimeout(optimizeTimerRef.current);
     };
-  }, [relay.client]);
+  }, [relay.client, scheduleOptimize]);
 
-  const sendCmd = useCallback((action: "pause" | "resume" | "compact" | "switch_model" | "status") => {
+  const sendCmd = useCallback((action: "pause" | "resume" | "compact" | "switch_model" | "status", params?: Record<string, unknown>) => {
     if (!relay.client) {
       Alert.alert("Not Connected", "Connect the relay first to send commands.");
       return;
     }
-    relay.client.sendCommand(action);
+    relay.client.sendCommand(action, params);
   }, [relay.client]);
 
   const headerOpts = {
@@ -315,6 +332,7 @@ export default function SessionDetailScreen() {
   const statusColor = getStatusColor(effectiveStatus);
   const reversedEvents = useMemo(() => events.slice().reverse(), [events]);
   const relayConnected = relay.isConnected;
+  const { tips, burnRate, hourlyProjection } = useLiveAnalytics(liveTokenEvents);
 
   const costColor =
     totalCost > 1 ? colors.danger :
@@ -434,6 +452,53 @@ export default function SessionDetailScreen() {
             }
           />
         </View>
+
+        {/* ── Live analytics / optimization tips ── */}
+        {tips.length > 0 && (
+          <>
+            <View style={d.sectionHead}>
+              <Text style={[d.sectionLabel, { color: colors.warning }]}>OPTIMIZATION</Text>
+              <View style={d.sectionLine} />
+              {hourlyProjection > 0 && (
+                <Text style={d.feedCount}>{formatCost(hourlyProjection)}/hr</Text>
+              )}
+            </View>
+            <View style={d.tipsBlock}>
+              {tips.map((tip, i) => {
+                const tipColor =
+                  tip.category === "urgent" ? colors.danger :
+                  tip.category === "model" ? colors.warning :
+                  tip.category === "context" ? colors.accent :
+                  colors.textSecondary;
+                const hasAction = !!tip.action;
+                return (
+                  <View key={i} style={[d.tipRow, i < tips.length - 1 && d.tipBorder]}>
+                    <View style={[d.tipStripe, { backgroundColor: tipColor }]} />
+                    <View style={d.tipBody}>
+                      <Text style={[d.tipText, { color: tipColor === colors.textSecondary ? colors.textSecondary : tipColor }]}>
+                        {tip.message}
+                      </Text>
+                      {tip.estimatedSaving && (
+                        <Text style={d.tipSaving}>Save {tip.estimatedSaving}</Text>
+                      )}
+                    </View>
+                    {hasAction && (
+                      <TouchableOpacity
+                        style={[d.tipBtn, { borderColor: tipColor + "40", backgroundColor: tipColor + "10" }]}
+                        onPress={() => sendCmd(tip.action as "pause" | "resume" | "compact" | "switch_model" | "status", tip.actionParams)}
+                        activeOpacity={0.65}
+                      >
+                        <Text style={[d.tipBtnText, { color: tipColor }]}>
+                          {tip.action === "switch_model" ? "SWITCH" : tip.action === "compact" ? "COMPACT" : "APPLY"}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         {/* ── Live output feed ── */}
         {liveLines.length > 0 && (
@@ -595,6 +660,24 @@ const d = StyleSheet.create({
     borderWidth: 1, alignItems: "center",
   },
   cmdText: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 1.2, textTransform: "uppercase" },
+
+  // Tips
+  tipsBlock: {
+    marginHorizontal: space.md, borderRadius: radius.sm,
+    borderWidth: 1, borderColor: colors.warningBorder ?? colors.border,
+    backgroundColor: colors.surface, overflow: "hidden", marginBottom: space.sm,
+  },
+  tipRow: { flexDirection: "row", alignItems: "center", paddingVertical: 11, paddingRight: space.md, gap: 0 },
+  tipBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  tipStripe: { width: 3, alignSelf: "stretch", marginRight: 10 },
+  tipBody: { flex: 1, gap: 2 },
+  tipText: { fontFamily: fonts.sans, fontSize: 12, lineHeight: 17, color: colors.textSecondary },
+  tipSaving: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 1.2, color: colors.success, textTransform: "uppercase" },
+  tipBtn: {
+    marginLeft: 8, paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 2, borderWidth: 1, flexShrink: 0,
+  },
+  tipBtnText: { fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 1.2, textTransform: "uppercase" },
 
   // Live feed
   liveFeedWrapper: {

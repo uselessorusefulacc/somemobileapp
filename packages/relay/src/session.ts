@@ -77,10 +77,11 @@ export class SessionManager {
       });
     }
 
-    // Flush queued messages
-    if (role === "phone" && session.daemon && session.messageQueue.length > 0) {
+    // Flush queued messages to phone when it connects
+    if (role === "phone" && session.messageQueue.length > 0) {
+      console.log(`[SessionManager] Flushing ${session.messageQueue.length} queued messages to phone for session ${sessionId}`);
       for (const msg of session.messageQueue) {
-        this.sendToSocket(session.daemon, msg);
+        this.sendToSocket(socket, msg);
       }
       session.messageQueue = [];
     }

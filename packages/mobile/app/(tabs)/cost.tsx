@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiClient, type Analytics } from "../../lib/api";
+import { apiClient, type Analytics, type BudgetAlert } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
 import { formatCost, formatTokens } from "../../lib/format";
 
@@ -115,6 +115,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 export default function CostScreen() {
   const insets = useSafeAreaInsets();
   const [stats, setStats] = useState<Analytics | null>(null);
+  const [alerts, setAlerts] = useState<BudgetAlert[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
   const [error, setError] = useState(false);
@@ -125,9 +126,19 @@ export default function CostScreen() {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10_000);
     try {
-      const data = await apiClient.getAnalytics();
-      setStats(data);
-      Animated.timing(heroOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+      const [analyticsResult, alertsResult] = await Promise.allSettled([
+        apiClient.getAnalytics(),
+        apiClient.getAlerts(),
+      ]);
+      if (analyticsResult.status === "fulfilled") {
+        setStats(analyticsResult.value);
+        Animated.timing(heroOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+      } else {
+        setError(true);
+      }
+      if (alertsResult.status === "fulfilled") {
+        setAlerts(alertsResult.value.alerts || []);
+      }
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(true);
@@ -175,6 +186,30 @@ export default function CostScreen() {
       >
         {error ? <ErrorState onRetry={() => load(false)} /> : (
           <>
+            {/* ── Budget alerts ── */}
+            {alerts.length > 0 && (
+              <View style={co.alertsBlock}>
+                {alerts.map((alert, i) => {
+                  const isCritical = alert.level === "critical";
+                  const alertColor = isCritical ? colors.danger : colors.warning;
+                  return (
+                    <View
+                      key={i}
+                      style={[co.alertRow, {
+                        borderColor: alertColor + "40",
+                        backgroundColor: alertColor + "10",
+                      }]}
+                    >
+                      <View style={[co.alertStripe, { backgroundColor: alertColor }]} />
+                      <Text style={[co.alertText, { color: alertColor }]}>
+                        {isCritical ? "⚠ " : "▲ "}{alert.message}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
             {/* ── Hero ── */}
             <Animated.View style={[co.heroBlock, { opacity: heroOpacity }]}>
               <Text style={co.heroLabel}>ALL-TIME SPEND</Text>
@@ -316,6 +351,16 @@ const co = StyleSheet.create({
     paddingHorizontal: space.lg, paddingVertical: 10, borderRadius: radius.xs, marginTop: 4,
   },
   retryText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8, color: colors.accent, textTransform: "uppercase" },
+
+  // Alerts
+  alertsBlock: { paddingHorizontal: space.md, paddingTop: space.sm, gap: 6 },
+  alertRow: {
+    flexDirection: "row", alignItems: "center",
+    borderWidth: 1, borderRadius: radius.sm,
+    overflow: "hidden",
+  },
+  alertStripe: { width: 3, alignSelf: "stretch" },
+  alertText: { fontFamily: fonts.sans, fontSize: 12, lineHeight: 17, flex: 1, paddingHorizontal: 12, paddingVertical: 10 },
 
   // Hero
   heroBlock: { paddingHorizontal: space.lg, paddingTop: space.xl + 4, paddingBottom: space.lg },
