@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -132,9 +132,23 @@ function ModelBar({ model, cost, pct, isTop }: { model: string; cost: number; pc
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
+function useLocalTime() {
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+}
+
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const localTime = useLocalTime();
   const [stats, setStats] = useState<Analytics | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -187,7 +201,7 @@ export default function DashboardScreen() {
       {/* Top bar */}
       <View style={d.topBar}>
         <View style={d.logoRow}>
-          <Image source={require("../../assets/logo-white.png")} style={d.logoImg} />
+          <Image source={require("../../assets/logo-white.png")} style={d.logoImg} tintColor={colors.accent} />
           <Text style={d.pageTitle}>MAFA</Text>
         </View>
         <View style={d.topRight}>
@@ -195,6 +209,7 @@ export default function DashboardScreen() {
           <Text style={d.pageDate}>
             {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()}
           </Text>
+          <Text style={d.pageTime}>{localTime}</Text>
         </View>
       </View>
       <View style={d.topBorderAccent} />
@@ -360,6 +375,12 @@ const d = StyleSheet.create({
     textTransform: "uppercase",
   },
   pageDate: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: colors.textTertiary,
+    letterSpacing: 0.5,
+  },
+  pageTime: {
     fontFamily: fonts.mono,
     fontSize: 9,
     color: colors.textTertiary,
