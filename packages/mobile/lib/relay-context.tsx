@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
+import React, { createContext, useContext, useRef, useState, useCallback } from "react";
 import { RelayClient } from "./relay";
 
 interface RelayContextValue {
@@ -12,27 +12,36 @@ const RelayContext = createContext<RelayContextValue | null>(null);
 
 export function RelayProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
+  // BUG-01 FIX: use state for client so consumers re-render when it changes
+  const [client, setClient] = useState<RelayClient | null>(null);
   const clientRef = useRef<RelayClient | null>(null);
 
   const connect = useCallback((sessionId: string, relayUrl?: string) => {
+    // BUG-02 FIX: clean up old client's listeners before replacing
     if (clientRef.current) {
+      clientRef.current.removeAllListeners();
       clientRef.current.disconnect();
     }
-    const client = new RelayClient(sessionId, relayUrl);
-    client.on("connected", () => setIsConnected(true));
-    client.on("disconnected", () => setIsConnected(false));
-    client.connect();
-    clientRef.current = client;
+    const newClient = new RelayClient(sessionId, relayUrl);
+    newClient.on("connected", () => setIsConnected(true));
+    newClient.on("disconnected", () => setIsConnected(false));
+    newClient.connect();
+    clientRef.current = newClient;
+    setClient(newClient);
   }, []);
 
   const disconnect = useCallback(() => {
-    clientRef.current?.disconnect();
-    clientRef.current = null;
+    if (clientRef.current) {
+      clientRef.current.removeAllListeners();
+      clientRef.current.disconnect();
+      clientRef.current = null;
+    }
+    setClient(null);
     setIsConnected(false);
   }, []);
 
   return (
-    <RelayContext.Provider value={{ client: clientRef.current, isConnected, connect, disconnect }}>
+    <RelayContext.Provider value={{ client, isConnected, connect, disconnect }}>
       {children}
     </RelayContext.Provider>
   );

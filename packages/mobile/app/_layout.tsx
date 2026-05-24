@@ -4,8 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { useEffect } from "react";
+import * as SplashScreen from "expo-splash-screen";
 import { colors } from "../lib/theme";
 import { RelayProvider } from "../lib/relay-context";
+
+// BUG-06 FIX: hold splash screen until fonts are loaded
+SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +26,12 @@ export default function RootLayout() {
     "GeistMono-Regular": require("../assets/fonts/GeistMono-Regular.ttf"),
     "GeistMono-Medium": require("../assets/fonts/GeistMono-Medium.ttf"),
   });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;
 

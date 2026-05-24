@@ -118,7 +118,8 @@ export default function DashboardScreen() {
         {stats?.modelBreakdown && stats.modelBreakdown.length > 0 && (
           <>
             <Text style={d.sectionLabel}>BY MODEL</Text>
-            {stats.modelBreakdown
+            {/* BUG-40 FIX: spread to avoid mutating React state in-place */}
+            {[...stats.modelBreakdown]
               .sort((a, b) => parseFloat(b.totalCost) - parseFloat(a.totalCost))
               .map((m, i, arr) => {
                 const cost = parseFloat(m.totalCost);
@@ -153,7 +154,7 @@ export default function DashboardScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[d.actionBtn, d.actionBtnOutline]}
-            onPress={() => router.push("/cost" as any)}
+            onPress={() => router.push("/(tabs)/cost")}
             activeOpacity={0.7}
           >
             <Text style={[d.actionBtnText, d.actionBtnOutlineText]}>VIEW COSTS</Text>

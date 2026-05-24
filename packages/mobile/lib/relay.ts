@@ -59,7 +59,8 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
   private relayUrl: string;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
-  private messageQueue: string[] = [];
+  // BUG-03 FIX: store timestamp alongside message for TTL eviction
+  private messageQueue: Array<{ msg: string; ts: number }> = [];
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private closed = false;
 
@@ -116,7 +117,7 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(msg);
     } else {
-      this.messageQueue.push(msg);
+      this.messageQueue.push({ msg, ts: Date.now() });
       if (this.messageQueue.length > 100) this.messageQueue.shift();
     }
   }
@@ -141,9 +142,15 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
   }
 
   private flushQueue() {
+    // BUG-03 FIX: discard messages older than 30s — prevents stale "kill" commands
+    const cutoff = Date.now() - 30_000;
     while (this.messageQueue.length > 0) {
-      const msg = this.messageQueue.shift()!;
-      this.ws?.send(msg);
+      const { msg, ts } = this.messageQueue.shift()!;
+      if (ts > cutoff) {
+        this.ws?.send(msg);
+      } else {
+        console.warn("[RelayClient] Discarding stale queued message (>30s old)");
+      }
     }
   }
 

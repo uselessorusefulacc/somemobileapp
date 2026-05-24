@@ -132,9 +132,12 @@ export default function SessionsScreen() {
             />
           }
           ListHeaderComponent={
+            // BUG-16 FIX: show RECENT label when no active sessions, else ACTIVE label
             active.length > 0 ? (
               <Text style={s.sectionLabel}>ACTIVE — {active.length}</Text>
-            ) : null
+            ) : (
+              <Text style={s.sectionLabel}>RECENT</Text>
+            )
           }
           renderItem={({ item, index }) => {
             const isFirst = index === active.length && active.length > 0;

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -102,12 +102,21 @@ export default function SessionDetailScreen() {
     if (!id || id === "undefined") { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [sessionData, eventsData] = await Promise.all([
+      // BUG-34 FIX: use allSettled so partial failure shows session data without events
+      const [sessionResult, eventsResult] = await Promise.allSettled([
         apiClient.getSession(id),
         apiClient.getEvents(id),
       ]);
-      setSession(sessionData);
-      setEvents(eventsData.events || []);
+      if (sessionResult.status === "fulfilled") {
+        setSession(sessionResult.value);
+      } else {
+        console.error("[session detail] session fetch failed:", sessionResult.reason);
+      }
+      if (eventsResult.status === "fulfilled") {
+        setEvents(eventsResult.value.events || []);
+      } else {
+        console.error("[session detail] events fetch failed:", eventsResult.reason);
+      }
     } catch (e) {
       console.error("[session detail]", e);
     } finally {
@@ -173,7 +182,8 @@ export default function SessionDetailScreen() {
   const totalTokens = session.totalTokens || 0;
   const isActive = session.status === "active";
   const statusColor = getStatusColor(session.status);
-  const reversedEvents = events.slice().reverse();
+  // BUG-39 FIX: memoize to avoid allocating new array on every render
+  const reversedEvents = useMemo(() => events.slice().reverse(), [events]);
 
   return (
     <View style={[d.root, { paddingBottom: insets.bottom }]}>
@@ -248,7 +258,11 @@ export default function SessionDetailScreen() {
         <Text style={d.sectionLabel}>COMMANDS</Text>
         <View style={d.cmdRow}>
           <CmdBtn label="COMPACT" color={colors.textSecondary} onPress={() => sendCmd("compact")} />
-          <CmdBtn label="PAUSE" color={colors.warning} onPress={() => sendCmd("pause")} />
+          {/* GAP-03 FIX: toggle PAUSE/RESUME based on actual session status */}
+          {isActive
+            ? <CmdBtn label="PAUSE" color={colors.warning} onPress={() => sendCmd("pause")} />
+            : <CmdBtn label="RESUME" color={colors.success} onPress={() => sendCmd("resume")} />
+          }
           <CmdBtn label="STATUS" color={colors.textSecondary} onPress={() => sendCmd("status")} />
           <CmdBtn
             label="END"

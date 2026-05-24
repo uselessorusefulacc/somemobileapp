@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Clipboard,
 } from "react-native";
+// BUG-23 FIX: use expo-clipboard instead of deprecated react-native Clipboard
+import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRelay } from "../../lib/relay-context";
 import { colors, fonts, radius, space } from "../../lib/theme";
@@ -17,7 +18,7 @@ const EXPO_URL = "exp://81ylvadrgdbxmql33216v-preview-4300.runable.site";
 function CopyBlock({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    Clipboard.setString(value);
+    Clipboard.setStringAsync(value); // async, fire-and-forget is fine for copy UX
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

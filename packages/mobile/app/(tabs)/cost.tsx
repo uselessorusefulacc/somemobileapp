@@ -167,7 +167,8 @@ export default function CostScreen() {
         {modelBreakdown && modelBreakdown.length > 0 && (
           <>
             <Text style={co.sectionLabel}>BY MODEL</Text>
-            {modelBreakdown
+            {/* BUG-40 FIX: spread to avoid mutating React state in-place */}
+            {[...modelBreakdown]
               .sort((a, b) => parseFloat(b.totalCost) - parseFloat(a.totalCost))
               .map((m, i, arr) => {
                 const cost = parseFloat(m.totalCost);
