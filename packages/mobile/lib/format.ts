@@ -6,12 +6,13 @@ import { colors } from "./theme";
 
 /** Format a USD cost value into a human-readable string */
 export function formatCost(c: number): string {
+  if (!Number.isFinite(c) || isNaN(c)) return "$0.00";
   if (c === 0) return "$0.00";
-  if (c < 0.0001) return `$${(c * 1_000_000).toFixed(1)}μ`;
-  if (c < 0.001) return `$${(c * 1_000).toFixed(2)}m`;
-  if (c < 1) return `$${c.toFixed(4)}`;
-  if (c < 100) return `$${c.toFixed(2)}`;
-  return `$${c.toFixed(0)}`;
+  if (c < 0.0001) return `${(c * 1_000_000).toFixed(1)}μ`;
+  if (c < 0.001) return `${(c * 1_000).toFixed(2)}m`;
+  if (c < 1) return `${c.toFixed(4)}`;
+  if (c < 100) return `${c.toFixed(2)}`;
+  return `${c.toFixed(0)}`;
 }
 
 /** Format a raw token count into K/M notation */

@@ -164,8 +164,8 @@ export default function DashboardScreen() {
 
   useFocusEffect(useCallback(() => { load(true); }, [load]));
 
-  const totalCost = parseFloat(stats?.totalCost || "0");
-  const todayCost = stats?.dailyCost || 0;
+  const totalCost = parseFloat(String(stats?.totalCost || "0"));
+  const todayCost = parseFloat(String(stats?.dailyCost || "0"));
   const totalTokens = stats?.totalTokens || 0;
   const activeSessions = stats?.activeSessions || 0;
   const totalSessions = stats?.totalSessions || 0;

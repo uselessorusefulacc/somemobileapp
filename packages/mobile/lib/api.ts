@@ -77,13 +77,14 @@ export interface Analytics {
   totalInputTokens: number;
   totalOutputTokens: number;
   totalCacheReadTokens: number;
+  totalCacheWriteTokens: number;
   avgCostPerSession: string;
   topModel: string;
   cacheHitRate: number;
   estimatedSavingsPct: number;
   projectedMonthlyCost: number;
-  dailyCost: number;
-  monthlyCost: number;
+  dailyCost: string;
+  monthlyCost: string;
   optimizationScore: number | null;
   modelBreakdown: ModelBreakdown[];
 }

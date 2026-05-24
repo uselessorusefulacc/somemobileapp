@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts, type } from "../../lib/theme";
+import { colors, fonts } from "../../lib/theme";
 
 function TabLabel({ focused, label }: { focused: boolean; label: string }) {
   return (

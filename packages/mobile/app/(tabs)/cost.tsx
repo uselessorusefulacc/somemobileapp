@@ -151,9 +151,9 @@ export default function CostScreen() {
 
   useFocusEffect(useCallback(() => { load(true); }, [load]));
 
-  const totalCost = parseFloat(stats?.totalCost || "0");
-  const todayCost = stats?.dailyCost || 0;
-  const monthlyCost = stats?.monthlyCost || 0;
+  const totalCost = parseFloat(String(stats?.totalCost || "0"));
+  const todayCost = parseFloat(String(stats?.dailyCost || "0"));
+  const monthlyCost = parseFloat(String(stats?.monthlyCost || "0"));
   const totalTokens = stats?.totalTokens || 0;
   const modelBreakdown = stats?.modelBreakdown;
 
