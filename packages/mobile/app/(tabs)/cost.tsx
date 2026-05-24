@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type Analytics, type BudgetAlert } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
 import { formatCost, formatTokens } from "../../lib/format";
+import { DotGrid } from "../../components/DotGrid";
 
 // ── Provider colors ─────────────────────────────────────────────────────────
 const PROVIDER_COLORS: Record<string, string> = {
@@ -444,18 +445,94 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 // ── Animated stat chip ────────────────────────────────────────────────────────
 function StatChip({ label, value, color, delay = 0 }: { label: string; value: string; color?: string; delay?: number }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const slideY  = useRef(new Animated.Value(14)).current;
+  const opacity   = useRef(new Animated.Value(0)).current;
+  const slideY    = useRef(new Animated.Value(14)).current;
+  const chipScale = useRef(new Animated.Value(1)).current;
+  const glowOp    = useRef(new Animated.Value(0)).current;
+
   React.useEffect(() => {
     Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 450, delay, useNativeDriver: true }),
       Animated.spring(slideY,  { toValue: 0, delay, useNativeDriver: true, damping: 18, stiffness: 180 }),
     ]).start();
   }, []);
+
+  const pressIn = () => {
+    Animated.parallel([
+      Animated.spring(chipScale, { toValue: 1.04, useNativeDriver: true, speed: 60, bounciness: 3 }),
+      Animated.timing(glowOp, { toValue: 1, duration: 120, useNativeDriver: false }),
+    ]).start();
+  };
+  const pressOut = () => {
+    Animated.parallel([
+      Animated.spring(chipScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }),
+      Animated.timing(glowOp, { toValue: 0, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const glowBorder = glowOp.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.border, colors.accentBorder],
+  });
+
   return (
-    <Animated.View style={[co.heroChip, { opacity, transform: [{ translateY: slideY }] }]}>
-      <Text style={co.heroChipLabel}>{label}</Text>
-      <Text style={[co.heroChipVal, color ? { color } : {}]}>{value}</Text>
+    <TouchableOpacity onPressIn={pressIn} onPressOut={pressOut} activeOpacity={1} style={{ flex: 1 }}>
+      <Animated.View style={[co.heroChip, { opacity, transform: [{ translateY: slideY }, { scale: chipScale }], borderColor: glowBorder }]}>
+        <Text style={co.heroChipLabel}>{label}</Text>
+        <Text style={[co.heroChipVal, color ? { color } : {}]}>{value}</Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+// ── Model row with hover pop ──────────────────────────────────────────────────
+interface ModelRowProps { model: string; cost: number; pct: number; pColor: string; isTop: boolean; index: number }
+function ModelRow({ model, cost, pct, pColor, isTop, index }: ModelRowProps) {
+  const rowScale = useRef(new Animated.Value(1)).current;
+  const glowOp   = useRef(new Animated.Value(0)).current;
+  const entryOp  = useRef(new Animated.Value(0)).current;
+  const entryX   = useRef(new Animated.Value(12)).current;
+
+  React.useEffect(() => {
+    const delay = Math.min(index * 60, 400);
+    Animated.parallel([
+      Animated.timing(entryOp, { toValue: 1, duration: 350, delay, useNativeDriver: true }),
+      Animated.spring(entryX,  { toValue: 0, delay, useNativeDriver: true, damping: 22, stiffness: 200 }),
+    ]).start();
+  }, []);
+
+  const pressIn = () => {
+    Animated.parallel([
+      Animated.spring(rowScale, { toValue: 1.015, useNativeDriver: true, speed: 60, bounciness: 2 }),
+      Animated.timing(glowOp,   { toValue: 1, duration: 120, useNativeDriver: false }),
+    ]).start();
+  };
+  const pressOut = () => {
+    Animated.parallel([
+      Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }),
+      Animated.timing(glowOp,   { toValue: 0, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const glowBg = glowOp.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,136,0,0)", isTop ? `${pColor}18` : "rgba(255,136,0,0.05)"],
+  });
+
+  return (
+    <Animated.View style={{ opacity: entryOp, transform: [{ translateX: entryX }, { scale: rowScale }] }}>
+      <TouchableOpacity onPressIn={pressIn} onPressOut={pressOut} activeOpacity={1}>
+        <Animated.View style={[co.modelRow, isTop && co.modelRowTop, { backgroundColor: glowBg }]}>
+          <View style={co.modelLeft}>
+            <View style={[co.providerDot, { backgroundColor: pColor }]} />
+            <Text style={[co.modelName, isTop && { color: colors.text }]} numberOfLines={1}>{model}</Text>
+          </View>
+          <View style={co.barWrap}>
+            <AnimatedBar pct={Math.max(pct, 1)} color={isTop ? pColor : pColor + "80"} delay={index * 80} />
+          </View>
+          <Text style={[co.modelCost, isTop && { color: pColor }]}>{formatCost(cost)}</Text>
+        </Animated.View>
+      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -520,6 +597,7 @@ export default function CostScreen() {
 
   return (
     <View style={[co.root, { paddingTop: insets.top }]}>
+      <DotGrid opacity={0.28} />
       {/* ── Top bar ── */}
       <View style={co.topBar}>
         <View style={co.topLeft}>
@@ -596,18 +674,7 @@ export default function CostScreen() {
                   const pct  = maxCost > 0 ? (cost / maxCost) * 100 : 0;
                   const pColor = PROVIDER_COLORS[MODEL_PRICING[m.model]?.provider ?? ""] ?? colors.accent;
                   const isTop  = i === 0;
-                  return (
-                    <View key={m.model} style={[co.modelRow, isTop && co.modelRowTop]}>
-                      <View style={co.modelLeft}>
-                        <View style={[co.providerDot, { backgroundColor: pColor }]} />
-                        <Text style={[co.modelName, isTop && { color: colors.text }]} numberOfLines={1}>{m.model}</Text>
-                      </View>
-                      <View style={co.barWrap}>
-                        <AnimatedBar pct={Math.max(pct, 1)} color={isTop ? pColor : pColor + "80"} delay={i * 80} />
-                      </View>
-                      <Text style={[co.modelCost, isTop && { color: pColor }]}>{formatCost(cost)}</Text>
-                    </View>
-                  );
+                  return <ModelRow key={m.model} model={m.model} cost={cost} pct={pct} pColor={pColor} isTop={isTop} index={i} />;
                 })}
               </View>
             ) : (

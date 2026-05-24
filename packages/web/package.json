@@ -14,7 +14,8 @@
     "db:migrate": "bun --env-file=../../.env drizzle-kit migrate",
     "db:push": "bun --env-file=../../.env drizzle-kit push",
     "db:studio": "bun --env-file=../../.env drizzle-kit studio",
-    "test": "bun test src/**/*.test.ts"
+    "test": "bun test src/**/*.test.ts",
+    "start": "bun src/server.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",

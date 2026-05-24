@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type AgentSession } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
 import { formatCost, getStatusColor } from "../../lib/format";
+import { DotGrid } from "../../components/DotGrid";
 
 // ── Pulse dot ─────────────────────────────────────────────────────────────
 function PulseDot({ color, size = 6 }: { color: string; size?: number }) {
@@ -47,71 +48,88 @@ function PulseDot({ color, size = 6 }: { color: string; size?: number }) {
 
 // ── Session row ────────────────────────────────────────────────────────────
 function SessionRow({ item, onPress, index }: { item: AgentSession; onPress: () => void; index?: number }) {
-  const rowIndex  = index ?? 0;
-  const cost      = parseFloat(item.totalCost || "0");
-  const isActive  = item.status === "active";
+  const rowIndex    = index ?? 0;
+  const cost        = parseFloat(item.totalCost || "0");
+  const isActive    = item.status === "active";
   const statusColor = getStatusColor(item.status);
-  const date      = new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const tokens    = item.totalTokens ? `${(item.totalTokens / 1000).toFixed(1)}K` : "—";
-  const costTint  =
+  const date        = new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const tokens      = item.totalTokens ? `${(item.totalTokens / 1000).toFixed(1)}K` : "—";
+  const costTint    =
     cost > 1   ? colors.danger :
     cost > 0.1 ? colors.warning :
     colors.text;
 
   const rowOpacity = useRef(new Animated.Value(0)).current;
-  const rowSlide   = useRef(new Animated.Value(20)).current;
+  const rowSlide   = useRef(new Animated.Value(24)).current;
   const rowScale   = useRef(new Animated.Value(1)).current;
+  const glowOp     = useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     const delay = Math.min(rowIndex * 55, 320);
     Animated.parallel([
-      Animated.timing(rowOpacity, { toValue: 1, duration: 360, delay, useNativeDriver: true }),
-      Animated.timing(rowSlide,   { toValue: 0, duration: 360, delay, useNativeDriver: true }),
+      Animated.timing(rowOpacity, { toValue: 1, duration: 380, delay, useNativeDriver: true }),
+      Animated.spring(rowSlide,   { toValue: 0, delay, useNativeDriver: true, damping: 22, stiffness: 200 }),
     ]).start();
   }, []);
 
-  const onPressIn  = () => Animated.spring(rowScale, { toValue: 0.98, useNativeDriver: true, speed: 50 }).start();
-  const onPressOut = () => Animated.spring(rowScale, { toValue: 1,    useNativeDriver: true, speed: 40 }).start();
+  const onPressIn = () => {
+    Animated.parallel([
+      Animated.spring(rowScale, { toValue: 1.02, useNativeDriver: true, speed: 60, bounciness: 3 }),
+      Animated.timing(glowOp,   { toValue: 1, duration: 120, useNativeDriver: false }),
+    ]).start();
+  };
+  const onPressOut = () => {
+    Animated.parallel([
+      Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }),
+      Animated.timing(glowOp,   { toValue: 0, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const glowBg = glowOp.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,136,0,0)", "rgba(255,136,0,0.055)"],
+  });
 
   return (
     <Animated.View style={{ opacity: rowOpacity, transform: [{ translateX: rowSlide }, { scale: rowScale }] }}>
       <TouchableOpacity
-        style={[s.row, isActive && s.rowActive]}
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         activeOpacity={1}
       >
-        <View style={[s.accentBar, {
-          backgroundColor: isActive ? colors.success : statusColor + "70",
-          shadowColor: isActive ? colors.success : "transparent",
-          shadowRadius: isActive ? 6 : 0,
-          shadowOpacity: isActive ? 1 : 0,
-        }]} />
+        <Animated.View style={[s.row, isActive && s.rowActive, { backgroundColor: glowBg }]}>
+          <View style={[s.accentBar, {
+            backgroundColor: isActive ? colors.success : statusColor + "70",
+            shadowColor: isActive ? colors.success : "transparent",
+            shadowRadius: isActive ? 6 : 0,
+            shadowOpacity: isActive ? 1 : 0,
+          }]} />
 
-        <View style={s.rowBody}>
-          <View style={s.rowTop}>
-            <Text style={[s.name, isActive && s.nameActive]} numberOfLines={1}>{item.name}</Text>
-            <Text style={[s.cost, { color: costTint }]}>{formatCost(cost)}</Text>
+          <View style={s.rowBody}>
+            <View style={s.rowTop}>
+              <Text style={[s.name, isActive && s.nameActive]} numberOfLines={1}>{item.name}</Text>
+              <Text style={[s.cost, { color: costTint }]}>{formatCost(cost)}</Text>
+            </View>
+            <View style={s.rowMeta}>
+              {isActive
+                ? <PulseDot color={colors.success} size={5} />
+                : <View style={[s.statusDot, { backgroundColor: statusColor }]} />
+              }
+              <Text style={[s.metaStatus, { color: isActive ? colors.success : colors.textSecondary }]}>
+                {item.status.toUpperCase()}
+              </Text>
+              <Text style={s.metaSep}>·</Text>
+              <Text style={s.metaText}>{item.agentType.toUpperCase()}</Text>
+              <Text style={s.metaSep}>·</Text>
+              <Text style={s.metaText}>{tokens}</Text>
+              <Text style={s.metaSep}>·</Text>
+              <Text style={s.metaDate}>{date}</Text>
+            </View>
           </View>
-          <View style={s.rowMeta}>
-            {isActive
-              ? <PulseDot color={colors.success} size={5} />
-              : <View style={[s.statusDot, { backgroundColor: statusColor }]} />
-            }
-            <Text style={[s.metaStatus, { color: isActive ? colors.success : colors.textSecondary }]}>
-              {item.status.toUpperCase()}
-            </Text>
-            <Text style={s.metaSep}>·</Text>
-            <Text style={s.metaText}>{item.agentType.toUpperCase()}</Text>
-            <Text style={s.metaSep}>·</Text>
-            <Text style={s.metaText}>{tokens}</Text>
-            <Text style={s.metaSep}>·</Text>
-            <Text style={s.metaDate}>{date}</Text>
-          </View>
-        </View>
 
-        <Text style={s.chevron}>›</Text>
+          <Text style={s.chevron}>›</Text>
+        </Animated.View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -202,6 +220,8 @@ export default function SessionsScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
+      <DotGrid opacity={0.28} />
+
       {/* Top bar */}
       <View style={s.topBar}>
         <View style={s.topLeft}>
@@ -297,7 +317,7 @@ const s = StyleSheet.create({
   // Row
   row: {
     flexDirection: "row", alignItems: "center",
-    paddingVertical: 16, paddingRight: space.lg, backgroundColor: colors.bg,
+    paddingVertical: 16, paddingRight: space.lg,
   },
   rowActive: { backgroundColor: "rgba(0,255,136,0.04)" },
   accentBar: { width: 3, alignSelf: "stretch", marginRight: space.md, borderRadius: 2 },
