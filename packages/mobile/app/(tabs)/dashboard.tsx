@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   RefreshControl,
@@ -185,7 +186,10 @@ export default function DashboardScreen() {
     <View style={[d.root, { paddingTop: insets.top }]}>
       {/* Top bar */}
       <View style={d.topBar}>
-        <Text style={d.pageTitle}>AGENTPILOT</Text>
+        <View style={d.logoRow}>
+          <Image source={require("../../assets/logo-white.png")} style={d.logoImg} />
+          <Text style={d.pageTitle}>MAFA</Text>
+        </View>
         <View style={d.topRight}>
           {activeSessions > 0 && <PulseDot color={colors.success} />}
           <Text style={d.pageDate}>
@@ -346,6 +350,8 @@ const d = StyleSheet.create({
     paddingVertical: 14,
   },
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  logoImg: { width: 22, height: 22, opacity: 0.9 },
   pageTitle: {
     fontFamily: fonts.sansMedium,
     fontSize: 10,

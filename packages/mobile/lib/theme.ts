@@ -1,4 +1,4 @@
-// AgentPilot — Futuristic terminal-grade design language
+// MAFA — Futuristic terminal-grade design language
 // Geist + GeistMono, deep black, razor-thin borders, neon accents
 // Influence: linear.app × vercel × shadcn/ui × factory.ai
 

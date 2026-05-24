@@ -115,7 +115,7 @@ export default function ConnectScreen() {
           </Text>
           <Text style={c.statusSub}>
             {connected
-              ? "AgentPilot is receiving real-time events from your agents."
+              ? "MAFA is receiving real-time events from your agents."
               : "Open the relay on your machine to start monitoring."}
           </Text>
         </View>
@@ -129,7 +129,7 @@ export default function ConnectScreen() {
           <Text style={c.stepDesc}>
             Run the relay server on your machine. It bridges your AI agents to this app.
           </Text>
-          <CopyBlock label="INSTALL" value="npx agentpilot-relay" />
+          <CopyBlock label="INSTALL" value="npx mafa-relay" />
         </View>
 
         <View style={c.divider} />
@@ -152,9 +152,9 @@ export default function ConnectScreen() {
           <Text style={c.stepNum}>03</Text>
           <Text style={c.stepTitle}>Wrap your agent</Text>
           <Text style={c.stepDesc}>
-            Use the AgentPilot SDK to instrument Claude Code, Codex, or any LLM agent.
+            Use the MAFA SDK to instrument Claude Code, Codex, or any LLM agent.
           </Text>
-          <CopyBlock label="ENV" value="AGENTPILOT_URL=wss://..." />
+          <CopyBlock label="ENV" value="MAFA_URL=wss://..." />
         </View>
 
         <View style={{ height: 40 }} />

@@ -4,8 +4,8 @@
     "android": {
       "package": "com.agentpilot_a7k2.runable",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#0a0a0f"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true
     },
@@ -18,10 +18,10 @@
     },
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#0a0a0f"
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
     },
-    "name": "AgentPilot",
+    "name": "MAFA",
     "slug": "agentpilot",
     "version": "1.0.0",
     "scheme": "agentpilot",
