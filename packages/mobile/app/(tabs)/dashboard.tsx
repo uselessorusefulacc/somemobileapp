@@ -264,7 +264,9 @@ export default function DashboardScreen() {
       {/* Top bar */}
       <View style={d.topBar}>
         <View style={d.logoRow}>
-          <Image source={require("../../assets/logo-white.png")} style={d.logoImg} tintColor={colors.accent} />
+          <View style={d.logoBadge}>
+            <Image source={require("../../assets/logo-white.png")} style={d.logoImg} />
+          </View>
           <Text style={d.pageTitle}>MAFA</Text>
         </View>
         <View style={d.topRight}>
@@ -406,7 +408,12 @@ const d = StyleSheet.create({
   },
   topRight:  { flexDirection: "row", alignItems: "center", gap: 8 },
   logoRow:   { flexDirection: "row", alignItems: "center", gap: 8 },
-  logoImg:   { width: 22, height: 22, opacity: 0.9 },
+  logoBadge: {
+    width: 28, height: 28, borderRadius: 7,
+    backgroundColor: colors.accent,
+    alignItems: "center", justifyContent: "center",
+  },
+  logoImg:   { width: 18, height: 18 },
   pageTitle: {
     fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 3,
     color: colors.accent, textTransform: "uppercase",

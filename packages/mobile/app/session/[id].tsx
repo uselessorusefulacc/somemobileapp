@@ -683,7 +683,7 @@ const d = StyleSheet.create({
   liveFeedWrapper: {
     marginHorizontal: space.md, borderRadius: radius.sm,
     borderWidth: 1, borderColor: colors.successBorder,
-    backgroundColor: "#001A0D",
+    backgroundColor: "#0D0800",
     overflow: "hidden", marginBottom: space.sm,
   },
   liveFeed: { maxHeight: 220 },

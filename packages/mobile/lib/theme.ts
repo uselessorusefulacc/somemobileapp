@@ -25,22 +25,22 @@ export const colors = {
   black: "#000000",
 
   // ── Semantic: use these for status / cost ─────────────────────────────────
-  success: "#00FF88",          // neon green — active, live, ok
-  successMuted: "rgba(0,255,136,0.08)",
-  successBorder: "rgba(0,255,136,0.2)",
+  success: "#00CC55",          // green — active, live, ok, low cost
+  successMuted: "rgba(0,204,85,0.08)",
+  successBorder: "rgba(0,204,85,0.2)",
 
-  warning: "#FFB800",          // amber — paused, medium cost
-  warningMuted: "rgba(255,184,0,0.08)",
-  warningBorder: "rgba(255,184,0,0.2)",
+  warning: "#FF8800",          // orange — paused, medium cost (matches accent)
+  warningMuted: "rgba(255,136,0,0.08)",
+  warningBorder: "rgba(255,136,0,0.2)",
 
   danger: "#FF3B3B",           // red — error, high cost, kill
   dangerMuted: "rgba(255,59,59,0.08)",
   dangerBorder: "rgba(255,59,59,0.2)",
 
-  // ── Accent — used sparingly for interactive highlights ────────────────────
-  accent: "#4D9EFF",           // electric blue
-  accentMuted: "rgba(77,158,255,0.1)",
-  accentBorder: "rgba(77,158,255,0.25)",
+  // ── Accent — orange brand colour ─────────────────────────────────────────
+  accent: "#FF8800",           // orange
+  accentMuted: "rgba(255,136,0,0.10)",
+  accentBorder: "rgba(255,136,0,0.28)",
 } as const;
 
 // ── Font families (loaded from assets/fonts/) ─────────────────────────────

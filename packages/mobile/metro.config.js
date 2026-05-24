@@ -1,16 +1,15 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 
-// The Runable platform proxies bundle requests relative to the monorepo root.
-// So metro must treat the monorepo root as the project root.
+const projectRoot = __dirname;
 const monoRoot = path.resolve(__dirname, "../..");
-const config = getDefaultConfig(__dirname);
 
-// Override the project root so bundle paths resolve correctly
-config.projectRoot = monoRoot;
+const config = getDefaultConfig(projectRoot);
+
+// Allow metro to watch monorepo node_modules too
 config.watchFolders = [monoRoot];
 config.resolver.nodeModulesPaths = [
-  path.resolve(__dirname, "node_modules"),
+  path.resolve(projectRoot, "node_modules"),
   path.resolve(monoRoot, "node_modules"),
 ];
 

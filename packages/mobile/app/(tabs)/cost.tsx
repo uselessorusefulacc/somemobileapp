@@ -20,44 +20,44 @@ import { formatCost, formatTokens } from "../../lib/format";
 const PROVIDER_COLORS: Record<string, string> = {
   openai:        "#10A37F",
   anthropic:     "#CC785C",
-  google:        "#4285F4",
+  google:        "#FF8800",   // was #4285F4 blue → brand orange
   groq:          "#F55036",
-  deepseek:      "#4D6EFF",
+  deepseek:      "#FF8800",   // was #4D6EFF blue → orange
   mistral:       "#FF7000",
   perplexity:    "#20B2AA",
   openrouter:    "#9B59B6",
   cohere:        "#39C5BB",
   together:      "#FF4785",
   fireworks:     "#FF6B35",
-  azure:         "#0089D6",
+  azure:         "#AAAAAA",   // was #0089D6 blue → neutral grey
   amazon:        "#FF9900",
   xai:           "#AAAAAA",
-  meta:          "#0082FB",
+  meta:          "#FF8800",   // was #0082FB blue → orange
   nvidia:        "#76B900",
-  "01ai":        "#00D4FF",
+  "01ai":        "#AAAAAA",   // was #00D4FF cyan → neutral
   inflection:    "#FF6680",
-  github:        "#F0F6FC",
-  vertex:        "#4285F4",
+  github:        "#F0F0F0",
+  vertex:        "#FF8800",   // was #4285F4 blue → orange
   cloudflare:    "#F38020",
   cerebras:      "#FF6B6B",
-  ollama:        "#7B68EE",
+  ollama:        "#AAAAAA",   // was #7B68EE purple-blue → neutral
   databricks:    "#FF3621",
   huggingface:   "#FFD21E",
   zhipu:         "#00D4B4",
-  moonshot:      "#7C3AED",
+  moonshot:      "#9B59B6",
   minimax:       "#FF69B4",
   alibaba:       "#FF6A00",
-  siliconflow:   "#06B6D4",
+  siliconflow:   "#20B2AA",   // was #06B6D4 cyan → teal
   volcengine:    "#FF4500",
-  baidu:         "#2932E1",
+  baidu:         "#FF8800",   // was #2932E1 blue → orange
   tencent:       "#07C160",
-  stepfun:       "#8B5CF6",
-  upstage:       "#3B82F6",
+  stepfun:       "#9B59B6",
+  upstage:       "#FF8800",   // was #3B82F6 blue → orange
   novita:        "#EC4899",
-  scaleway:      "#7C3AED",
-  digitalocean:  "#0080FF",
-  vultr:         "#007BFC",
-  nebius:        "#6366F1",
+  scaleway:      "#9B59B6",
+  digitalocean:  "#AAAAAA",   // was #0080FF blue → neutral
+  vultr:         "#AAAAAA",   // was #007BFC blue → neutral
+  nebius:        "#9B59B6",   // was #6366F1 indigo → purple
   other:         "#888888",
 };
 
