@@ -1,10 +1,10 @@
 {
-  "name": "agentpilot-daemon",
-  "version": "1.1.0",
-  "description": "AgentPilot daemon — wrap any AI coding agent and control it from your phone",
+  "name": "mafa-daemon",
+  "version": "1.3.0",
+  "description": "mafa — wrap any AI coding agent and monitor it from your phone",
   "type": "module",
   "bin": {
-    "agentpilot-daemon": "./dist/daemon.js"
+    "mafa": "./dist/daemon.js"
   },
   "files": [
     "dist",
@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "bun --watch src/daemon.ts",
-    "build": "tsc",
+    "build": "tsc && find dist -name '*.js' -exec perl -i -pe \"s|from '(\\./[^']*?)(?<!\\.js)'|from '\\1.js'|g; s|from \\\"(\\./[^\\\"]*?)(?<!\\.js)\\\"|from \\\"\\1.js\\\"|g; s|from '(\\.\\./[^']*?)(?<!\\.js)'|from '\\1.js'|g\" {} \\;",
     "prepublishOnly": "bun run build",
     "start": "bun src/daemon.ts",
     "typecheck": "tsc --noEmit",
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "commander": "^12.0.0",
+    "qrcode-terminal": "^0.12.0",
     "ws": "^8.16.0"
   },
   "devDependencies": {

@@ -15,6 +15,8 @@ import { apiClient, type Analytics } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
 import { formatCost, formatTokens } from "../../lib/format";
 import { DotGrid } from "../../components/DotGrid";
+import { useRelay } from "../../lib/relay-context";
+import type { TokenPayload, ToolCallPayload, AgentInfoPayload, StatusPayload } from "../../lib/relay";
 
 // ── Pulsing live dot ──────────────────────────────────────────────────────
 function PulseDot({ color }: { color: string }) {
@@ -264,6 +266,112 @@ function useLocalTime() {
   return time;
 }
 
+// ── Live Agent Panel ──────────────────────────────────────────────────────
+function LiveAgentPanel() {
+  const { isConnected, client } = useRelay();
+  const [agentInfo, setAgentInfo]     = useState<AgentInfoPayload | null>(null);
+  const [status, setStatus]           = useState<StatusPayload | null>(null);
+  const [lastTool, setLastTool]       = useState<ToolCallPayload | null>(null);
+  const [sessionTokens, setSessionTokens] = useState(0);
+  const [sessionCost, setSessionCost]     = useState(0);
+  const [toolCount, setToolCount]     = useState(0);
+
+  const slideY  = useRef(new Animated.Value(-80)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(slideY,  { toValue: isConnected ? 0 : -80, useNativeDriver: true, damping: 18, stiffness: 200 }),
+      Animated.timing(opacity, { toValue: isConnected ? 1 : 0,   duration: 250, useNativeDriver: true }),
+    ]).start();
+    if (!isConnected) {
+      // Reset live data when daemon disconnects
+      setAgentInfo(null); setStatus(null); setLastTool(null);
+      setSessionTokens(0); setSessionCost(0); setToolCount(0);
+    }
+  }, [isConnected]);
+
+  useEffect(() => {
+    if (!client) return;
+    const onInfo   = (p: AgentInfoPayload) => setAgentInfo(p);
+    const onStatus = (p: StatusPayload)    => setStatus(p);
+    const onTool   = (p: ToolCallPayload)  => { setLastTool(p); setToolCount(c => c + 1); };
+    const onTokens = (p: TokenPayload)     => {
+      setSessionTokens(t => t + p.inputTokens + p.outputTokens);
+      setSessionCost(c => c + p.costUsd);
+    };
+    client.on("agent_info", onInfo);
+    client.on("status",     onStatus);
+    client.on("tool_call",  onTool);
+    client.on("tokens",     onTokens);
+    return () => {
+      client.off("agent_info", onInfo);
+      client.off("status",     onStatus);
+      client.off("tool_call",  onTool);
+      client.off("tokens",     onTokens);
+    };
+  }, [client]);
+
+  const statusColor = (s?: string) => {
+    if (!s) return colors.accent;
+    if (s === "working" || s === "starting") return colors.accent;
+    if (s === "exited"  || s === "error")    return colors.danger;
+    if (s === "paused")                       return colors.warning;
+    return colors.success;
+  };
+
+  const sc = statusColor(status?.agentStatus);
+
+  return (
+    <Animated.View style={[lv.wrap, { opacity, transform: [{ translateY: slideY }] }]}>
+      {/* Left accent stripe */}
+      <View style={[lv.stripe, { backgroundColor: sc }]} />
+
+      <View style={lv.body}>
+        {/* Row 1: agent + status */}
+        <View style={lv.row}>
+          <View style={lv.liveTag}>
+            <PulseDot color={sc} />
+            <Text style={[lv.liveText, { color: sc }]}>LIVE</Text>
+          </View>
+          {agentInfo && (
+            <Text style={lv.agentName} numberOfLines={1}>
+              {agentInfo.type.toUpperCase()} · {agentInfo.model}
+            </Text>
+          )}
+          {status && (
+            <Text style={[lv.statusBadge, { color: sc }]} numberOfLines={1}>
+              {status.agentStatus.toUpperCase()}
+            </Text>
+          )}
+        </View>
+
+        {/* Row 2: task */}
+        {status?.currentTask && (
+          <Text style={lv.task} numberOfLines={2}>{status.currentTask}</Text>
+        )}
+
+        {/* Row 3: metrics + last tool */}
+        <View style={lv.metaRow}>
+          <Text style={lv.metaItem}>{formatTokens(sessionTokens)} tok</Text>
+          <Text style={lv.metaDot}>·</Text>
+          <Text style={lv.metaItem}>{formatCost(sessionCost)}</Text>
+          {toolCount > 0 && <>
+            <Text style={lv.metaDot}>·</Text>
+            <Text style={lv.metaItem}>{toolCount} calls</Text>
+          </>}
+          {lastTool && <>
+            <Text style={lv.metaDot}>·</Text>
+            <Text style={[lv.metaItem, { color: colors.accent }]} numberOfLines={1}>
+              ⚡ {lastTool.tool}
+            </Text>
+          </>}
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 export default function DashboardScreen() {
   const insets    = useSafeAreaInsets();
@@ -316,7 +424,7 @@ export default function DashboardScreen() {
   return (
     <View style={[d.root, { paddingTop: insets.top }]}>
       {/* Dot-grid background */}
-      <DotGrid opacity={0.28} />
+      <DotGrid />
 
       {/* Top bar */}
       <View style={d.topBar}>
@@ -336,6 +444,7 @@ export default function DashboardScreen() {
       </View>
       <View style={d.topBorderAccent} />
 
+      <LiveAgentPanel />
       <BudgetAlertBanner />
 
       <ScrollView
@@ -577,4 +686,30 @@ const d = StyleSheet.create({
     borderWidth: 1, borderColor: colors.borderStrong,
   },
   actionSecondaryText: { fontFamily: fonts.sansMedium, fontSize: 11, letterSpacing: 1.4, color: colors.text, textTransform: "uppercase" },
+});
+
+// ── Live panel styles ─────────────────────────────────────────────────────
+const lv = StyleSheet.create({
+  wrap: {
+    marginHorizontal: space.md,
+    marginTop: 6,
+    marginBottom: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  stripe: { width: 3 },
+  body: { flex: 1, padding: 10, gap: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  liveTag: { flexDirection: "row", alignItems: "center", gap: 4 },
+  liveText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.8, textTransform: "uppercase" },
+  agentName: { fontFamily: fonts.mono, fontSize: 11, color: colors.text, flex: 1 },
+  statusBadge: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.4 },
+  task: { fontFamily: fonts.sans, fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 5, flexWrap: "wrap" },
+  metaItem: { fontFamily: fonts.mono, fontSize: 10, color: colors.textSecondary },
+  metaDot: { fontFamily: fonts.mono, fontSize: 10, color: colors.textTertiary },
 });

@@ -281,14 +281,12 @@ export default function SessionDetailScreen() {
   };
 
   if (!id || id === "undefined") {
+    // Params may not be ready yet on first render — show loading briefly
     return (
       <View style={d.root}>
         <Stack.Screen options={headerOpts} />
         <View style={d.center}>
-          <Text style={d.errText}>INVALID SESSION</Text>
-          <TouchableOpacity onPress={() => router.back()} style={d.errBackBtn}>
-            <Text style={d.errBackText}>BACK</Text>
-          </TouchableOpacity>
+          <ActivityIndicator size="small" color={colors.accent} />
         </View>
       </View>
     );

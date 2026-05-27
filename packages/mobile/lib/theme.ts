@@ -4,15 +4,15 @@
 
 export const colors = {
   // ── Base ──────────────────────────────────────────────────────────────────
-  bg: "#000000",
-  surface: "#080808",
-  surfaceRaised: "#0F0F0F",
-  surfaceOverlay: "#141414",
+  bg: "#111214",
+  surface: "#16181B",
+  surfaceRaised: "#1C1E22",
+  surfaceOverlay: "#222529",
 
   // ── Borders ───────────────────────────────────────────────────────────────
-  border: "rgba(255,255,255,0.06)",
-  borderStrong: "rgba(255,255,255,0.12)",
-  borderFocus: "rgba(255,255,255,0.24)",
+  border: "rgba(255,255,255,0.08)",
+  borderStrong: "rgba(255,255,255,0.15)",
+  borderFocus: "rgba(255,255,255,0.28)",
 
   // ── Text ─────────────────────────────────────────────────────────────────
   text: "#F0F0F0",

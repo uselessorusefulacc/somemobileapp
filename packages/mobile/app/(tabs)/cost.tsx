@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiClient, type Analytics, type BudgetAlert } from "../../lib/api";
+import { apiClient, type Analytics, type BudgetAlert, type BudgetConfig, type OptimizationTip } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
 import { formatCost, formatTokens } from "../../lib/format";
 import { DotGrid } from "../../components/DotGrid";
@@ -458,16 +458,12 @@ function StatChip({ label, value, color, delay = 0 }: { label: string; value: st
   }, []);
 
   const pressIn = () => {
-    Animated.parallel([
-      Animated.spring(chipScale, { toValue: 1.04, useNativeDriver: true, speed: 60, bounciness: 3 }),
-      Animated.timing(glowOp, { toValue: 1, duration: 120, useNativeDriver: false }),
-    ]).start();
+    Animated.spring(chipScale, { toValue: 1.04, useNativeDriver: true, speed: 60, bounciness: 3 }).start();
+    Animated.timing(glowOp, { toValue: 1, duration: 120, useNativeDriver: false }).start();
   };
   const pressOut = () => {
-    Animated.parallel([
-      Animated.spring(chipScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }),
-      Animated.timing(glowOp, { toValue: 0, duration: 200, useNativeDriver: false }),
-    ]).start();
+    Animated.spring(chipScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }).start();
+    Animated.timing(glowOp, { toValue: 0, duration: 200, useNativeDriver: false }).start();
   };
 
   const glowBorder = glowOp.interpolate({
@@ -477,9 +473,13 @@ function StatChip({ label, value, color, delay = 0 }: { label: string; value: st
 
   return (
     <TouchableOpacity onPressIn={pressIn} onPressOut={pressOut} activeOpacity={1} style={{ flex: 1 }}>
-      <Animated.View style={[co.heroChip, { opacity, transform: [{ translateY: slideY }, { scale: chipScale }], borderColor: glowBorder }]}>
-        <Text style={co.heroChipLabel}>{label}</Text>
-        <Text style={[co.heroChipVal, color ? { color } : {}]}>{value}</Text>
+      {/* outer: native transform + opacity */}
+      <Animated.View style={{ flex: 1, opacity, transform: [{ translateY: slideY }, { scale: chipScale }] }}>
+        {/* inner: JS-driven border color */}
+        <Animated.View style={[co.heroChip, { borderColor: glowBorder }]}>
+          <Text style={co.heroChipLabel}>{label}</Text>
+          <Text style={[co.heroChipVal, color ? { color } : {}]}>{value}</Text>
+        </Animated.View>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -502,16 +502,12 @@ function ModelRow({ model, cost, pct, pColor, isTop, index }: ModelRowProps) {
   }, []);
 
   const pressIn = () => {
-    Animated.parallel([
-      Animated.spring(rowScale, { toValue: 1.015, useNativeDriver: true, speed: 60, bounciness: 2 }),
-      Animated.timing(glowOp,   { toValue: 1, duration: 120, useNativeDriver: false }),
-    ]).start();
+    Animated.spring(rowScale, { toValue: 1.015, useNativeDriver: true, speed: 60, bounciness: 2 }).start();
+    Animated.timing(glowOp,   { toValue: 1, duration: 120, useNativeDriver: false }).start();
   };
   const pressOut = () => {
-    Animated.parallel([
-      Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }),
-      Animated.timing(glowOp,   { toValue: 0, duration: 200, useNativeDriver: false }),
-    ]).start();
+    Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }).start();
+    Animated.timing(glowOp,   { toValue: 0, duration: 200, useNativeDriver: false }).start();
   };
 
   const glowBg = glowOp.interpolate({
@@ -537,14 +533,111 @@ function ModelRow({ model, cost, pct, pColor, isTop, index }: ModelRowProps) {
   );
 }
 
+// ── Budget Editor Sheet ────────────────────────────────────────────────────────
+function BudgetSheet({ visible, current, onClose, onSaved }: {
+  visible: boolean;
+  current: BudgetConfig | null;
+  onClose: () => void;
+  onSaved: (cfg: BudgetConfig) => void;
+}) {
+  const [daily, setDaily]       = useState("");
+  const [monthly, setMonthly]   = useState("");
+  const [alertPct, setAlertPct] = useState("");
+  const [saving, setSaving]     = useState(false);
+
+  useEffect(() => {
+    if (visible && current) {
+      setDaily(String(current.dailyLimitUsd ?? ""));
+      setMonthly(String(current.monthlyLimitUsd ?? ""));
+      setAlertPct(String(current.alertAtPct ?? "80"));
+    }
+  }, [visible, current]);
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const result = await apiClient.setBudget({
+        dailyLimitUsd:   parseFloat(daily)   || 0,
+        monthlyLimitUsd: parseFloat(monthly) || 0,
+        alertAtPct:      parseInt(alertPct)  || 80,
+      });
+      onSaved(result);
+      onClose();
+    } catch { /* ignore */ } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!visible) return null;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={co.sheetOverlay} activeOpacity={1} onPress={onClose} />
+      <View style={co.budgetSheet}>
+        <View style={co.sheetHandle} />
+        <Text style={co.sheetTitle}>BUDGET LIMITS</Text>
+        <Text style={co.sheetSub}>Alerts trigger when spend crosses your threshold.</Text>
+
+        <View style={co.budgetField}>
+          <Text style={co.budgetFieldLabel}>DAILY LIMIT ($)</Text>
+          <TextInput
+            style={co.budgetInput}
+            value={daily}
+            onChangeText={setDaily}
+            keyboardType="decimal-pad"
+            placeholder="e.g. 5.00"
+            placeholderTextColor={colors.textTertiary}
+          />
+        </View>
+        <View style={co.budgetField}>
+          <Text style={co.budgetFieldLabel}>MONTHLY LIMIT ($)</Text>
+          <TextInput
+            style={co.budgetInput}
+            value={monthly}
+            onChangeText={setMonthly}
+            keyboardType="decimal-pad"
+            placeholder="e.g. 50.00"
+            placeholderTextColor={colors.textTertiary}
+          />
+        </View>
+        <View style={co.budgetField}>
+          <Text style={co.budgetFieldLabel}>ALERT AT (%)</Text>
+          <TextInput
+            style={co.budgetInput}
+            value={alertPct}
+            onChangeText={setAlertPct}
+            keyboardType="number-pad"
+            placeholder="e.g. 80"
+            placeholderTextColor={colors.textTertiary}
+          />
+        </View>
+
+        <TouchableOpacity style={[co.sheetSaveBtn, saving && { opacity: 0.5 }]} onPress={save} disabled={saving} activeOpacity={0.8}>
+          <Text style={co.sheetSaveText}>{saving ? "SAVING..." : "SAVE LIMITS"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={co.sheetCancelBtn} onPress={onClose} activeOpacity={0.7}>
+          <Text style={co.sheetCancelText}>CANCEL</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function CostScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [stats, setStats]           = useState<Analytics | null>(null);
   const [alerts, setAlerts]         = useState<BudgetAlert[]>([]);
+  const [budget, setBudget]         = useState<BudgetConfig | null>(null);
+  const [tips, setTips]             = useState<OptimizationTip[]>([]);
+  const [applyingTip, setApplyingTip] = useState<string | null>(null);
+  const [applyingAll, setApplyingAll] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
+  const [showBudget, setShowBudget] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [error, setError]           = useState(false);
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroSlide   = useRef(new Animated.Value(20)).current;
@@ -554,9 +647,10 @@ export default function CostScreen() {
     const ctrl  = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10_000);
     try {
-      const [analyticsResult, alertsResult] = await Promise.allSettled([
+      const [analyticsResult, alertsResult, sessionsResult] = await Promise.allSettled([
         apiClient.getAnalytics(),
         apiClient.getAlerts(),
+        apiClient.getSessions(),
       ]);
       if (analyticsResult.status === "fulfilled") {
         setStats(analyticsResult.value);
@@ -570,15 +664,87 @@ export default function CostScreen() {
       if (alertsResult.status === "fulfilled") {
         setAlerts(alertsResult.value.alerts || []);
       }
+      // Load tips for top sessions (most costly)
+      if (sessionsResult.status === "fulfilled") {
+        const topSessions = [...(sessionsResult.value.sessions || [])]
+          .sort((a, b) => (b.totalCostUsd ?? 0) - (a.totalCostUsd ?? 0))
+          .slice(0, 5);
+        const tipsResults = await Promise.allSettled(
+          topSessions.map(s => apiClient.getTips(s.id))
+        );
+        const allTips: OptimizationTip[] = [];
+        tipsResults.forEach(r => {
+          if (r.status === "fulfilled") allTips.push(...(r.value.tips || []));
+        });
+        setTips(allTips.filter(t => !t.applied).slice(0, 8));
+      }
+      // Load budget config
+      const budgetResult = await apiClient.getBudget().catch(() => null);
+      if (budgetResult) setBudget(budgetResult);
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") setError(true);
     } finally {
       clearTimeout(timer);
       setRefreshing(false);
+      setLastRefresh(new Date());
     }
   }, []);
 
+  // Auto-refresh every 15 seconds while screen is focused
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useFocusEffect(useCallback(() => {
+    autoRefreshRef.current = setInterval(() => load(true), 15_000);
+    return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
+  }, [load]));
+
   useFocusEffect(useCallback(() => { load(true); }, [load]));
+
+  const applyTip = useCallback(async (tip: OptimizationTip) => {
+    if (applyingTip) return;
+    setApplyingTip(tip.id);
+    try {
+      await apiClient.applyOptimizationTip(tip.sessionId, tip.id);
+      setTips(prev => prev.filter(t => t.id !== tip.id));
+    } catch { /* ignore */ } finally {
+      setApplyingTip(null);
+    }
+  }, [applyingTip]);
+
+  const applyAllTips = useCallback(async () => {
+    if (applyingAll || tips.length === 0) return;
+    setApplyingAll(true);
+    try {
+      // Use bulk endpoint for atomic apply-all
+      const sessionIds = [...new Set(tips.map(t => t.sessionId))];
+      const r = await apiClient.applyAllTips(sessionIds);
+      if (r && r.applied > 0) {
+        setTips([]);
+      } else {
+        // fallback: apply individually
+        await Promise.allSettled(
+          tips.map(tip => apiClient.applyOptimizationTip(tip.sessionId, tip.id))
+        );
+        setTips([]);
+      }
+    } catch { /* ignore */ } finally {
+      setApplyingAll(false);
+    }
+  }, [applyingAll, tips]);
+
+  const runOptimizeAll = useCallback(async () => {
+    if (optimizing) return;
+    setOptimizing(true);
+    try {
+      const sessions = await apiClient.getSessions();
+      const active = (sessions.sessions || [])
+        .filter(s => s.status === "active" || s.status === "paused")
+        .slice(0, 6);
+      await Promise.allSettled(active.map(s => apiClient.optimize(s.id)));
+      await load(true);
+    } catch { /* ignore */ } finally {
+      setOptimizing(false);
+    }
+  }, [optimizing, load]);
 
   const totalCost   = parseFloat(String(stats?.totalCost   || "0"));
   const todayCost   = parseFloat(String(stats?.dailyCost   || "0"));
@@ -597,7 +763,7 @@ export default function CostScreen() {
 
   return (
     <View style={[co.root, { paddingTop: insets.top }]}>
-      <DotGrid opacity={0.28} />
+      <DotGrid />
       {/* ── Top bar ── */}
       <View style={co.topBar}>
         <View style={co.topLeft}>
@@ -605,10 +771,18 @@ export default function CostScreen() {
             <Text style={co.backArrow}>←</Text>
           </TouchableOpacity>
           <Text style={co.pageTitle}>COST</Text>
+          {lastRefresh && (
+            <Text style={co.liveTag}>● LIVE</Text>
+          )}
         </View>
-        <TouchableOpacity onPress={() => setShowPricing(true)} style={co.pricingBtn} activeOpacity={0.7}>
-          <Text style={co.pricingBtnText}>PRICING ↗</Text>
-        </TouchableOpacity>
+        <View style={co.topRight}>
+          <TouchableOpacity onPress={() => setShowBudget(true)} style={co.budgetBtn} activeOpacity={0.7}>
+            <Text style={co.budgetBtnText}>⚙ BUDGET</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowPricing(true)} style={co.pricingBtn} activeOpacity={0.7}>
+            <Text style={co.pricingBtnText}>PRICING ↗</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <View style={co.topAccent} />
 
@@ -718,12 +892,84 @@ export default function CostScreen() {
                 </View>
               </>
             )}
+
+            {/* Optimize All button */}
+            <View style={co.optimizeRow}>
+              <TouchableOpacity
+                style={[co.optimizeAllBtn, optimizing && { opacity: 0.5 }]}
+                onPress={runOptimizeAll}
+                disabled={optimizing}
+                activeOpacity={0.8}
+              >
+                <Text style={co.optimizeAllText}>{optimizing ? "ANALYZING..." : "⟳  REFRESH RECOMMENDATIONS"}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Optimization Tips */}
+            {tips.length > 0 && (
+              <>
+                <View style={co.sectionHead}>
+                  <Text style={co.sectionLabel}>OPTIMIZATION TIPS ({tips.length})</Text>
+                  <View style={co.sectionLine} />
+                  <TouchableOpacity
+                    style={[co.applyAllBtn, (applyingAll || tips.length === 0) && { opacity: 0.4 }]}
+                    onPress={applyAllTips}
+                    disabled={applyingAll || tips.length === 0}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={co.applyAllText}>{applyingAll ? "..." : "APPLY ALL"}</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={co.tipsBlock}>
+                  {tips.map((tip, i) => {
+                    const catColors: Record<string, string> = {
+                      caching: colors.success,
+                      prompting: colors.accent,
+                      context: colors.warning,
+                      model: "#9B59B6",
+                    };
+                    const ac = catColors[tip.category] ?? colors.accent;
+                    const isApplying = applyingTip === tip.id;
+                    return (
+                      <View key={tip.id} style={[co.tipRow, i > 0 && co.tipRowBorder]}>
+                        <View style={[co.tipStripe, { backgroundColor: ac }]} />
+                        <View style={co.tipContent}>
+                          <View style={co.tipHeader}>
+                            <Text style={[co.tipTitle, { color: ac }]}>
+                              {tip.title || tip.category.toUpperCase()}
+                            </Text>
+                            <View style={[co.tipSaving, { backgroundColor: ac + "18", borderColor: ac + "40" }]}>
+                              <Text style={[co.tipSavingText, { color: ac }]}>-{tip.estimatedSavingPct}%</Text>
+                            </View>
+                          </View>
+                          <Text style={co.tipText}>{tip.tip}</Text>
+                          <TouchableOpacity
+                            style={[co.tipApplyBtn, isApplying && co.tipApplyBtnDisabled]}
+                            onPress={() => applyTip(tip)}
+                            activeOpacity={0.7}
+                            disabled={isApplying}
+                          >
+                            <Text style={co.tipApplyText}>{isApplying ? "APPLYING..." : "✓  MARK APPLIED"}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </>
         )}
         <View style={{ height: 56 }} />
       </ScrollView>
 
       <ModelSheet visible={showPricing} onClose={() => setShowPricing(false)} />
+      <BudgetSheet
+        visible={showBudget}
+        current={budget}
+        onClose={() => setShowBudget(false)}
+        onSaved={(cfg) => { setBudget(cfg); load(true); }}
+      />
     </View>
   );
 }
@@ -737,12 +983,26 @@ const co = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: space.md, paddingVertical: 14,
   },
-  topLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  topLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   backBtn: { padding: 4 },
   backArrow: { fontFamily: fonts.sans, fontSize: 20, color: colors.text, lineHeight: 24 },
   pageTitle: {
     fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 3,
     color: colors.accent, textTransform: "uppercase",
+  },
+  liveTag: {
+    fontFamily: fonts.sansMedium, fontSize: 8, letterSpacing: 1.5,
+    color: colors.success, textTransform: "uppercase",
+  },
+  budgetBtn: {
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 8, paddingVertical: 5,
+    borderRadius: 3,
+  },
+  budgetBtnText: {
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.3,
+    color: colors.textSecondary, textTransform: "uppercase",
   },
   pricingBtn: {
     borderWidth: 1, borderColor: colors.accentBorder,
@@ -830,6 +1090,110 @@ const co = StyleSheet.create({
 
   emptyModel: { padding: space.xl, alignItems: "center" },
   emptyModelText: { fontFamily: fonts.sans, fontSize: 15, color: colors.textSecondary },
+
+  // Tips
+  tipsBlock: {
+    marginHorizontal: space.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface, overflow: "hidden", marginBottom: space.sm,
+  },
+  tipRow: { flexDirection: "row", alignItems: "stretch" },
+  tipRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
+  tipStripe: { width: 3 },
+  tipContent: { flex: 1, padding: space.md, gap: 6 },
+  tipHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  tipTitle: { fontFamily: fonts.sansMedium, fontSize: 11, letterSpacing: 0.8, textTransform: "uppercase", flex: 1 },
+  tipSaving: {
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: radius.xs, borderWidth: 1,
+  },
+  tipSavingText: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.2 },
+  tipText: { fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
+  tipApplyBtn: {
+    alignSelf: "flex-start", marginTop: 2,
+    borderWidth: 1, borderColor: colors.accentBorder,
+    backgroundColor: colors.accentMuted,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.xs,
+  },
+  tipApplyBtnDisabled: { opacity: 0.5 },
+  tipApplyText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.6, color: colors.accent, textTransform: "uppercase" },
+
+  // Optimize row
+  optimizeRow: {
+    flexDirection: "row", justifyContent: "center",
+    paddingHorizontal: space.md, paddingVertical: space.sm,
+  },
+  optimizeAllBtn: {
+    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.xs,
+  },
+  optimizeAllText: {
+    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.6,
+    color: colors.textSecondary, textTransform: "uppercase",
+  },
+  applyAllBtn: {
+    borderWidth: 1, borderColor: colors.accentBorder,
+    backgroundColor: colors.accentMuted,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.xs,
+  },
+  applyAllText: {
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.4,
+    color: colors.accent, textTransform: "uppercase",
+  },
+
+  // Budget bottom sheet
+  sheetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.85)",
+  },
+  budgetSheet: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg,
+    borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
+    borderColor: colors.accentBorder,
+    padding: space.lg, paddingBottom: 32, gap: 14,
+  },
+  sheetHandle: {
+    width: 36, height: 4, backgroundColor: colors.borderStrong,
+    alignSelf: "center", marginBottom: 8, borderRadius: 2,
+  },
+  sheetTitle: {
+    fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 2.2,
+    color: colors.accent, textTransform: "uppercase", textAlign: "center",
+  },
+  sheetSub: {
+    fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary,
+    textAlign: "center", lineHeight: 18, marginTop: -4,
+  },
+  budgetField: { gap: 6 },
+  budgetFieldLabel: {
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.6,
+    color: colors.textSecondary, textTransform: "uppercase",
+  },
+  budgetInput: {
+    borderWidth: 1, borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.xs, paddingHorizontal: 12, paddingVertical: 10,
+    fontFamily: fonts.mono, fontSize: 16, color: colors.text,
+  },
+  sheetSaveBtn: {
+    borderWidth: 1, borderColor: colors.accentBorder,
+    backgroundColor: colors.accentMuted,
+    paddingVertical: 13, borderRadius: radius.xs,
+    alignItems: "center", marginTop: 4,
+  },
+  sheetSaveText: {
+    fontFamily: fonts.sansMedium, fontSize: 11, letterSpacing: 1.8,
+    color: colors.accent, textTransform: "uppercase",
+  },
+  sheetCancelBtn: {
+    paddingVertical: 10, alignItems: "center",
+  },
+  sheetCancelText: {
+    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.4,
+    color: colors.textSecondary, textTransform: "uppercase",
+  },
 });
 
 const mo = StyleSheet.create({

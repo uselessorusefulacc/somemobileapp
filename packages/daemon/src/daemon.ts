@@ -8,18 +8,20 @@ import { detectRunningAgents, detectAgentInfoForCommand, detectModelFromEnv } fr
 import { parseLine } from "./stdout-parser.js";
 import { calculateCost, normalizeModel } from "./pricing.js";
 import type { AgentInfo, TokenUsage } from "./types.js";
+// @ts-ignore
+import qrcode from "qrcode-terminal";
 
 // ── Default relay URL ───────────────────────────────────────────────────────
-// Reads from env AGENTPILOT_RELAY if set, otherwise falls back to runable deployment
-const DEFAULT_RELAY = process.env.AGENTPILOT_RELAY ?? "ws://localhost:8080";
+const DEFAULT_API   = process.env.AGENTPILOT_API   ?? "https://81ylvadrgdbxmql33216v-preview-4200.runable.site";
+const DEFAULT_RELAY = process.env.AGENTPILOT_RELAY ?? "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws";
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 const program = new Command();
 
 program
-  .name("agentpilot-daemon")
-  .description("AgentPilot daemon — stream any AI coding agent to your phone")
-  .version("1.1.0");
+  .name("mafa")
+  .description("mafa — stream any AI coding agent to your phone")
+  .version("1.2.0");
 
 // ── `run` subcommand — wrap an agent command ───────────────────────────────
 program
@@ -36,7 +38,7 @@ program
     // args after -- are the agent command
     const agentArgs = args.length ? args : getRemainingArgs();
     if (!agentArgs.length) {
-      console.error("[Daemon] No command provided. Usage: agentpilot-daemon run -s <uuid> -- claude 'fix me'");
+      console.error("[Daemon] No command provided. Usage: mafa run -s <uuid> -- claude 'fix me'");
       process.exit(1);
     }
 
@@ -131,6 +133,67 @@ program
     });
 
     setupShutdown(relay, child.pid);
+  });
+
+// ── `pair` subcommand — create session and print QR ───────────────────────
+program
+  .command("pair")
+  .description("Create a session and print a QR code to scan with your phone")
+  .option("-r, --relay <url>", "Relay WebSocket URL", DEFAULT_RELAY)
+  .option("-a, --api <url>", "API base URL", DEFAULT_API)
+  .action(async (opts: { relay: string; api: string }) => {
+    console.log("\n  Connecting to AgentPilot...\n");
+    let res: Response;
+    try {
+      res = await fetch(`${opts.api}/api/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Daemon Session", agentType: "assistant", model: "claude-opus-4-5" }),
+      });
+    } catch (e: any) {
+      console.error(`  [Pair] Failed to reach API at ${opts.api}: ${e.message}`);
+      process.exit(1);
+    }
+    const data = await res.json() as any;
+    const id = data?.session?.id;
+    if (!id) {
+      console.error("  [Pair] Failed to create session:", JSON.stringify(data));
+      process.exit(1);
+    }
+    const wsUrl = `${opts.relay}?session=${id}&role=daemon`;
+    console.log("  Scan this QR code with the AgentPilot app:\n");
+    qrcode.generate(wsUrl, { small: true });
+    console.log(`  Session: ${id}`);
+    console.log(`  WS URL:  ${wsUrl}\n`);
+    console.log("  Open AgentPilot on your phone → Connect tab → Scan QR\n");
+
+    // Connect as daemon so we get peer_connected / peer_disconnected
+    const relay = new RelayClient(id, opts.relay, false);
+    relay.connect();
+
+    let phoneConnected = false;
+
+    relay.onCommand(() => {}); // Required to arm the message handler
+
+    // Monkey-patch: listen for peer events via the relay's internal WS
+    // RelayClient already logs these, but we want UX feedback here too
+    const origConnect = relay.connect.bind(relay);
+
+    process.on("SIGINT", () => {
+      console.log("\n  [Pair] Shutting down relay...");
+      relay.close();
+      process.exit(0);
+    });
+    process.on("SIGTERM", () => {
+      relay.close();
+      process.exit(0);
+    });
+
+    console.log(`  Now run your agent with:\n`);
+    console.log(`    mafa run -s ${id} -- claude "your task here"\n`);
+
+    // Keep alive
+    setInterval(() => {}, 60_000);
   });
 
 // ── `attach` subcommand — scan running processes ──────────────────────────

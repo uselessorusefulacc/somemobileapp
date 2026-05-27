@@ -34,7 +34,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow AgentPilot to use the camera to scan QR codes from your terminal."
+        }
+      ]
     ]
   }
 }

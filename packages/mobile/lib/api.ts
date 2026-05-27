@@ -55,6 +55,7 @@ export interface TokenEvent {
 export interface OptimizationTip {
   id: string;
   sessionId: string;
+  title: string;
   tip: string;
   category: string;
   estimatedSavingPct: number;
@@ -158,7 +159,21 @@ export const apiClient = {
   getTips: (id: string) =>
     apiFetch<{ tips: OptimizationTip[] }>(`/api/sessions/${id}/tips`),
   optimize: (id: string) =>
-    apiFetch(`/api/sessions/${id}/optimize`, { method: "POST" }),
+    apiFetch<{ tips: OptimizationTip[]; optimizationScore: number }>(`/api/sessions/${id}/optimize`, { method: "POST" }),
+  applyOptimizationTip: (sessionId: string, tipId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/sessions/${sessionId}/tips/${tipId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ applied: true }),
+    }),
+
+  // Global tips (all sessions)
+  getAllTips: (status?: "pending" | "applied") =>
+    apiFetch<{ tips: OptimizationTip[] }>(`/api/tips${status ? `?status=${status}` : ""}`),
+  applyAllTips: (sessionIds?: string[]) =>
+    apiFetch<{ applied: number; tipIds: string[] }>("/api/tips/apply-all", {
+      method: "POST",
+      body: JSON.stringify({ sessionIds }),
+    }),
 
   // Budget
   getBudget: () => apiFetch<BudgetConfig>("/api/budget"),

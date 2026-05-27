@@ -25,6 +25,9 @@ export function RelayProvider({ children }: { children: React.ReactNode }) {
     const newClient = new RelayClient(sessionId, relayUrl);
     newClient.on("connected", () => setIsConnected(true));
     newClient.on("disconnected", () => setIsConnected(false));
+    // When the daemon peer drops, flip to offline (keep WS alive for reconnect)
+    newClient.on("peer_disconnected", () => setIsConnected(false));
+    newClient.on("peer_connected", () => setIsConnected(true));
     newClient.connect();
     clientRef.current = newClient;
     setClient(newClient);

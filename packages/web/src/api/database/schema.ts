@@ -43,6 +43,7 @@ export const tokenEvents = sqliteTable("token_events", {
 export const optimizationTips = sqliteTable("optimization_tips", {
   id: text("id").primaryKey(),
   sessionId: text("session_id").notNull().references(() => agentSessions.id),
+  title: text("title").notNull().default(""),
   tip: text("tip").notNull(),
   category: text("category").notNull(), // "caching" | "context" | "model" | "prompting"
   estimatedSavingPct: integer("estimated_saving_pct").notNull().default(0),

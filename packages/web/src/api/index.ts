@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { db } from "./database";
 import * as schema from "./database/schema";
-import { eq, desc, sql, gte } from "drizzle-orm";
+import { eq, desc, sql, gte, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { readFile, writeFile, access } from "fs/promises";
 import { constants as fsConstants } from "fs";
@@ -78,6 +78,12 @@ const MODEL_PRICING: Record<string, { provider: string; displayName: string; inp
   "o3-mini":            { provider: "openai",    displayName: "o3-mini",            inputCostPer1M: 1.1,  outputCostPer1M: 4.4,  cacheReadCostPer1M: 0.55,   cacheWriteCostPer1M: 0 },
   "gemini-2-5-pro":     { provider: "google",    displayName: "Gemini 2.5 Pro",     inputCostPer1M: 1.25, outputCostPer1M: 10,   cacheReadCostPer1M: 0.31,   cacheWriteCostPer1M: 4.5 },
   "gemini-2-5-flash":   { provider: "google",    displayName: "Gemini 2.5 Flash",   inputCostPer1M: 0.15, outputCostPer1M: 0.6,  cacheReadCostPer1M: 0.0375, cacheWriteCostPer1M: 1 },
+  // Dot-notation aliases (used by soak test + relay)
+  "gemini-2.5-pro":     { provider: "google",    displayName: "Gemini 2.5 Pro",     inputCostPer1M: 1.25, outputCostPer1M: 10,   cacheReadCostPer1M: 0.31,   cacheWriteCostPer1M: 4.5 },
+  "gemini-2.5-flash":   { provider: "google",    displayName: "Gemini 2.5 Flash",   inputCostPer1M: 0.15, outputCostPer1M: 0.6,  cacheReadCostPer1M: 0.0375, cacheWriteCostPer1M: 1 },
+  "claude-opus-4.5":    { provider: "anthropic", displayName: "Claude Opus 4.5",    inputCostPer1M: 15,   outputCostPer1M: 75,   cacheReadCostPer1M: 1.5,    cacheWriteCostPer1M: 18.75 },
+  "claude-sonnet-4.5":  { provider: "anthropic", displayName: "Claude Sonnet 4.5",  inputCostPer1M: 3,    outputCostPer1M: 15,   cacheReadCostPer1M: 0.3,    cacheWriteCostPer1M: 3.75 },
+  "claude-haiku-3.5":   { provider: "anthropic", displayName: "Claude Haiku 3.5",   inputCostPer1M: 0.8,  outputCostPer1M: 4,    cacheReadCostPer1M: 0.08,   cacheWriteCostPer1M: 1 },
 };
 
 // Fix #13: log unknown models instead of silently using wrong pricing
@@ -111,26 +117,26 @@ function computeOptimizationScore(session: typeof schema.agentSessions.$inferSel
   return Math.round(Math.min(100, Math.max(0, cacheHitRate * 50 + efficiency * 50)));
 }
 
-function generateOptimizationTips(session: typeof schema.agentSessions.$inferSelect): Array<{ tip: string; category: string; estimatedSavingPct: number }> {
-  const tips: Array<{ tip: string; category: string; estimatedSavingPct: number }> = [];
+function generateOptimizationTips(session: typeof schema.agentSessions.$inferSelect): Array<{ title: string; tip: string; category: string; estimatedSavingPct: number }> {
+  const tips: Array<{ title: string; tip: string; category: string; estimatedSavingPct: number }> = [];
   const totalInput = Math.max(session.totalInputTokens, 1);
   const cacheRatio = session.totalCacheReadTokens / (totalInput + session.totalCacheReadTokens);
   const outputRatio = session.totalOutputTokens / totalInput;
 
   if (cacheRatio < 0.3) {
-    tips.push({ tip: "Enable prompt caching — your cache hit rate is low. Adding cache breakpoints to system prompts can save 60-90% on repeated context.", category: "caching", estimatedSavingPct: 65 });
+    tips.push({ title: "Enable Prompt Caching", tip: "Enable prompt caching — your cache hit rate is low. Adding cache breakpoints to system prompts can save 60-90% on repeated context.", category: "caching", estimatedSavingPct: 65 });
   }
   if (outputRatio > 2) {
-    tips.push({ tip: "Your output:input ratio is high. Use concise task framing — ask for bullet points instead of prose to reduce output tokens by 40%.", category: "prompting", estimatedSavingPct: 40 });
+    tips.push({ title: "Reduce Output Tokens", tip: "Your output:input ratio is high. Use concise task framing — ask for bullet points instead of prose to reduce output tokens by 40%.", category: "prompting", estimatedSavingPct: 40 });
   }
   if (session.totalInputTokens > 100_000 && cacheRatio < 0.5) {
-    tips.push({ tip: "Context window is large. Use /compact or context compaction after 10+ turns to reduce token budget by 50-70%.", category: "context", estimatedSavingPct: 55 });
+    tips.push({ title: "Compact Context Window", tip: "Context window is large. Use /compact or context compaction after 10+ turns to reduce token budget by 50-70%.", category: "context", estimatedSavingPct: 55 });
   }
   if (session.model === "claude-opus-4-5" || session.model === "o3") {
-    tips.push({ tip: `Switch to a mid-tier model for routine tasks. ${session.model === "claude-opus-4-5" ? "Claude Sonnet 4.5" : "GPT-4o"} is 5x cheaper with 90% of the capability for coding tasks.`, category: "model", estimatedSavingPct: 75 });
+    tips.push({ title: "Switch to Mid-Tier Model", tip: `Switch to a mid-tier model for routine tasks. ${session.model === "claude-opus-4-5" ? "Claude Sonnet 4.5" : "GPT-4o"} is 5x cheaper with 90% of the capability for coding tasks.`, category: "model", estimatedSavingPct: 75 });
   }
   if (tips.length === 0) {
-    tips.push({ tip: "Great usage patterns! You're getting good cache hits. Consider using parallel subagents for large refactors to reduce wall-clock time.", category: "prompting", estimatedSavingPct: 10 });
+    tips.push({ title: "Optimize Cache Usage", tip: "Great usage patterns! You're getting good cache hits. Consider using parallel subagents for large refactors to reduce wall-clock time.", category: "prompting", estimatedSavingPct: 10 });
   }
   return tips;
 }
@@ -424,6 +430,7 @@ const app = new Hono()
       await db.insert(schema.optimizationTips).values({
         id: randomUUID(),
         sessionId: id,
+        title: t.title,
         tip: t.tip,
         category: t.category,
         estimatedSavingPct: t.estimatedSavingPct,
@@ -715,6 +722,47 @@ const app = new Hono()
       costUsd: calcCost(modelId, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens),
     })).sort((a, b) => a.costUsd - b.costUsd);
     return c.json({ comparison }, 200);
+  })
+
+  // ─── Global tips endpoints (for mobile apply-all flow) ────────────────
+  .get("/tips", async (c) => {
+    const status = c.req.query("status"); // "pending" | "applied" | undefined (all)
+    const limit = Math.min(200, Math.max(1, Number(c.req.query("limit") ?? 100)));
+    let query = db.select({
+      id: schema.optimizationTips.id,
+      sessionId: schema.optimizationTips.sessionId,
+      title: schema.optimizationTips.title,
+      tip: schema.optimizationTips.tip,
+      category: schema.optimizationTips.category,
+      estimatedSavingPct: schema.optimizationTips.estimatedSavingPct,
+      applied: schema.optimizationTips.applied,
+      createdAt: schema.optimizationTips.createdAt,
+    }).from(schema.optimizationTips);
+    if (status === "pending") {
+      query = query.where(eq(schema.optimizationTips.applied, false)) as typeof query;
+    } else if (status === "applied") {
+      query = query.where(eq(schema.optimizationTips.applied, true)) as typeof query;
+    }
+    const tips = await query.limit(limit).orderBy(desc(schema.optimizationTips.createdAt));
+    return c.json({ tips }, 200);
+  })
+
+  // Bulk apply all pending tips for a list of sessions
+  .post("/tips/apply-all", async (c) => {
+    const body: { sessionIds?: string[] } = await c.req.json<{ sessionIds?: string[] }>().catch(() => ({}));
+    let query = db.select({ id: schema.optimizationTips.id, sessionId: schema.optimizationTips.sessionId })
+      .from(schema.optimizationTips)
+      .where(eq(schema.optimizationTips.applied, false));
+    const pending = await query;
+    const toApply = body.sessionIds
+      ? pending.filter(t => body.sessionIds!.includes(t.sessionId))
+      : pending;
+    if (toApply.length === 0) return c.json({ applied: 0, tipIds: [] }, 200);
+    const tipIds = toApply.map(t => t.id);
+    await db.update(schema.optimizationTips)
+      .set({ applied: true })
+      .where(inArray(schema.optimizationTips.id, tipIds));
+    return c.json({ applied: tipIds.length, tipIds }, 200);
   });
 
 export type AppType = typeof app;

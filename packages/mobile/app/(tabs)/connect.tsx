@@ -1,34 +1,37 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Animated,
+  ActivityIndicator,
+  Dimensions,
 } from "react-native";
-import * as Clipboard from "expo-clipboard";
-import { useRouter } from "expo-router";
+import { CameraView, Camera } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRelay } from "../../lib/relay-context";
-import { colors, fonts, radius, space } from "../../lib/theme";
+import { colors, fonts, space, type as t, radius } from "../../lib/theme";
 import { DotGrid } from "../../components/DotGrid";
 
-const RELAY_URL = "wss://81ylvadrgdbxmql33216v-preview-8080.runable.site";
-const EXPO_URL  = "exp://81ylvadrgdbxmql33216v-preview-4300.runable.site";
+const RELAY_URL = "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws";
+const { width: SW, height: SH } = Dimensions.get("window");
+const FRAME = Math.min(SW * 0.62, 260);
 
-// ─── PulseDot ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 function PulseDot({ color }: { color: string }) {
   const scale   = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
-
   useEffect(() => {
-    const pulse = Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
-        Animated.delay(500),
+        Animated.delay(600),
         Animated.parallel([
-          Animated.timing(scale,   { toValue: 2.2, duration: 900, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0,   duration: 900, useNativeDriver: true }),
+          Animated.timing(scale,   { toValue: 2.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0,   duration: 800, useNativeDriver: true }),
         ]),
         Animated.parallel([
           Animated.timing(scale,   { toValue: 1, duration: 0, useNativeDriver: true }),
@@ -36,315 +39,535 @@ function PulseDot({ color }: { color: string }) {
         ]),
       ])
     );
-    pulse.start();
-    return () => pulse.stop();
+    loop.start();
+    return () => loop.stop();
   }, []);
-
   return (
     <View style={{ width: 10, height: 10, alignItems: "center", justifyContent: "center" }}>
       <Animated.View style={{
-        position: "absolute",
-        width: 8, height: 8, borderRadius: 4,
-        backgroundColor: color,
-        transform: [{ scale }],
-        opacity,
+        position: "absolute", width: 8, height: 8, borderRadius: 4,
+        backgroundColor: color, transform: [{ scale }], opacity,
       }} />
       <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: color }} />
     </View>
   );
 }
 
-// ─── CopyBlock with hover pop ──────────────────────────────────────────────
-function CopyBlock({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  const scale  = useRef(new Animated.Value(1)).current;
-  const glowOp = useRef(new Animated.Value(0)).current;
-
-  const copy = () => {
-    Clipboard.setStringAsync(value);
-    setCopied(true);
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 0.96, duration: 80, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 50, bounciness: 4 }),
-    ]).start();
-    setTimeout(() => setCopied(false), 1500);
-  };
-
-  const pressIn = () => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1.015, useNativeDriver: true, speed: 60, bounciness: 2 }),
-      Animated.timing(glowOp, { toValue: 1, duration: 120, useNativeDriver: false }),
-    ]).start();
-  };
-  const pressOut = () => {
-    Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }),
-      Animated.timing(glowOp, { toValue: 0, duration: 200, useNativeDriver: false }),
-    ]).start();
-  };
-
-  const glowBorder = glowOp.interpolate({
-    inputRange: [0, 1],
-    outputRange: [colors.borderStrong, colors.accentBorder],
-  });
-
+/** Corner brackets for scanner viewfinder */
+function ScanFrame() {
+  const CORNER = 22;
+  const THICK  = 2.5;
+  const corner = { width: CORNER, height: CORNER, borderColor: colors.accent };
   return (
-    <TouchableOpacity onPress={copy} onPressIn={pressIn} onPressOut={pressOut} activeOpacity={1}>
-      <Animated.View style={[c.codeBlock, { transform: [{ scale }], borderColor: glowBorder }]}>
-        <View style={c.codeLabelRow}>
-          <Text style={c.codeLabel}>{label}</Text>
-        </View>
-        <View style={c.codeRow}>
-          <Text style={c.codeText} numberOfLines={1}>{value}</Text>
-          <View style={c.copyBtn}>
-            <Text style={[c.copyText, copied && c.copyTextActive]}>
-              {copied ? "COPIED" : "COPY"}
-            </Text>
-          </View>
-        </View>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
-
-// ─── StepBlock with stagger entry ─────────────────────────────────────────
-function StepBlock({ num, title, desc, children, delay = 0 }: {
-  num: string; title: string; desc: string; children?: React.ReactNode; delay?: number;
-}) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const slideY  = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 420, delay, useNativeDriver: true }),
-      Animated.spring(slideY,  { toValue: 0, delay, useNativeDriver: true, damping: 22, stiffness: 200 }),
-    ]).start();
-  }, []);
-
-  return (
-    <Animated.View style={[c.stepBlock, { opacity, transform: [{ translateY: slideY }] }]}>
-      <Text style={c.stepNum}>{num}</Text>
-      <Text style={c.stepTitle}>{title}</Text>
-      <Text style={c.stepDesc}>{desc}</Text>
-      {children}
-    </Animated.View>
-  );
-}
-
-// ─── ConnectScreen ─────────────────────────────────────────────────────────
-export default function ConnectScreen() {
-  const insets  = useSafeAreaInsets();
-  const router  = useRouter();
-  const relay   = useRelay();
-  const connected = relay.isConnected;
-
-  // Hero block scale pop on mount
-  const heroScale   = useRef(new Animated.Value(0.94)).current;
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(heroOpacity,  { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.spring(heroScale,    { toValue: 1, useNativeDriver: true, damping: 20, stiffness: 200 }),
-    ]).start();
-  }, []);
-
-  return (
-    <View style={[c.root, { paddingTop: insets.top }]}>
-      <DotGrid opacity={0.28} />
-
-      {/* Top bar */}
-      <View style={c.topBar}>
-        <View style={c.topBarLeft}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            activeOpacity={0.65}
-            hitSlop={12}
-            style={c.backBtn}
-          >
-            <Text style={c.backArrow}>←</Text>
-          </TouchableOpacity>
-          <Text style={c.pageTitle}>CONNECT</Text>
-        </View>
-        <View style={[c.statusPill, connected && c.statusPillActive]}>
-          {connected
-            ? <PulseDot color={colors.success} />
-            : <View style={[c.dot, { backgroundColor: colors.textTertiary }]} />
-          }
-          <Text style={[c.statusText, { color: connected ? colors.success : colors.textTertiary }]}>
-            {connected ? "LIVE" : "OFFLINE"}
-          </Text>
-        </View>
-      </View>
-      <View style={c.accentLine} />
-
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-
-        {/* ── Status block with hero pop ── */}
-        <Animated.View style={[
-          c.statusBlock,
-          connected && c.statusBlockConnected,
-          { opacity: heroOpacity, transform: [{ scale: heroScale }] }
-        ]}>
-          <View style={c.statusLabelRow}>
-            <Text style={c.sectionLabel}>RELAY STATUS</Text>
-            <View style={c.sectionLine} />
-          </View>
-          <Text style={[c.statusMain, connected && c.statusMainConnected]}>
-            {connected ? "Relay connected" : "Waiting for relay"}
-          </Text>
-          <Text style={c.statusSub}>
-            {connected
-              ? "MAFA is receiving real-time events from your agents."
-              : "Open the relay on your machine to start monitoring."}
-          </Text>
-        </Animated.View>
-
-        <View style={c.divider} />
-
-        {/* ── Steps with staggered entry ── */}
-        <StepBlock num="01" title="Install relay" delay={80}
-          desc="Run the relay server on your machine. It bridges your AI agents to this app."
-        >
-          <CopyBlock label="INSTALL" value="npx mafa-relay" />
-        </StepBlock>
-
-        <View style={c.divider} />
-
-        <StepBlock num="02" title="Configure relay URL" delay={160}
-          desc="Set this WebSocket URL in your relay config or environment variable."
-        >
-          <CopyBlock label="RELAY URL" value={RELAY_URL} />
-          <CopyBlock label="EXPO URL"  value={EXPO_URL} />
-        </StepBlock>
-
-        <View style={c.divider} />
-
-        <StepBlock num="03" title="Wrap your agent" delay={240}
-          desc="Use the MAFA SDK to instrument Claude Code, Codex, or any LLM agent."
-        >
-          <CopyBlock label="ENV" value="MAFA_URL=wss://..." />
-        </StepBlock>
-
-        {/* ── Swipe hint ── */}
-        <View style={c.swipeHint}>
-          <Text style={c.swipeText}>‹ SWIPE TABS ›</Text>
-        </View>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+    <View style={{ width: FRAME, height: FRAME }}>
+      {/* TL */}
+      <View style={[s.corner, { top: 0, left: 0,
+        borderTopWidth: THICK, borderLeftWidth: THICK, ...corner }]} />
+      {/* TR */}
+      <View style={[s.corner, { top: 0, right: 0,
+        borderTopWidth: THICK, borderRightWidth: THICK, ...corner }]} />
+      {/* BL */}
+      <View style={[s.corner, { bottom: 0, left: 0,
+        borderBottomWidth: THICK, borderLeftWidth: THICK, ...corner }]} />
+      {/* BR */}
+      <View style={[s.corner, { bottom: 0, right: 0,
+        borderBottomWidth: THICK, borderRightWidth: THICK, ...corner }]} />
     </View>
   );
 }
 
-const c = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  divider: { height: 1, backgroundColor: colors.border },
-  accentLine: { height: 1, backgroundColor: colors.accent + "30" },
+// ─────────────────────────────────────────────────────────────────────────────
+// Scanner overlay (full-screen)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: space.lg,
-    paddingVertical: 13,
+function ScannerView({
+  onScanned,
+  onCancel,
+}: {
+  onScanned: (data: string) => void;
+  onCancel: () => void;
+}) {
+  const scannedRef = useRef(false);
+  const scanLineY  = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanLineY, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(scanLineY, { toValue: 0, duration: 1800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const handleScan = useCallback(({ data }: { data: string }) => {
+    if (scannedRef.current) return;
+    scannedRef.current = true;
+    onScanned(data);
+  }, [onScanned]);
+
+  const lineTranslate = scanLineY.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, FRAME - 2],
+  });
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <CameraView
+        style={StyleSheet.absoluteFill}
+        facing="back"
+        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+        onBarcodeScanned={handleScan}
+      />
+
+      {/* Dark mask — top */}
+      <View style={[s.mask, { top: 0, height: (SH - FRAME) / 2 }]} />
+      {/* Dark mask — bottom */}
+      <View style={[s.mask, { bottom: 0, height: (SH - FRAME) / 2 }]} />
+      {/* Dark mask — left */}
+      <View style={[s.mask, {
+        top: (SH - FRAME) / 2, height: FRAME,
+        left: 0, width: (SW - FRAME) / 2,
+      }]} />
+      {/* Dark mask — right */}
+      <View style={[s.mask, {
+        top: (SH - FRAME) / 2, height: FRAME,
+        right: 0, width: (SW - FRAME) / 2,
+      }]} />
+
+      {/* Viewfinder frame */}
+      <View style={s.frameWrapper} pointerEvents="none">
+        <ScanFrame />
+        {/* Scan line */}
+        <Animated.View style={[
+          s.scanLine,
+          { transform: [{ translateY: lineTranslate }] },
+        ]} />
+      </View>
+
+      {/* Label */}
+      <View style={s.scanLabelWrapper} pointerEvents="none">
+        <Text style={s.scanLabelText}>Align QR code from terminal</Text>
+      </View>
+
+      {/* Cancel */}
+      <View style={s.cancelWrapper}>
+        <TouchableOpacity style={s.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
+          <Text style={s.cancelText}>CANCEL</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Phase = "idle" | "scanning" | "connecting" | "connected";
+
+export default function ConnectScreen() {
+  const insets = useSafeAreaInsets();
+  const relay  = useRelay();
+
+  const [phase,     setPhase]     = useState<Phase>("idle");
+  const [error,     setError]     = useState("");
+
+  // Keep phase in sync with relay
+  useEffect(() => {
+    if (relay.isConnected && phase !== "connected") setPhase("connected");
+    if (!relay.isConnected && phase === "connected") setPhase("idle");
+  }, [relay.isConnected]);
+
+  // ── fade-in ───────────────────────────────────────────────────────────────
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+  }, []);
+
+  // ── handlers ──────────────────────────────────────────────────────────────
+  const startScan = useCallback(async () => {
+    setError("");
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    if (status !== "granted") { setError("Camera access required"); return; }
+    setPhase("scanning");
+  }, []);
+
+  const onScanned = useCallback((data: string) => {
+    setPhase("connecting");
+    try {
+      const url = new URL(data);
+      const id  = url.searchParams.get("session");
+      if (!id) throw new Error("No session ID in QR");
+      const baseRelay = `${url.protocol}//${url.host}${url.pathname}`;
+      relay.connect(id, baseRelay || RELAY_URL);
+    } catch (e: any) {
+      setError(`Invalid QR — ${e.message}`);
+      setPhase("idle");
+    }
+  }, [relay]);
+
+  const disconnect = useCallback(() => {
+    relay.disconnect();
+    setPhase("idle");
+    setError("");
+  }, [relay]);
+
+  const cancelConnect = useCallback(() => {
+    relay.disconnect();
+    setPhase("idle");
+    setError("");
+  }, [relay]);
+
+  // ── scanner fullscreen ─────────────────────────────────────────────────────
+  if (phase === "scanning") {
+    return (
+      <ScannerView
+        onScanned={onScanned}
+        onCancel={() => setPhase("idle")}
+      />
+    );
+  }
+
+  // ── main UI ───────────────────────────────────────────────────────────────
+  return (
+    <View style={[s.root, { paddingTop: insets.top }]}>
+      <DotGrid />
+
+      {/* ── Header ── */}
+      <View style={s.header}>
+        <Text style={s.headerTitle}>CONNECT</Text>
+        <View style={[s.statusPill, phase === "connected" && s.statusPillLive]}>
+          {phase === "connected"
+            ? <PulseDot color={colors.success} />
+            : <View style={[s.statusDot,
+                phase === "connecting"
+                  ? { backgroundColor: colors.warning }
+                  : { backgroundColor: colors.textTertiary }
+              ]} />
+          }
+          <Text style={[s.statusLabel, {
+            color: phase === "connected" ? colors.success
+                 : phase === "connecting" ? colors.warning
+                 : colors.textTertiary,
+          }]}>
+            {phase === "connected" ? "LIVE"
+           : phase === "connecting" ? "PAIRING"
+           : "OFFLINE"}
+          </Text>
+        </View>
+      </View>
+      <View style={s.accentRule} />
+
+      {/* ── Body ── */}
+      <Animated.View style={[s.body, { opacity: fadeAnim }]}>
+
+        {/* ── IDLE ── */}
+        {phase === "idle" && (
+          <View style={s.stateBlock}>
+            {/* Icon area */}
+            <View style={s.iconRing}>
+              <View style={s.iconRingInner}>
+                <Text style={s.iconGlyph}>⌗</Text>
+              </View>
+            </View>
+
+            <Text style={s.stateHeading}>Pair your laptop</Text>
+            <Text style={s.stateSub}>
+              Run this command on your machine, then scan the QR it prints.
+            </Text>
+
+            {/* Terminal snippet */}
+            <View style={s.terminalBox}>
+              <Text style={s.terminalPrompt}>$</Text>
+              <Text style={s.terminalCmd}>npx agentpilot-daemon pair</Text>
+            </View>
+
+            {!!error && (
+              <View style={s.errorBox}>
+                <Text style={s.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <TouchableOpacity style={s.primaryBtn} onPress={startScan} activeOpacity={0.75}>
+              <Text style={s.primaryBtnText}>Scan QR Code</Text>
+            </TouchableOpacity>
+
+            {/* Steps */}
+            <View style={s.steps}>
+              {[
+                { n: "1", label: "Run pair command on laptop" },
+                { n: "2", label: "Scan the QR with this button" },
+                { n: "3", label: "Agent goes live instantly" },
+              ].map((step, i) => (
+                <View key={step.n} style={s.stepRow}>
+                  <View style={s.stepBadge}>
+                    <Text style={s.stepNum}>{step.n}</Text>
+                  </View>
+                  <Text style={s.stepLabel}>{step.label}</Text>
+                  {i < 2 && <View style={s.stepLine} />}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── CONNECTING ── */}
+        {phase === "connecting" && (
+          <View style={s.stateBlock}>
+            <View style={[s.iconRing, s.iconRingWarning]}>
+              <View style={[s.iconRingInner, { borderColor: colors.warningBorder }]}>
+                <ActivityIndicator color={colors.warning} size="small" />
+              </View>
+            </View>
+
+            <Text style={s.stateHeading}>Connecting…</Text>
+            <Text style={s.stateSub}>
+              QR scanned. Waiting for your laptop to handshake.
+            </Text>
+            <Text style={s.stateMicro}>
+              Make sure agentpilot-daemon pair is still running.
+            </Text>
+
+            <TouchableOpacity style={s.ghostBtn} onPress={cancelConnect} activeOpacity={0.7}>
+              <Text style={s.ghostBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── CONNECTED ── */}
+        {phase === "connected" && (
+          <View style={s.stateBlock}>
+            <View style={[s.iconRing, s.iconRingSuccess]}>
+              <View style={[s.iconRingInner, { borderColor: colors.successBorder }]}>
+                <Text style={[s.iconGlyph, { color: colors.success }]}>✓</Text>
+              </View>
+            </View>
+
+            <Text style={[s.stateHeading, { color: colors.success }]}>Daemon connected</Text>
+            <Text style={s.stateSub}>
+              Your laptop agent is live. Head to Dashboard to monitor activity.
+            </Text>
+
+            <View style={s.liveRow}>
+              <PulseDot color={colors.success} />
+              <Text style={s.liveLabel}>LIVE SESSION</Text>
+            </View>
+
+            <TouchableOpacity style={s.dangerBtn} onPress={disconnect} activeOpacity={0.7}>
+              <Text style={s.dangerBtnText}>Disconnect</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+      </Animated.View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+
+  // ── Header ──
+  header: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: space.lg, paddingVertical: 13,
   },
-  topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  backBtn: { paddingRight: 4 },
-  backArrow: { fontFamily: fonts.sans, fontSize: 20, color: colors.text, lineHeight: 24 },
-  pageTitle: {
+  headerTitle: {
     fontFamily: fonts.sansMedium, fontSize: 11, letterSpacing: 3,
     color: colors.accent, textTransform: "uppercase",
   },
   statusPill: {
     flexDirection: "row", alignItems: "center", gap: 6,
     borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 2,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.xs,
   },
-  statusPillActive: { borderColor: colors.successBorder, backgroundColor: colors.successMuted },
-  dot: { width: 5, height: 5, borderRadius: 3 },
-  statusText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.4, textTransform: "uppercase" },
-
-  sectionLabel: {
-    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.8,
-    color: colors.textTertiary, textTransform: "uppercase",
-  },
-  sectionLine: { flex: 1, height: 1, backgroundColor: colors.border, marginLeft: 12 },
-  statusLabelRow: { flexDirection: "row", alignItems: "center", marginBottom: space.md },
-
-  // Status block
-  statusBlock: {
-    paddingHorizontal: space.lg, paddingVertical: space.xl,
-    borderWidth: 1, borderColor: "transparent",
-    margin: space.md, borderRadius: 3,
-  },
-  statusBlockConnected: {
+  statusPillLive: {
     borderColor: colors.successBorder, backgroundColor: colors.successMuted,
-    shadowColor: colors.success, shadowRadius: 18, shadowOpacity: 0.22,
-    shadowOffset: { width: 0, height: 0 },
   },
-  statusMain: {
-    fontFamily: fonts.sans, fontSize: 21, fontWeight: "300",
-    letterSpacing: -0.8, color: colors.text, marginBottom: 8,
+  statusDot: { width: 5, height: 5, borderRadius: 3 },
+  statusLabel: {
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.4,
+    textTransform: "uppercase",
   },
-  statusMainConnected: {
-    color: colors.success,
-    textShadowColor: colors.success + "60",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 14,
-  },
-  statusSub: { fontFamily: fonts.sans, fontSize: 14, color: colors.text, lineHeight: 21, opacity: 0.7 },
+  accentRule: { height: 1, backgroundColor: colors.accent + "28" },
 
-  // Steps
-  stepBlock: { paddingHorizontal: space.lg, paddingVertical: space.xl },
-  stepNum: {
-    fontFamily: fonts.mono, fontSize: 10, color: colors.accent + "80",
-    letterSpacing: 0.5, marginBottom: 5,
-  },
-  stepTitle: {
-    fontFamily: fonts.sans, fontSize: 18, fontWeight: "300",
-    letterSpacing: -0.5, color: colors.text, marginBottom: 8,
-  },
-  stepDesc: {
-    fontFamily: fonts.sans, fontSize: 14, color: colors.text,
-    lineHeight: 22, marginBottom: space.md, opacity: 0.65,
+  // ── Body ──
+  body: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  // ── State block — centred card ──
+  stateBlock: {
+    width: "100%", paddingHorizontal: space.xl,
+    alignItems: "center",
   },
 
-  // Copy block
-  codeBlock: {
-    borderWidth: 1, borderColor: colors.borderStrong,
-    borderRadius: 2, marginBottom: space.sm,
-    backgroundColor: colors.surface, overflow: "hidden",
+  // ── Icon ring ──
+  iconRing: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: colors.accentMuted,
+    alignItems: "center", justifyContent: "center",
+    marginBottom: space.lg,
   },
-  codeLabelRow: {
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    paddingHorizontal: space.md, paddingTop: 8, paddingBottom: 6,
+  iconRingWarning: { backgroundColor: colors.warningMuted },
+  iconRingSuccess: { backgroundColor: colors.successMuted },
+  iconRingInner: {
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 1, borderColor: colors.accentBorder,
+    alignItems: "center", justifyContent: "center",
   },
-  codeLabel: {
+  iconGlyph: {
+    fontFamily: fonts.mono, fontSize: 26,
+    color: colors.accent,
+  },
+
+  // ── Copy ──
+  stateHeading: {
+    fontFamily: fonts.sans, fontSize: 24, fontWeight: "300",
+    letterSpacing: -0.8, color: colors.text,
+    textAlign: "center", marginBottom: 10,
+  },
+  stateSub: {
+    fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary,
+    lineHeight: 22, textAlign: "center", marginBottom: 8,
+  },
+  stateMicro: {
+    fontFamily: fonts.mono, fontSize: 11, color: colors.textTertiary,
+    textAlign: "center", marginBottom: space.xl,
+  },
+
+  // ── Terminal snippet ──
+  terminalBox: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xs,
+    paddingHorizontal: 14, paddingVertical: 10,
+    marginBottom: space.lg, alignSelf: "stretch",
+  },
+  terminalPrompt: {
+    fontFamily: fonts.mono, fontSize: 13, color: colors.accent,
+  },
+  terminalCmd: {
+    fontFamily: fonts.mono, fontSize: 13, color: colors.text,
+  },
+
+  // ── Error ──
+  errorBox: {
+    alignSelf: "stretch", marginBottom: space.md,
+    backgroundColor: colors.dangerMuted,
+    borderWidth: 1, borderColor: colors.dangerBorder,
+    borderRadius: radius.xs,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  errorText: {
+    fontFamily: fonts.mono, fontSize: 11, color: colors.danger,
+    textAlign: "center",
+  },
+
+  // ── Buttons ──
+  primaryBtn: {
+    alignSelf: "stretch", alignItems: "center",
+    backgroundColor: colors.accent,
+    paddingVertical: 14, borderRadius: radius.xs,
+    marginBottom: space.xl,
+  },
+  primaryBtnText: {
+    fontFamily: fonts.sansMedium, fontSize: 13, letterSpacing: 0.5,
+    color: colors.black, textTransform: "uppercase",
+  },
+  ghostBtn: {
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: space.xl, paddingVertical: 10, borderRadius: radius.xs,
+    marginTop: space.md,
+  },
+  ghostBtnText: {
     fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.4,
     color: colors.textSecondary, textTransform: "uppercase",
   },
-  codeRow: { flexDirection: "row", alignItems: "center", paddingLeft: space.md },
-  codeText: { fontFamily: fonts.mono, fontSize: 13, color: colors.text, flex: 1, paddingVertical: 10 },
-  copyBtn: {
-    paddingHorizontal: space.md, paddingVertical: 10,
-    borderLeftWidth: 1, borderLeftColor: colors.border,
+  dangerBtn: {
+    borderWidth: 1, borderColor: colors.dangerBorder,
+    paddingHorizontal: space.xl, paddingVertical: 10, borderRadius: radius.xs,
+    marginTop: space.lg,
   },
-  copyText: {
-    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.2,
-    color: colors.textSecondary, textTransform: "uppercase",
-  },
-  copyTextActive: {
-    color: colors.success,
-    textShadowColor: colors.success + "80",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+  dangerBtnText: {
+    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.4,
+    color: colors.danger, textTransform: "uppercase",
   },
 
-  // Swipe hint
-  swipeHint: { alignItems: "center", paddingVertical: space.xl, paddingTop: space.lg },
-  swipeText: {
-    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 3,
-    color: colors.textTertiary, textTransform: "uppercase", opacity: 0.5,
+  // ── Live row ──
+  liveRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginTop: space.sm, marginBottom: 4,
+  },
+  liveLabel: {
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 2,
+    color: colors.success, textTransform: "uppercase",
+  },
+
+  // ── Steps ──
+  steps: { alignSelf: "stretch" },
+  stepRow: { flexDirection: "row", alignItems: "flex-start", position: "relative" },
+  stepBadge: {
+    width: 24, height: 24, borderRadius: radius.xs,
+    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center", justifyContent: "center",
+    marginRight: 12, flexShrink: 0,
+  },
+  stepNum: {
+    fontFamily: fonts.mono, fontSize: 10, color: colors.accent,
+  },
+  stepLabel: {
+    fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary,
+    lineHeight: 24, flex: 1,
+  },
+  stepLine: {
+    position: "absolute", left: 11.5, top: 24, bottom: -12,
+    width: 1, backgroundColor: colors.border,
+  },
+
+  // ── Scanner ──
+  mask: {
+    position: "absolute", left: 0, right: 0,
+    backgroundColor: "rgba(0,0,0,0.72)",
+  },
+  frameWrapper: {
+    position: "absolute",
+    top: (SH - FRAME) / 2,
+    left: (SW - FRAME) / 2,
+    width: FRAME, height: FRAME,
+  },
+  corner: { position: "absolute" },
+  scanLine: {
+    position: "absolute", left: 6, right: 6, height: 1.5,
+    backgroundColor: colors.accent,
+    opacity: 0.7,
+  },
+  scanLabelWrapper: {
+    position: "absolute",
+    top: (SH - FRAME) / 2 + FRAME + 20,
+    left: 0, right: 0, alignItems: "center",
+  },
+  scanLabelText: {
+    fontFamily: fonts.sans, fontSize: 13,
+    color: "rgba(255,255,255,0.7)", textAlign: "center",
+    letterSpacing: 0.2,
+  },
+  cancelWrapper: {
+    position: "absolute",
+    bottom: 60, left: 0, right: 0, alignItems: "center",
+  },
+  cancelBtn: {
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: 32, paddingVertical: 11, borderRadius: radius.xs,
+  },
+  cancelText: {
+    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 2,
+    color: "rgba(255,255,255,0.8)", textTransform: "uppercase",
   },
 });

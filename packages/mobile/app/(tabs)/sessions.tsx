@@ -73,16 +73,12 @@ function SessionRow({ item, onPress, index }: { item: AgentSession; onPress: () 
   }, []);
 
   const onPressIn = () => {
-    Animated.parallel([
-      Animated.spring(rowScale, { toValue: 1.02, useNativeDriver: true, speed: 60, bounciness: 3 }),
-      Animated.timing(glowOp,   { toValue: 1, duration: 120, useNativeDriver: false }),
-    ]).start();
+    Animated.spring(rowScale, { toValue: 1.02, useNativeDriver: true, speed: 60, bounciness: 3 }).start();
+    Animated.timing(glowOp,   { toValue: 1, duration: 120, useNativeDriver: false }).start();
   };
   const onPressOut = () => {
-    Animated.parallel([
-      Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }),
-      Animated.timing(glowOp,   { toValue: 0, duration: 200, useNativeDriver: false }),
-    ]).start();
+    Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 2 }).start();
+    Animated.timing(glowOp,   { toValue: 0, duration: 200, useNativeDriver: false }).start();
   };
 
   const glowBg = glowOp.interpolate({
@@ -220,7 +216,7 @@ export default function SessionsScreen() {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      <DotGrid opacity={0.28} />
+      <DotGrid />
 
       {/* Top bar */}
       <View style={s.topBar}>
