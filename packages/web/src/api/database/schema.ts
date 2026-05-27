@@ -8,6 +8,7 @@ export const agentSessions = sqliteTable("agent_sessions", {
   model: text("model").notNull(),
   status: text("status").notNull().default("active"), // "active" | "idle" | "ended"
   cloudUrl: text("cloud_url"), // if running in cloud (Runable sandbox URL)
+  sandboxUrl: text("sandbox_url"),
   totalInputTokens: integer("total_input_tokens").notNull().default(0),
   totalOutputTokens: integer("total_output_tokens").notNull().default(0),
   totalCacheReadTokens: integer("total_cache_read_tokens").notNull().default(0),

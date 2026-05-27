@@ -169,9 +169,9 @@ export default function ConnectScreen() {
       const url = new URL(data);
       const id  = url.searchParams.get("session");
       if (!id) throw new Error("No session ID in QR");
-      const baseRelay = `${url.protocol}//${url.host}${url.pathname}`;
+      const baseRelay = `${url.protocol}//${url.host}${url.pathname}`.replace(/\/$/, "");
       const settings = await loadSettings();
-      relay.connect(id, baseRelay || getRelayUrl(settings));
+      relay.connect(id, baseRelay.endsWith("/ws") ? baseRelay : baseRelay + "/ws");
     } catch (e: unknown) {
       setError(`Invalid QR — ${e instanceof Error ? e.message : String(e)}`);
       setPhase("idle");

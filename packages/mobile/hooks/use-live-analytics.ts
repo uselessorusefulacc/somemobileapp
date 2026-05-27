@@ -50,7 +50,7 @@ export function useLiveAnalytics(events: TokenPayload[]) {
       });
     }
 
-    // Expensive model overuse
+    // Expensive model overuse — threshold-based ($5+/M input tokens)
     const expensiveModels = ["claude-opus-4-5", "o3", "gemini-2-5-pro"];
     const expensiveCount = last5Min.filter((e) => expensiveModels.includes(e.model)).length;
     if (expensiveCount >= 3) {

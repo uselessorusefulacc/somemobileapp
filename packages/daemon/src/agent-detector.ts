@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from "fs";
+import { readFile } from "fs/promises";
 import { join, resolve } from "path";
 import { homedir } from "os";
 import { execSync } from "child_process";
@@ -207,8 +208,11 @@ export function detectRunningAgents(cwd = process.cwd()): AgentInfo[] {
   for (const sig of AGENT_SIGNATURES) {
     for (const proc of procs) {
       const matches = sig.processNames.some(
-        (name) => proc.name.startsWith(name) || proc.cmd.startsWith(name) ||
-                 (name.length >= 2 && (proc.name.includes(name) || proc.cmd.includes(name)))
+        (name) => {
+          const lower = name.toLowerCase();
+          return proc.name === lower || proc.name.startsWith(lower + " ") || proc.cmd.startsWith(lower + " ") ||
+                 proc.cmd === lower || proc.cmd.includes("/" + lower);
+        }
       );
       if (matches) {
         const { model, configSource } = detectModelFromConfig(sig, cwd);

@@ -10,7 +10,7 @@ describe("stdout-parser", () => {
   });
 
   test("Claude token line", () => {
-    const r = parseLine("Used 12400 input tokens and 800 output tokens", "claude");
+    const r = parseLine("> 12400 input tokens and 800 output tokens", "claude");
     expect(r.tokenUsage?.inputTokens).toBe(12400);
     expect(r.tokenUsage?.outputTokens).toBe(800);
   });

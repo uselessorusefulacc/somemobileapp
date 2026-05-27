@@ -23,7 +23,7 @@ export interface AppSettings {
 }
 
 const DEFAULTS: AppSettings = {
-  relayUrl: "ws://localhost:8082",
+  relayUrl: typeof process !== "undefined" && process.env?.EXPO_PUBLIC_RELAY_URL ? process.env.EXPO_PUBLIC_RELAY_URL : "ws://localhost:4200/ws",
   defaultAgentType: "claude",
   defaultModel: "claude-sonnet-4-5",
   autoRefresh: true,

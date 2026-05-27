@@ -26,7 +26,7 @@ export interface DaemonConfig {
 export function loadConfig(): DaemonConfig {
   return {
     apiUrl: process.env.MAFA_API ?? "http://localhost:4200",
-    relayUrl: process.env.MAFA_RELAY ?? "ws://localhost:8082",
+    relayUrl: process.env.MAFA_RELAY ?? "ws://localhost:4200/ws",
   };
 }
 

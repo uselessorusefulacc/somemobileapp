@@ -160,15 +160,7 @@ program
       console.log(`[Daemon] Agent exited with ${reason}`);
 
       if (opts.restart && code !== 0) {
-        console.log(`[Daemon] --restart is set, relaunching ${bin}...`);
-        const newChild = spawn(bin, rest, {
-          stdio: ["pipe", "pipe", "pipe"],
-          env: process.env,
-          shell: process.platform === "win32",
-        });
-        executor.setChild(newChild);
-        // reattach handlers...  (simplified: for full restart, user should re-run)
-        console.log("[Daemon] Restart logic requires re-attaching handlers; consider using process manager.");
+        console.warn("[Daemon] --restart not fully implemented. Use pm2 or a shell loop for auto-restart.");
       }
 
       setTimeout(() => {
@@ -193,7 +185,7 @@ program
       res = await fetch(`${opts.api}/api/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Daemon Session", agentType: "assistant" }),
+        body: JSON.stringify({ name: "Daemon Session", agentType: "assistant", model: "unknown" }),
       });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -221,6 +213,14 @@ program
     let phoneConnected = false;
 
     relay.onCommand(() => {}); // Required to arm the message handler
+
+    const pairTimeout = setTimeout(() => {
+      if (!phoneConnected) {
+        console.log("\n  Timed out waiting for phone (2 min). Run: mafa run -s " + id);
+        relay.close();
+        process.exit(0);
+      }
+    }, 120_000);
 
     process.on("SIGINT", () => {
       console.log("\n  [Pair] Shutting down relay...");

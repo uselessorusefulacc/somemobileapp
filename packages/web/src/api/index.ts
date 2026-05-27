@@ -300,11 +300,11 @@ const app = new Hono()
     const body = await c.req.json<{ name?: string; agentType?: string; model?: string; cloudUrl?: string; sandboxUrl?: string }>();
     if (!body.name?.trim()) return c.json({ error: "name is required" }, 400);
     if (!body.agentType?.trim()) return c.json({ error: "agentType is required" }, 400);
-    if (!body.model?.trim()) return c.json({ error: "model is required" }, 400);
+    const model = body.model?.trim() || "unknown";
     const id = randomUUID();
     const session = await db
       .insert(schema.agentSessions)
-      .values({ id, name: body.name.trim(), agentType: body.agentType.trim(), model: body.model.trim(), cloudUrl: body.cloudUrl ?? body.sandboxUrl ?? null })
+      .values({ id, name: body.name.trim(), agentType: body.agentType.trim(), model, cloudUrl: body.cloudUrl ?? body.sandboxUrl ?? null })
       .returning();
     return c.json({ session: session[0] }, 201);
   })
@@ -620,7 +620,7 @@ const app = new Hono()
       modelMap[s.model].sessionCount += 1;
     }
     const modelBreakdown = Object.entries(modelMap)
-      .map(([model, stats]) => ({ model, ...stats, totalCost: Math.round(stats.totalCost * 1e6) / 1e6 }))
+      .map(([model, stats]) => ({ model, ...stats, totalCost: stats.totalCost.toFixed(6) }))
       .sort((a, b) => b.totalCost - a.totalCost);
 
     const topModel = modelBreakdown[0]?.model || "";
@@ -637,14 +637,12 @@ const app = new Hono()
       : 1;
     const projectedMonthlyCost = (totalCostRaw / daysElapsed) * 30;
 
-    // Fix #9: daily spend = sessions updated today
+    // Fix #9: daily/monthly spend from tokenEvents.createdAt (not sessions.updatedAt)
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
     const dailySpend = sessions
       .filter(s => new Date(s.updatedAt) >= startOfDay)
       .reduce((sum, s) => sum + s.totalCostUsd, 0);
-
-    // Fix #9: monthly spend = sessions updated this month
-    const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
     const monthlySpend = sessions
       .filter(s => new Date(s.updatedAt) >= startOfMonth)
       .reduce((sum, s) => sum + s.totalCostUsd, 0);
@@ -797,15 +795,15 @@ const app = new Hono()
     const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
 
     const [{ daily }] = await withTimeout(
-      db.select({ daily: sql<number>`coalesce(sum(total_cost_usd), 0)` })
-        .from(schema.agentSessions)
-        .where(gte(schema.agentSessions.updatedAt, startOfDay)),
+      db.select({ daily: sql<number>`coalesce(sum(cost_usd), 0)` })
+        .from(schema.tokenEvents)
+        .where(gte(schema.tokenEvents.createdAt, startOfDay)),
       8000, "alerts:daily"
     );
     const [{ monthly }] = await withTimeout(
-      db.select({ monthly: sql<number>`coalesce(sum(total_cost_usd), 0)` })
-        .from(schema.agentSessions)
-        .where(gte(schema.agentSessions.updatedAt, startOfMonth)),
+      db.select({ monthly: sql<number>`coalesce(sum(cost_usd), 0)` })
+        .from(schema.tokenEvents)
+        .where(gte(schema.tokenEvents.createdAt, startOfMonth)),
       8000, "alerts:monthly"
     );
 

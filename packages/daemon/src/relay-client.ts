@@ -77,8 +77,8 @@ export class RelayClient {
       this.ws.send(msg);
     } else {
       this.messageQueue.push(msg);
-      if (this.messageQueue.length > 200) {
-      console.warn(`[Daemon] Relay message queue full (200), dropping oldest message`);
+      if (this.messageQueue.length > 100) {
+      console.warn(`[Daemon] Relay message queue full (100), dropping oldest message`);
       this.messageQueue.shift();
     }
     }
@@ -162,7 +162,11 @@ export class RelayClient {
     this.closed = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.stopHeartbeat();
-    this.flushQueue();
-    this.ws?.close();
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.flushQueue();
+      setTimeout(() => this.ws?.close(), 100);
+    } else {
+      this.ws?.close();
+    }
   }
 }

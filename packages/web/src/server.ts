@@ -97,7 +97,7 @@ const server = Bun.serve<{ sessionId: string; role: PeerRole }>({
     close(ws, code, reason) {
       const { sessionId, role } = ws.data;
       console.log(`[Relay] ${role} disconnected from ${sessionId} (${code}: ${reason})`);
-      sessionManager.removePeer(sessionId, role);
+      sessionManager.removePeer(sessionId, role, ws);
     },
   },
 });

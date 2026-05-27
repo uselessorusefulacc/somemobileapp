@@ -18,7 +18,7 @@ interface ParsedLine {
 // ✓ Read(file.ts)   Write(file.ts)   Bash(ls)   Tool call styles
 const CLAUDE_TOOL_RE = /[✓✗⏎→]\s*(Read|Write|Bash|Edit|MultiEdit|WebFetch|WebSearch|TodoRead|TodoWrite|Glob|Grep|LS|Task|Computer|MCP\w+)\s*\(([^)]{0,120})\)/;
 const CLAUDE_MODEL_RE = /model[:\s]+([a-z0-9._-]+)/i;
-const CLAUDE_TOKENS_RE = /(\d+)\s+input.*?(\d+)\s+output/i;
+const CLAUDE_TOKENS_RE = /^[> ]*(\d+)\s+input\s+tokens.*?(\d+)\s+output\s+tokens/im;
 const CLAUDE_COST_RE = /\$([0-9]+\.[0-9]+)\s*\(/;
 
 // Codex patterns
@@ -31,7 +31,7 @@ const AIDER_TOKENS_RE = /Tokens:\s+(\d+)\s+sent.*?(\d+)\s+received/i;
 const AIDER_TOOL_RE = /(Applied edit|Created|Deleted|Renamed)\s+([^\n]+)/;
 
 // Gemini CLI patterns
-const GEMINI_MODEL_RE = /gemini[-_]?([a-z0-9._-]+)/i;
+const GEMINI_MODEL_RE = /\b(gemini-[\d]+\.[\d]+(?:-[a-z]+)*)\b/i;
 const GEMINI_TOOL_RE = /Calling tool[:\s]+(\w+)/i;
 
 // OpenCode patterns
@@ -173,9 +173,12 @@ export function parseLine(line: string, agentType: AgentParserType = "auto"): Pa
   // Always try JSON first (catches most structured output)
   const generic = parseGenericJson(trimmed);
 
+  // In auto mode, stop after first parser that finds tokenUsage
+  // to prevent data corruption from overlapping regexes
   let specific: ParsedLine = {};
-  if (agentType === "claude" || agentType === "auto") specific = { ...specific, ...parseClaude(trimmed) };
-  if (agentType === "aider" || agentType === "auto") specific = { ...specific, ...parseAider(trimmed) };
+  let tokenFound = false;
+  if (agentType === "claude" || agentType === "auto") { const r = parseClaude(trimmed); if (r.tokenUsage) tokenFound = true; specific = { ...specific, ...r }; }
+  if (!tokenFound && (agentType === "aider" || agentType === "auto")) { const r = parseAider(trimmed); if (r.tokenUsage) tokenFound = true; specific = { ...specific, ...r }; }
   if (agentType === "codex" || agentType === "auto") specific = { ...specific, ...parseCodex(trimmed) };
   if (agentType === "gemini" || agentType === "auto") specific = { ...specific, ...parseGemini(trimmed) };
   if (agentType === "opencode" || agentType === "auto") specific = { ...specific, ...parseOpenCode(trimmed) };
