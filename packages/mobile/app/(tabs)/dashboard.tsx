@@ -154,33 +154,6 @@ function ActionButtons({ router }: { router: ReturnType<typeof useRouter> }) {
   );
 }
 
-// ── Animated number counter ───────────────────────────────────────────────
-function AnimatedNumber({ value, prefix = "", suffix = "", color, style: extStyle }: {
-  value: number; prefix?: string; suffix?: string; color?: string; style?: any;
-}) {
-  const animVal = useRef(new Animated.Value(0)).current;
-  const [display, setDisplay] = useState("0");
-  const prefixRef = useRef(prefix);
-  const suffixRef = useRef(suffix);
-  prefixRef.current = prefix;
-  suffixRef.current = suffix;
-  const numAnim = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    const listener = animVal.addListener(({ value: v }) => {
-      setDisplay(prefixRef.current + v.toFixed(2) + suffixRef.current);
-    });
-    numAnim.current = Animated.timing(animVal, { toValue: value, duration: 1200, useNativeDriver: false });
-    numAnim.current.start();
-    return () => {
-      animVal.removeListener(listener);
-      numAnim.current?.stop();
-    };
-  }, [value]);
-
-  return <Text style={[extStyle, color ? { color } : {}]}>{display}</Text>;
-}
-
 // ── Clock ─────────────────────────────────────────────────────────────────
 function useLocalTime() {
   const [time, setTime] = useState(() =>

@@ -1,4 +1,4 @@
-# AgentPilot Relay Server
+# MAFA Relay Server
 
 Lightweight WebSocket message router that pairs a mobile phone with an agent daemon by session ID.
 
@@ -17,8 +17,8 @@ Server will start on `ws://localhost:8080`.
 Both clients connect to the same `session` (UUID v4) with different `role`:
 
 ```
-Mobile app:  wss://relay.agentpilot.dev?session=UUID&role=phone
-Agent daemon: wss://relay.agentpilot.dev?session=UUID&role=daemon
+Mobile app:  wss://relay.mafa.dev?session=UUID&role=phone
+Agent daemon: wss://relay.mafa.dev?session=UUID&role=daemon
 ```
 
 ## Message Protocol
@@ -50,7 +50,7 @@ bun run src/test-client.ts
 ## Deploy to Deno Deploy
 
 ```bash
-deployctl deploy --include=src --project=agentpilot-relay
+deployctl deploy --include=src --project=mafa-relay
 ```
 
 Or use the Dockerfile if running on a VPS.

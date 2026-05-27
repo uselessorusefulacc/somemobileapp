@@ -1,5 +1,5 @@
 {
-  "name": "@agentpilot/web",
+  "name": "mafa-web",
   "private": true,
   "type": "module",
   "exports": {

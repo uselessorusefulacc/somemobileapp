@@ -251,7 +251,7 @@ export default function ConnectScreen() {
             {/* Terminal snippet */}
             <View style={s.terminalBox}>
               <Text style={s.terminalPrompt}>$</Text>
-              <Text style={s.terminalCmd}>npx agentpilot-daemon pair</Text>
+              <Text style={s.terminalCmd}>npx mafa-daemon pair</Text>
             </View>
 
             {!!error && (
@@ -297,7 +297,7 @@ export default function ConnectScreen() {
               QR scanned. Waiting for your laptop to handshake.
             </Text>
             <Text style={s.stateMicro}>
-              Make sure agentpilot-daemon pair is still running.
+              Make sure mafa-daemon pair is still running.
             </Text>
 
             <TouchableOpacity style={s.ghostBtn} onPress={cancelConnect} activeOpacity={0.7}>

@@ -1,6 +1,6 @@
-# agentpilot-daemon
+# mafa-daemon
 
-Control any AI coding agent from your phone. Live token spend, tool calls, pause/kill/inject — all streamed to the AgentPilot mobile app.
+Control any AI coding agent from your phone. Live token spend, tool calls, pause/kill/inject — all streamed to the MAFA mobile app.
 
 ## Supported agents (auto-detected)
 
@@ -20,9 +20,9 @@ Control any AI coding agent from your phone. Live token spend, tool calls, pause
 ## Install
 
 ```bash
-npm install -g agentpilot-daemon
+npm install -g mafa-daemon
 # or
-bun add -g agentpilot-daemon
+bun add -g mafa-daemon
 ```
 
 ## Usage
@@ -32,12 +32,12 @@ bun add -g agentpilot-daemon
 Wrap your agent command — daemon spawns it, intercepts all output:
 
 ```bash
-# Get session ID from AgentPilot mobile app, then:
-agentpilot-daemon run -s <session-uuid> -- claude "fix my tests"
-agentpilot-daemon run -s <session-uuid> -- aider --model claude-3-5-sonnet-20241022
-agentpilot-daemon run -s <session-uuid> -- codex "refactor this module"
-agentpilot-daemon run -s <session-uuid> -- gemini
-agentpilot-daemon run -s <session-uuid> -- opencode
+# Get session ID from MAFA mobile app, then:
+mafa run -s <session-uuid> -- claude "fix my tests"
+mafa run -s <session-uuid> -- aider --model claude-3-5-sonnet-20241022
+mafa run -s <session-uuid> -- codex "refactor this module"
+mafa run -s <session-uuid> -- gemini
+mafa run -s <session-uuid> -- opencode
 ```
 
 ### 2. Attach mode
@@ -45,7 +45,7 @@ agentpilot-daemon run -s <session-uuid> -- opencode
 Attach to an already-running agent by scanning your process tree:
 
 ```bash
-agentpilot-daemon attach -s <session-uuid>
+mafa attach -s <session-uuid>
 ```
 
 ### 3. Detect only
@@ -53,15 +53,15 @@ agentpilot-daemon attach -s <session-uuid>
 See what agents are running right now:
 
 ```bash
-agentpilot-daemon detect
+mafa detect
 ```
 
 ## Options
 
 ```
--s, --session <uuid>   Session ID from AgentPilot app (required)
+-s, --session <uuid>   Session ID from MAFA app (required)
 -r, --relay <url>      Relay WebSocket URL (default: ws://localhost:8080)
-                       Set AGENTPILOT_RELAY env var to override globally
+                       Set MAFA_RELAY env var to override globally
 -v, --verbose          Verbose logging
 ```
 
@@ -88,6 +88,6 @@ agentpilot-daemon detect
 ## Environment variables
 
 ```bash
-AGENTPILOT_RELAY=wss://your-relay.com  # override relay URL globally
+MAFA_RELAY=wss://your-relay.com  # override relay URL globally
 ANTHROPIC_MODEL=claude-opus-4-5        # override detected model
 ```

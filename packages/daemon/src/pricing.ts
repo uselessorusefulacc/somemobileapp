@@ -388,7 +388,7 @@ async function savePricingCache(data: CachedPricing): Promise<void> {
 }
 
 export async function refreshPricingFromRemote(url?: string): Promise<boolean> {
-  const endpoint = url || "https://api.agentpilot.ai/v1/pricing";
+  const endpoint = url || "https://api.mafa.ai/v1/pricing";
   try {
     const res = await fetch(endpoint);
     if (!res.ok) return false;

@@ -1,4 +1,4 @@
-app = "agentpilot-relay"
+app = "mafa-relay"
 primary_region = "iad"
 
 [build]

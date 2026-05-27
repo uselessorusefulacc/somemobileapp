@@ -39,7 +39,7 @@ const DEFAULTS: AppSettings = {
 let cachedSettings: AppSettings | null = null;
 
 function getStorageKey(): string {
-  return "@agentpilot/settings";
+  return "mafa/settings";
 }
 
 const storage = {
@@ -47,7 +47,8 @@ const storage = {
     if (!AsyncStorage) return null;
     try {
       return await AsyncStorage.getItem(key);
-    } catch {
+    } catch (e) {
+      console.warn("[Settings] storage.getItem failed:", e);
       return null;
     }
   },
@@ -55,8 +56,8 @@ const storage = {
     if (!AsyncStorage) return;
     try {
       await AsyncStorage.setItem(key, value);
-    } catch {
-      // fail silently
+    } catch (e) {
+      console.warn("[Settings] storage.setItem failed:", e);
     }
   },
 };
@@ -74,7 +75,7 @@ export async function loadSettings(): Promise<AppSettings> {
       cachedSettings = { ...DEFAULTS, ...parsed };
       return cachedSettings!;
     }
-  } catch { /* use defaults */ }
+  } catch (e) { console.warn("[Settings] loadSettings failed, using defaults:", e); }
   cachedSettings = { ...DEFAULTS };
   return cachedSettings!;
 }
@@ -89,7 +90,7 @@ export async function saveSettings(update: Partial<AppSettings>): Promise<AppSet
   cachedSettings = next;
   try {
     await storage.setItem(getStorageKey(), JSON.stringify(next));
-  } catch { /* fail silently */ }
+  } catch (e) { console.warn("[Settings] storage.setItem failed:", e); }
   return next;
 }
 

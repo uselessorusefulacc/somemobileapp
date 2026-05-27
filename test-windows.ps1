@@ -1,4 +1,4 @@
-# AgentPilot — Windows Test Script
+# MAFA — Windows Test Script
 # Run this in PowerShell on your laptop
 # Requires: Node.js installed (for wscat)
 #
@@ -7,7 +7,7 @@
 $API = "https://81ylvadrgdbxmql33216v-preview-4200.runable.site"
 $WS  = "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws"
 
-Write-Host "`n=== AgentPilot Windows Test ===" -ForegroundColor Cyan
+Write-Host "`n=== MAFA Windows Test ===" -ForegroundColor Cyan
 
 # ── 1. Check API is reachable ──────────────────────────────────────────────
 Write-Host "`n[1] Checking API..." -ForegroundColor Yellow

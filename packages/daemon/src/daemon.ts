@@ -187,7 +187,7 @@ program
   .option("-r, --relay <url>", "Relay WebSocket URL", loadConfig().relayUrl)
   .option("-a, --api <url>", "API base URL", loadConfig().apiUrl)
   .action(async (opts: { relay: string; api: string }) => {
-    console.log("\n  Connecting to AgentPilot...\n");
+    console.log("\n  Connecting to MAFA...\n");
     let res: Response;
     try {
       res = await fetch(`${opts.api}/api/sessions`, {
@@ -208,11 +208,11 @@ program
       process.exit(1);
     }
     const wsUrl = `${opts.relay}?session=${id}&role=daemon`;
-    console.log("  Scan this QR code with the AgentPilot app:\n");
+    console.log("  Scan this QR code with the MAFA app:\n");
     qrcode.generate(wsUrl, { small: true });
     console.log(`  Session: ${id}`);
     console.log(`  WS URL:  ${redactSensitive(wsUrl)}\n`);
-    console.log("  Open AgentPilot on your phone → Connect tab → Scan QR\n");
+    console.log("  Open MAFA on your phone → Connect tab → Scan QR\n");
 
     // Connect as daemon so we get peer_connected / peer_disconnected
     const relay = new RelayClient(id, opts.relay, false);
@@ -299,7 +299,7 @@ function validateSession(id: string) {
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (id === "undefined" || id === "null" || !UUID_RE.test(id)) {
     console.error(`[Daemon] Invalid session ID: "${id}"`);
-    console.error("[Daemon] Copy the session ID from the AgentPilot app.");
+    console.error("[Daemon] Copy the session ID from the MAFA app.");
     process.exit(1);
   }
 }

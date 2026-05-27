@@ -1,4 +1,4 @@
-# AgentPilot — Project Goals & Product Vision
+# MAFA — Project Goals & Product Vision
 
 > **Goal:** Build the world's first real-time "cockpit" for AI coding agents — a mobile dashboard that lets developers monitor, control, and optimize their agent spending live, from anywhere.
 
@@ -19,7 +19,7 @@ AI coding agents (Claude Code, Codex CLI, Aider, etc.) can burn through **hundre
 
 ## 2. The Vision
 
-**AgentPilot turns your phone into a live mission control center for your AI coding agent.**
+**MAFA turns your phone into a live mission control center for your AI coding agent.**
 
 Every LLM call your agent makes gets intercepted, costed, and streamed to your phone in real time. You see:
 
@@ -114,7 +114,7 @@ A **three-piece architecture** that bridges your laptop's agent to your phone wi
 - [x] **Fresh clone works** — `bun install && bun run dev` in each package
 - [x] **Automated tests** — Smoke tests for pricing, API, WebSocket
 - [x] **CI/CD** — GitHub Actions running typecheck on every PR
-- [x] **Published to npm** — `npx agentpilot-daemon` works for anyone (built & prepared)
+- [x] **Published to npm** — `npx mafa-daemon` works for anyone (built & prepared)
 - [ ] **Cloud relay** — Deployed relay for remote pairing (next)
 
 ---
@@ -130,12 +130,12 @@ A **three-piece architecture** that bridges your laptop's agent to your phone wi
 
 ## 7. Competitive Landscape
 
-| Tool | What it does | What AgentPilot does better |
-|------|--------------|-----------------------------|
-| **Langfuse** | Cloud-based LLM observability | AgentPilot is mobile-native, real-time, and works offline (local relay) |
-| **OpenAI Dashboard** | Shows usage after the fact | AgentPilot shows spend *while* the agent is running |
-| **Claude Code** | Has built-in cost reporting | AgentPilot aggregates across all agents and gives budget guardrails |
-| **Weights & Biases** | ML experiment tracking | AgentPilot is for live coding sessions, not training runs |
+| Tool | What it does | What MAFA does better |
+|------|--------------|-----------------------|
+| **Langfuse** | Cloud-based LLM observability | MAFA is mobile-native, real-time, and works offline (local relay) |
+| **OpenAI Dashboard** | Shows usage after the fact | MAFA shows spend *while* the agent is running |
+| **Claude Code** | Has built-in cost reporting | MAFA aggregates across all agents and gives budget guardrails |
+| **Weights & Biases** | ML experiment tracking | MAFA is for live coding sessions, not training runs |
 
 **No one has built a mobile-first, real-time, remote-controllable agent cost cockpit.**
 
@@ -144,7 +144,7 @@ A **three-piece architecture** that bridges your laptop's agent to your phone wi
 ## 8. Architecture Decisions
 
 ### Why WebSocket instead of REST polling?
-REST polling is passive — the phone asks "anything new?" every 10 seconds. WebSocket is active — the relay pushes token events the instant they happen. This transforms AgentPilot from a passive dashboard into an **active cockpit**.
+REST polling is passive — the phone asks "anything new?" every 10 seconds. WebSocket is active — the relay pushes token events the instant they happen. This transforms MAFA from a passive dashboard into an **active cockpit**.
 
 ### Why a relay instead of direct phone↔daemon?
 - **NAT traversal** — Your phone and laptop are on different networks (phone on cellular, laptop on WiFi)
@@ -169,7 +169,7 @@ REST polling is passive — the phone asks "anything new?" every 10 seconds. Web
 - Production blockers fixed (7 critical + 18 high-priority issues resolved)
 
 ### 🔜 Next (v2)
-- [x] Publish `agentpilot-daemon` to npm (configured ESM build + binary wrapper)
+- [x] Publish `mafa-daemon` to npm (configured ESM build + binary wrapper)
 - [x] Deploy relay to Fly.io for remote pairing (Turnkey Dockerfile, fly.toml, railway.json, docker-compose.yml all created)
 - [x] Add GitHub Actions CI (Typechecking and testing workflows automated in CI)
 - [x] Add smoke tests (17 passing integration tests across core models, relay servers, and API routes)
@@ -226,4 +226,4 @@ Built for the **Runable Hackathon 2026** by a solo developer who got tired of su
 
 ---
 
-> **Bottom line:** AgentPilot makes AI coding agent costs as visible and controllable as your phone's battery percentage. No more billing surprises. No more runaway agents. Just clarity, control, and savings.
+> **Bottom line:** MAFA makes AI coding agent costs as visible and controllable as your phone's battery percentage. No more billing surprises. No more runaway agents. Just clarity, control, and savings.

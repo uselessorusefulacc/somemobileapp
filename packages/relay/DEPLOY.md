@@ -1,4 +1,4 @@
-# AgentPilot Relay Server
+# MAFA Relay Server
 
 Lightweight Bun WebSocket relay that bridges AI coding agents (daemon) to mobile phones with zero-configuration session routing.
 
@@ -85,7 +85,7 @@ interface RelayMessage {
 Create `fly.toml`:
 
 ```toml
-app = "agentpilot-relay"
+app = "mafa-relay"
 primary_region = "iad"
 
 [build]
@@ -148,17 +148,17 @@ Push to GitHub, connect Railway repo, deploy.
 
 ### Self-hosted (systemd)
 
-Create `/etc/systemd/system/agentpilot-relay.service`:
+Create `/etc/systemd/system/mafa-relay.service`:
 
 ```ini
 [Unit]
-Description=AgentPilot Relay Server
+Description=MAFA Relay Server
 After=network.target
 
 [Service]
 Type=simple
-User=agentpilot
-WorkingDirectory=/opt/agentpilot-relay
+User=mafa
+WorkingDirectory=/opt/mafa-relay
 ExecStart=/usr/local/bin/bun src/relay.ts
 Restart=always
 RestartSec=5
@@ -171,8 +171,8 @@ WantedBy=multi-user.target
 Enable:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable agentpilot-relay
-sudo systemctl start agentpilot-relay
+sudo systemctl enable mafa-relay
+sudo systemctl start mafa-relay
 ```
 
 ### Docker Compose

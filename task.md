@@ -1,4 +1,4 @@
-# AgentPilot Fix Tracker
+# MAFA Fix Tracker
 
 ## SCOPE: Fix all addressable code issues from audit report
 ## Status: ALL PASSES COMPLETE
@@ -19,7 +19,7 @@
 ## PASS 3 — Backend Logic Bugs ✅
 - [x] #47 DATABASE_URL fallback to `file:./local.db`
 - [x] #41 basePath leading slash (fixed in api/index.ts rewrite)
-- [x] #53 Package name @template/web → @agentpilot/web
+- [x] #53 Package name @template/web → mafa-web
 - (All other backend fixes in the api/index.ts complete rewrite prior to handover)
 
 ## PASS 4 — Mobile App Bugs ✅
@@ -40,7 +40,7 @@
 - [x] #96 saveBudget triggers re-fetch after saving
 
 ## PASS 5 — Config Fixes ✅
-- [x] #120 Root package name: sandbox-app-template → agentpilot
+- [x] #120 Root package name: sandbox-app-template → mafa
 - [x] #121 packageManager: bun@1.3.5 (nonexistent) → bun@1.1.38
 
 ## PASS 6 — Electron/Desktop ✅

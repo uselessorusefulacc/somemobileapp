@@ -25,8 +25,8 @@ export interface DaemonConfig {
 
 export function loadConfig(): DaemonConfig {
   return {
-    apiUrl: process.env.AGENTPILOT_API ?? "http://localhost:4200",
-    relayUrl: process.env.AGENTPILOT_RELAY ?? "ws://localhost:8082",
+    apiUrl: process.env.MAFA_API ?? "http://localhost:4200",
+    relayUrl: process.env.MAFA_RELAY ?? "ws://localhost:8082",
   };
 }
 
@@ -45,12 +45,12 @@ export function validateConfig(): void {
   const config = loadConfig();
 
   if (!isValidWsUrl(config.relayUrl)) {
-    console.error(`[Config] Invalid AGENTPILOT_RELAY: "${config.relayUrl}" — must be a ws:// or wss:// URL`);
+    console.error(`[Config] Invalid MAFA_RELAY: "${config.relayUrl}" — must be a ws:// or wss:// URL`);
     process.exit(1);
   }
 
   if (!isValidHttpUrl(config.apiUrl)) {
-    console.error(`[Config] Invalid AGENTPILOT_API: "${config.apiUrl}" — must be an http:// or https:// URL`);
+    console.error(`[Config] Invalid MAFA_API: "${config.apiUrl}" — must be an http:// or https:// URL`);
     process.exit(1);
   }
 }

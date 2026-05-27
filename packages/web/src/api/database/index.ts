@@ -26,6 +26,6 @@ export const db = drizzle(client, { schema });
 // Auto-migrate on startup when migrations folder exists
 try {
   await migrate(db, { migrationsFolder: "./drizzle" });
-} catch {
-  // No migrations folder yet (dev without generated migrations) — skip silently
+} catch (e) {
+  console.warn("[DB] Migration skipped (no drizzle folder yet):", e instanceof Error ? e.message : e);
 }

@@ -33,7 +33,7 @@
       },
     },
     "packages/mobile": {
-      "name": "@agentpilot/mobile",
+      "name": "mafa-mobile",
       "version": "1.0.0",
       "dependencies": {
         "@expo-google-fonts/inter": "^0.4.2",
@@ -64,7 +64,7 @@
       },
     },
     "packages/relay": {
-      "name": "@agentpilot/relay",
+      "name": "mafa-relay",
       "version": "1.0.0",
       "dependencies": {
         "uuid": "^9.0.1",
@@ -76,7 +76,7 @@
       },
     },
     "packages/web": {
-      "name": "@agentpilot/web",
+      "name": "mafa-web",
       "dependencies": {
         "@libsql/client": "^0.17.2",
         "@radix-ui/react-slot": "^1.2.4",
@@ -118,12 +118,6 @@
   },
   "packages": {
     "@0no-co/graphql.web": ["@0no-co/graphql.web@1.2.0", "", { "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0" }, "optionalPeers": ["graphql"] }, "sha512-/1iHy9TTr63gE1YcR5idjx8UREz1s0kFhydf3bBLCXyqjhkIc6igAzTOx3zPifCwFR87tsh/4Pa9cNts6d2otw=="],
-
-    "@agentpilot/mobile": ["@agentpilot/mobile@workspace:packages/mobile"],
-
-    "@agentpilot/relay": ["@agentpilot/relay@workspace:packages/relay"],
-
-    "@agentpilot/web": ["@agentpilot/web@workspace:packages/web"],
 
     "@asamuzakjp/css-color": ["@asamuzakjp/css-color@5.1.11", "", { "dependencies": { "@asamuzakjp/generational-cache": "^1.0.1", "@csstools/css-calc": "^3.2.0", "@csstools/css-color-parser": "^4.1.0", "@csstools/css-parser-algorithms": "^4.0.0", "@csstools/css-tokenizer": "^4.0.0" } }, "sha512-KVw6qIiCTUQhByfTd78h2yD1/00waTmm9uy/R7Ck/ctUyAPj+AEDLkQIdJW0T8+qGgj3j5bpNKK7Q3G+LedJWg=="],
 
@@ -1302,6 +1296,12 @@
     "lucide-react": ["lucide-react@0.577.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-4LjoFv2eEPwYDPg/CUdBJQSDfPyzXCRrVW1X7jrx/trgxnxkHFjnVZINbzvzxjN70dxychOfg+FTYwBiS3pQ5A=="],
 
     "mafa-daemon": ["mafa-daemon@workspace:packages/daemon"],
+
+    "mafa-mobile": ["mafa-mobile@workspace:packages/mobile"],
+
+    "mafa-relay": ["mafa-relay@workspace:packages/relay"],
+
+    "mafa-web": ["mafa-web@workspace:packages/web"],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 

@@ -1,10 +1,10 @@
-# AgentPilot — AI Cost Intelligence
+# MAFA — AI Cost Intelligence
 
 > Real-time cost monitoring, optimization, and budget control for AI coding agents.
 
 ## What it does
 
-AgentPilot gives developers full visibility into what their AI coding agents (Claude Code, OpenCode, Codex) are spending — token by token, session by session — and actively helps them cut costs.
+MAFA gives developers full visibility into what their AI coding agents (Claude Code, OpenCode, Codex) are spending — token by token, session by session — and actively helps them cut costs.
 
 ### Core features
 
@@ -71,7 +71,7 @@ In the mobile app, go to **Connect** → create a session → copy the daemon co
 On the laptop running your agent:
 
 ```bash
-npx @agentpilot/daemon --session <uuid>
+npx mafa-daemon --session <uuid>
 ```
 
 Or run locally:
@@ -96,7 +96,7 @@ Your phone now receives live token events from every LLM call your agent makes.
 ## Daemon CLI
 
 ```bash
-npx @agentpilot/daemon [options]
+npx mafa-daemon [options]
 
 Options:
   -s, --session <uuid>  Session ID to pair with mobile
@@ -140,7 +140,7 @@ railway up
 **Self-hosted**
 ```bash
 bun install -g pm2
-pm2 start src/relay.ts --interpreter bun --name agentpilot-relay
+pm2 start src/relay.ts --interpreter bun --name mafa-relay
 ```
 
 ## Development
@@ -170,7 +170,7 @@ cd packages/api && bun run typecheck     # known issues
 
 ## Why it matters
 
-AI coding agents can rack up hundreds of dollars in API costs silently. AgentPilot:
+AI coding agents can rack up hundreds of dollars in API costs silently. MAFA:
 
 1. **Makes costs visible** — real-time, not at end-of-month billing shock
 2. **Prevents overruns** — budget caps with proactive alerts

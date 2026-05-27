@@ -1,4 +1,4 @@
-# AgentPilot Mobile — 10-Agent Audit Report
+# MAFA Mobile — 10-Agent Audit Report
 **Date:** 2026-05-24  
 **Scope:** All mobile package source files  
 **Agents:** 10 independent reviewers + orchestrator synthesis

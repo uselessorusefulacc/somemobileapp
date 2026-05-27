@@ -2,7 +2,7 @@
   "expo": {
     "icon": "./assets/icon.png",
     "android": {
-      "package": "com.agentpilot_a7k2.runable",
+      "package": "com.mafa.runable",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -14,7 +14,7 @@
       "relayUrl": "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws"
     },
     "ios": {
-      "bundleIdentifier": "com.agentpilot_a7k2.runable",
+      "bundleIdentifier": "com.mafa.runable",
       "supportsTablet": true
     },
     "splash": {
@@ -23,9 +23,9 @@
       "backgroundColor": "#000000"
     },
     "name": "MAFA",
-    "slug": "agentpilot",
+    "slug": "mafa",
     "version": "1.0.0",
-    "scheme": "agentpilot",
+    "scheme": "mafa",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -39,7 +39,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow AgentPilot to use the camera to scan QR codes from your terminal."
+          "cameraPermission": "Allow MAFA to use the camera to scan QR codes from your terminal."
         }
       ]
     ]
