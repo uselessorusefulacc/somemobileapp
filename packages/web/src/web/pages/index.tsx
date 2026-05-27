@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useDesktop } from "../hooks/use-desktop";
+import { useDesktopAPI } from "../hooks/use-desktop";
 
 async function fetchHealth(): Promise<{ status: string; db: string }> {
   const res = await fetch("/api/health");
@@ -13,7 +13,7 @@ function Index() {
     queryKey: ["health"],
     queryFn: fetchHealth,
   });
-  const desktop = useDesktop();
+  const desktop = useDesktopAPI();
 
   return (
     <div>
@@ -24,7 +24,7 @@ function Index() {
         {health.isLoading
           ? "Loading..."
           : health.isError
-            ? "Error"
+            ? <>Error <button onClick={() => health.refetch()}>Retry</button></>
             : health.data?.status}
       </p>
     </div>

@@ -4,6 +4,11 @@ import { homedir } from "os";
 import { execSync } from "child_process";
 import type { AgentInfo } from "./types";
 
+function parseYamlModel(raw: string): string | null {
+  const match = raw.match(/model\s*:\s*["']?([^\s"'\n]+)["']?/);
+  return match?.[1] ?? null;
+}
+
 // ── Known agent signatures ─────────────────────────────────────────────────
 
 interface AgentSignature {
@@ -47,10 +52,7 @@ const AGENT_SIGNATURES: AgentSignature[] = [
       join(homedir(), ".codex", "config.yaml"),
       join(homedir(), ".codex", "config.yml"),
     ],
-    parseConfig: (raw) => {
-      const match = raw.match(/model\s*:\s*["']?([^\s"'\n]+)["']?/);
-      return match?.[1] ?? null;
-    },
+    parseConfig: parseYamlModel,
     defaultModel: "o3",
   },
   {
@@ -62,10 +64,7 @@ const AGENT_SIGNATURES: AgentSignature[] = [
       join(homedir(), ".aider.conf.yml"),
       join(homedir(), ".aider.conf.yaml"),
     ],
-    parseConfig: (raw) => {
-      const match = raw.match(/model\s*:\s*["']?([^\s"'\n]+)["']?/);
-      return match?.[1] ?? null;
-    },
+    parseConfig: parseYamlModel,
     defaultModel: "claude-sonnet-4-5",
   },
   {
@@ -208,7 +207,8 @@ export function detectRunningAgents(cwd = process.cwd()): AgentInfo[] {
   for (const sig of AGENT_SIGNATURES) {
     for (const proc of procs) {
       const matches = sig.processNames.some(
-        (name) => proc.name.includes(name) || proc.cmd.includes(name)
+        (name) => proc.name.startsWith(name) || proc.cmd.startsWith(name) ||
+                 (name.length >= 2 && (proc.name.includes(name) || proc.cmd.includes(name)))
       );
       if (matches) {
         const { model, configSource } = detectModelFromConfig(sig, cwd);

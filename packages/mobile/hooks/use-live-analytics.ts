@@ -22,7 +22,7 @@ export function useLiveAnalytics(events: TokenPayload[]) {
     // Burn rate: tokens per minute over last 5 minutes
     const burnRate = (() => {
       if (last5Min.length < 2) return 0;
-      const timeSpan = last5Min[last5Min.length - 1].timestamp - last5Min[0].timestamp;
+      const timeSpan = Math.max(last5Min[last5Min.length - 1].timestamp - last5Min[0].timestamp, 1);
       const totalTokens = last5Min.reduce((s, e) => s + e.inputTokens + e.outputTokens, 0);
       return timeSpan > 0 ? (totalTokens / timeSpan) * 60000 : 0;
     })();
@@ -31,7 +31,7 @@ export function useLiveAnalytics(events: TokenPayload[]) {
     const hourlyProjection = (() => {
       if (last5Min.length < 2) return 0;
       const totalCost = last5Min.reduce((s, e) => s + e.costUsd, 0);
-      const timeSpanMin = (last5Min[last5Min.length - 1].timestamp - last5Min[0].timestamp) / 60000;
+      const timeSpanMin = Math.max(last5Min[last5Min.length - 1].timestamp - last5Min[0].timestamp, 1) / 60000;
       return timeSpanMin > 0 ? (totalCost / timeSpanMin) * 60 : 0;
     })();
 
@@ -76,7 +76,7 @@ export function useLiveAnalytics(events: TokenPayload[]) {
 
     // Low cache hit rate (if we have cache data)
     const eventsWithCache = last5Min.filter((e) => (e.cacheReadTokens ?? 0) > 0);
-    if (eventsWithCache.length > 0 && eventsWithCache.length < last5Min.length * 0.3) {
+    if (last5Min.length >= 5 && eventsWithCache.length > 0 && eventsWithCache.length < last5Min.length * 0.3) {
       tips.push({
         category: "caching",
         message: "Low cache hit rate. Add cache breakpoints to your system prompt.",

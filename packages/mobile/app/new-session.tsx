@@ -51,8 +51,8 @@ export default function NewSessionModal() {
       });
       router.dismiss();
       setTimeout(() => router.push(`/session/${data.id}`), 120);
-    } catch (e) {
-      Alert.alert("Error", String(e));
+    } catch {
+      Alert.alert("Error", "Failed to create session. Check your API connection.");
     } finally {
       setCreating(false);
     }
@@ -79,7 +79,7 @@ export default function NewSessionModal() {
           headerShadowVisible: false,
           headerTintColor: colors.textSecondary,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.dismiss()} style={m.closeBtn}>
+            <TouchableOpacity onPress={() => router.dismiss()} style={m.closeBtn} accessibilityLabel="Close new session modal" accessibilityRole="button">
               <Text style={m.closeX}>✕</Text>
             </TouchableOpacity>
           ),
@@ -181,6 +181,9 @@ export default function NewSessionModal() {
             onPress={handleCreate}
             disabled={creating}
             activeOpacity={0.8}
+            accessibilityLabel="Create session"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: creating }}
           >
             {creating ? (
               <ActivityIndicator color={colors.bg} />

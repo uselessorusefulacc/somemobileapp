@@ -111,20 +111,28 @@ export interface ModelComparison {
 
 // ─── REST client ────────────────────────────────────────────────────────────
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API ${path} → ${res.status}: ${text}`);
+  const timeout = options?.timeout ?? 12000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers ?? {}),
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`API ${path} → ${res.status}: ${text}`);
+    }
+    return res.json() as Promise<T>;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json() as Promise<T>;
 }
 
 // ─── API methods ────────────────────────────────────────────────────────────
@@ -142,9 +150,9 @@ export const apiClient = {
   createSession: (body: { name: string; agentType: string; model: string; cloudUrl?: string }) =>
     apiFetch<AgentSession>("/api/sessions", { method: "POST", body: JSON.stringify(body) }),
   patchSession: (id: string, body: Partial<Pick<AgentSession, "status" | "name">>) =>
-    apiFetch<AgentSession>(`/api/sessions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    apiFetch<{ ok: boolean }>(`/api/sessions/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   patchSessionStatus: (id: string, status: string) =>
-    apiFetch<AgentSession>(`/api/sessions/${id}/status`, {
+    apiFetch<{ ok: boolean }>(`/api/sessions/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),

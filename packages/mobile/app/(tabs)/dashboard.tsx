@@ -13,96 +13,13 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type Analytics } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
-import { formatCost, formatTokens } from "../../lib/format";
+import { formatCost, formatTokens, toNumber, costColor } from "../../lib/format";
 import { DotGrid } from "../../components/DotGrid";
+import { PulseDot } from "../../components/PulseDot";
+import { StatCard } from "../../components/StatCard";
 import { useRelay } from "../../lib/relay-context";
 import type { TokenPayload, ToolCallPayload, AgentInfoPayload, StatusPayload } from "../../lib/relay";
-
-// ── Pulsing live dot ──────────────────────────────────────────────────────
-function PulseDot({ color }: { color: string }) {
-  const scale   = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0.6)).current;
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 1.9, duration: 850, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0,   duration: 850, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.6, duration: 0, useNativeDriver: true }),
-        ]),
-        Animated.delay(400),
-      ])
-    ).start();
-  }, []);
-  return (
-    <View style={{ width: 10, height: 10, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View style={{
-        position: "absolute", width: 10, height: 10, borderRadius: 5,
-        backgroundColor: color, opacity, transform: [{ scale }],
-      }} />
-      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
-    </View>
-  );
-}
-
-// ── Neon stat card with hover pop ─────────────────────────────────────────
-function StatCard({ label, value, valueColor, accent, delay = 0 }: {
-  label: string; value: string; valueColor?: string; accent?: string; delay?: number;
-}) {
-  const scale    = useRef(new Animated.Value(1)).current;
-  const opacity  = useRef(new Animated.Value(0)).current;
-  const slideY   = useRef(new Animated.Value(20)).current;
-  const elevation = useRef(new Animated.Value(0)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
-      Animated.spring(slideY,  { toValue: 0, delay, useNativeDriver: true, damping: 16, stiffness: 180 }),
-    ]).start();
-  }, []);
-
-  const onPressIn = () => {
-    Animated.parallel([
-      Animated.spring(scale,        { toValue: 1.04, useNativeDriver: true, speed: 50, bounciness: 6 }),
-      Animated.timing(glowOpacity,  { toValue: 1, duration: 120, useNativeDriver: true }),
-    ]).start();
-  };
-  const onPressOut = () => {
-    Animated.parallel([
-      Animated.spring(scale,        { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 8 }),
-      Animated.timing(glowOpacity,  { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start();
-  };
-
-  return (
-    <Animated.View style={[
-      sc.card,
-      accent ? { borderColor: accent + "55", borderWidth: 1 } : {},
-      { opacity, transform: [{ translateY: slideY }, { scale }] }
-    ]}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        style={{ flex: 1 }}
-      >
-        {/* Always-on subtle glow for accented cards */}
-        {accent && <View style={[sc.cardGlow, { backgroundColor: accent + "10" }]} />}
-        {/* Hover glow */}
-        <Animated.View style={[
-          sc.cardGlow,
-          { backgroundColor: (accent || colors.accent) + "18", opacity: glowOpacity }
-        ]} />
-        <Text style={sc.cardLabel}>{label}</Text>
-        <Text style={[sc.cardValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
+import { useLiveAnalytics } from "../../hooks/use-live-analytics";
 
 // ── Budget alert banner ───────────────────────────────────────────────────
 function BudgetAlertBanner() {
@@ -150,7 +67,7 @@ function ErrorBlock({ onRetry }: { onRetry: () => void }) {
       <View style={d.errorIcon}><Text style={d.errorIconText}>!</Text></View>
       <Text style={d.errorLabel}>FETCH FAILED</Text>
       <Text style={d.errorSub}>Could not reach the API</Text>
-      <TouchableOpacity style={d.retryBtn} onPress={onRetry} activeOpacity={0.7}>
+      <TouchableOpacity style={d.retryBtn} onPress={onRetry} activeOpacity={0.7} accessibilityLabel="Retry loading dashboard data" accessibilityRole="button">
         <Text style={d.retryText}>↻  RETRY</Text>
       </TouchableOpacity>
     </View>
@@ -164,13 +81,16 @@ function ModelBar({ model, cost, pct, isTop, delay = 0 }: {
   const w       = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const slideX  = useRef(new Animated.Value(-10)).current;
+  const barAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   React.useEffect(() => {
-    Animated.parallel([
+    barAnim.current = Animated.parallel([
       Animated.timing(w,       { toValue: pct, duration: 700, delay: delay + 100, useNativeDriver: false }),
       Animated.timing(opacity, { toValue: 1,   duration: 350, delay,              useNativeDriver: true }),
       Animated.timing(slideX,  { toValue: 0,   duration: 350, delay,              useNativeDriver: true }),
-    ]).start();
+    ]);
+    barAnim.current.start();
+    return () => barAnim.current?.stop();
   }, [pct]);
 
   const barColor = isTop ? colors.accent : colors.borderStrong;
@@ -240,13 +160,22 @@ function AnimatedNumber({ value, prefix = "", suffix = "", color, style: extStyl
 }) {
   const animVal = useRef(new Animated.Value(0)).current;
   const [display, setDisplay] = useState("0");
+  const prefixRef = useRef(prefix);
+  const suffixRef = useRef(suffix);
+  prefixRef.current = prefix;
+  suffixRef.current = suffix;
+  const numAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
-    animVal.addListener(({ value: v }) => {
-      setDisplay(prefix + v.toFixed(2) + suffix);
+    const listener = animVal.addListener(({ value: v }) => {
+      setDisplay(prefixRef.current + v.toFixed(2) + suffixRef.current);
     });
-    Animated.timing(animVal, { toValue: value, duration: 1200, useNativeDriver: false }).start();
-    return () => animVal.removeAllListeners();
+    numAnim.current = Animated.timing(animVal, { toValue: value, duration: 1200, useNativeDriver: false });
+    numAnim.current.start();
+    return () => {
+      animVal.removeListener(listener);
+      numAnim.current?.stop();
+    };
   }, [value]);
 
   return <Text style={[extStyle, color ? { color } : {}]}>{display}</Text>;
@@ -275,6 +204,7 @@ function LiveAgentPanel() {
   const [sessionTokens, setSessionTokens] = useState(0);
   const [sessionCost, setSessionCost]     = useState(0);
   const [toolCount, setToolCount]     = useState(0);
+  const [tokenEvents, setTokenEvents] = useState<TokenPayload[]>([]);
 
   const slideY  = useRef(new Animated.Value(-80)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -287,7 +217,7 @@ function LiveAgentPanel() {
     if (!isConnected) {
       // Reset live data when daemon disconnects
       setAgentInfo(null); setStatus(null); setLastTool(null);
-      setSessionTokens(0); setSessionCost(0); setToolCount(0);
+      setSessionTokens(0); setSessionCost(0); setToolCount(0); setTokenEvents([]);
     }
   }, [isConnected]);
 
@@ -299,6 +229,7 @@ function LiveAgentPanel() {
     const onTokens = (p: TokenPayload)     => {
       setSessionTokens(t => t + p.inputTokens + p.outputTokens);
       setSessionCost(c => c + p.costUsd);
+      setTokenEvents(prev => [...prev, p].slice(-100));
     };
     client.on("agent_info", onInfo);
     client.on("status",     onStatus);
@@ -321,6 +252,8 @@ function LiveAgentPanel() {
   };
 
   const sc = statusColor(status?.agentStatus);
+
+  const { burnRate, hourlyProjection } = useLiveAnalytics(tokenEvents);
 
   return (
     <Animated.View style={[lv.wrap, { opacity, transform: [{ translateY: slideY }] }]}>
@@ -366,6 +299,14 @@ function LiveAgentPanel() {
               ⚡ {lastTool.tool}
             </Text>
           </>}
+          {burnRate > 0 && <>
+            <Text style={lv.metaDot}>·</Text>
+            <Text style={lv.metaItem}>{Math.round(burnRate).toLocaleString()} tok/m</Text>
+          </>}
+          {hourlyProjection > 0 && <>
+            <Text style={lv.metaDot}>·</Text>
+            <Text style={lv.metaItem}>{formatCost(hourlyProjection)}/hr</Text>
+          </>}
         </View>
       </View>
     </Animated.View>
@@ -404,17 +345,14 @@ export default function DashboardScreen() {
 
   useFocusEffect(useCallback(() => { load(true); }, [load]));
 
-  const totalCost      = parseFloat(String(stats?.totalCost  || "0"));
-  const todayCost      = parseFloat(String(stats?.dailyCost  || "0"));
-  const totalTokens    = stats?.totalTokens    || 0;
-  const activeSessions = stats?.activeSessions || 0;
-  const totalSessions  = stats?.totalSessions  || 0;
+  const totalCost      = toNumber(stats?.totalCost);
+  const todayCost      = toNumber(stats?.dailyCost);
+  const totalTokens    = stats?.totalTokens    ?? 0;
+  const activeSessions = stats?.activeSessions ?? 0;
+  const totalSessions  = stats?.totalSessions  ?? 0;
   const cacheHitRate   = stats?.cacheHitRate   ?? 0;
 
-  const heroCostColor =
-    totalCost > 50 ? colors.danger :
-    totalCost > 10 ? colors.warning :
-    colors.success;
+  const heroCostColor = costColor(totalCost, [10, 50]);
 
   const sorted  = stats?.modelBreakdown
     ? [...stats.modelBreakdown].sort((a, b) => parseFloat(b.totalCost) - parseFloat(a.totalCost))
@@ -497,11 +435,11 @@ export default function DashboardScreen() {
               <StatCard
                 label="TODAY"
                 value={formatCost(todayCost)}
-                valueColor={todayCost > 1 ? colors.warning : colors.text}
-                accent={todayCost > 1 ? colors.warning : undefined}
+                valueColor={costColor(todayCost)}
+                accent={todayCost > 0.1 ? colors.warning : undefined}
                 delay={0}
               />
-              <StatCard label="TOKENS" value={formatTokens(totalTokens)} accent={colors.accent} delay={70} />
+              <StatCard label="TOKENS" value={totalTokens === 0 ? "—" : formatTokens(totalTokens)} accent={colors.accent} delay={70} />
               <StatCard
                 label="CACHE HIT"
                 value={`${Math.round(cacheHitRate * 100)}%`}
@@ -547,27 +485,6 @@ export default function DashboardScreen() {
     </View>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────
-const sc = StyleSheet.create({
-  card: {
-    flex: 1, backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
-    padding: 14, overflow: "hidden", minHeight: 74, justifyContent: "space-between",
-  },
-  cardGlow: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: radius.sm,
-  },
-  cardLabel: {
-    fontFamily: fonts.sansMedium, fontSize: 10, letterSpacing: 1.6,
-    color: colors.textSecondary, textTransform: "uppercase", marginBottom: 6,
-  },
-  cardValue: {
-    fontFamily: fonts.sans, fontSize: 21, fontWeight: "300",
-    letterSpacing: -0.8, color: colors.text,
-  },
-});
 
 const d = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },

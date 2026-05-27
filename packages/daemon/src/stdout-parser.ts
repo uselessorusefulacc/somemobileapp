@@ -119,6 +119,15 @@ function parseGemini(line: string): ParsedLine {
   return result;
 }
 
+function parseOpenCode(line: string): ParsedLine {
+  const result: ParsedLine = {};
+  const toolMatch = line.match(OPENCODE_TOOL_RE);
+  if (toolMatch) {
+    result.toolCall = { tool: toolMatch[1], timestamp: Date.now() };
+  }
+  return result;
+}
+
 function parseGenericJson(line: string): ParsedLine {
   const result: ParsedLine = {};
 
@@ -169,6 +178,7 @@ export function parseLine(line: string, agentType: AgentParserType = "auto"): Pa
   if (agentType === "aider" || agentType === "auto") specific = { ...specific, ...parseAider(trimmed) };
   if (agentType === "codex" || agentType === "auto") specific = { ...specific, ...parseCodex(trimmed) };
   if (agentType === "gemini" || agentType === "auto") specific = { ...specific, ...parseGemini(trimmed) };
+  if (agentType === "opencode" || agentType === "auto") specific = { ...specific, ...parseOpenCode(trimmed) };
 
   return {
     model: specific.model || generic.model,

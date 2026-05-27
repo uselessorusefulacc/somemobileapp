@@ -1,5 +1,5 @@
 {
-  "dailyLimitUsd": 2,
-  "monthlyLimitUsd": 10,
-  "alertAtPct": 70
+  "dailyLimitUsd": 10,
+  "monthlyLimitUsd": 100,
+  "alertAtPct": 75
 }

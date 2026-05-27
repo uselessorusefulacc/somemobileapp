@@ -13,38 +13,9 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type AgentSession } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
-import { formatCost, getStatusColor } from "../../lib/format";
+import { formatCost, getStatusColor, costColor } from "../../lib/format";
 import { DotGrid } from "../../components/DotGrid";
-
-// ── Pulse dot ─────────────────────────────────────────────────────────────
-function PulseDot({ color, size = 6 }: { color: string; size?: number }) {
-  const scale   = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0.5)).current;
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 2, duration: 900, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: 900, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.5, duration: 0, useNativeDriver: true }),
-        ]),
-        Animated.delay(400),
-      ])
-    ).start();
-  }, []);
-  return (
-    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View style={{
-        position: "absolute", width: size, height: size, borderRadius: size / 2,
-        backgroundColor: color, opacity, transform: [{ scale }],
-      }} />
-      <View style={{ width: size * 0.6, height: size * 0.6, borderRadius: size * 0.3, backgroundColor: color }} />
-    </View>
-  );
-}
+import { PulseDot } from "../../components/PulseDot";
 
 // ── Session row ────────────────────────────────────────────────────────────
 function SessionRow({ item, onPress, index }: { item: AgentSession; onPress: () => void; index?: number }) {
@@ -52,24 +23,24 @@ function SessionRow({ item, onPress, index }: { item: AgentSession; onPress: () 
   const cost        = parseFloat(item.totalCost || "0");
   const isActive    = item.status === "active";
   const statusColor = getStatusColor(item.status);
-  const date        = new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const date        = item.createdAt ? new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
   const tokens      = item.totalTokens ? `${(item.totalTokens / 1000).toFixed(1)}K` : "—";
-  const costTint    =
-    cost > 1   ? colors.danger :
-    cost > 0.1 ? colors.warning :
-    colors.text;
+  const costTint = costColor(cost, [1, 10]);
 
   const rowOpacity = useRef(new Animated.Value(0)).current;
   const rowSlide   = useRef(new Animated.Value(24)).current;
   const rowScale   = useRef(new Animated.Value(1)).current;
   const glowOp     = useRef(new Animated.Value(0)).current;
+  const entranceAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   React.useEffect(() => {
     const delay = Math.min(rowIndex * 55, 320);
-    Animated.parallel([
+    entranceAnim.current = Animated.parallel([
       Animated.timing(rowOpacity, { toValue: 1, duration: 380, delay, useNativeDriver: true }),
       Animated.spring(rowSlide,   { toValue: 0, delay, useNativeDriver: true, damping: 22, stiffness: 200 }),
-    ]).start();
+    ]);
+    entranceAnim.current.start();
+    return () => entranceAnim.current?.stop();
   }, []);
 
   const onPressIn = () => {
@@ -93,6 +64,8 @@ function SessionRow({ item, onPress, index }: { item: AgentSession; onPress: () 
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         activeOpacity={1}
+        accessibilityLabel={`Session ${item.name}`}
+        accessibilityRole="button"
       >
         <Animated.View style={[s.row, isActive && s.rowActive, { backgroundColor: glowBg }]}>
           <View style={[s.accentBar, {
@@ -116,7 +89,7 @@ function SessionRow({ item, onPress, index }: { item: AgentSession; onPress: () 
                 {item.status.toUpperCase()}
               </Text>
               <Text style={s.metaSep}>·</Text>
-              <Text style={s.metaText}>{item.agentType.toUpperCase()}</Text>
+              <Text style={s.metaText}>{(item.agentType || "—").toUpperCase()}</Text>
               <Text style={s.metaSep}>·</Text>
               <Text style={s.metaText}>{tokens}</Text>
               <Text style={s.metaSep}>·</Text>
@@ -158,6 +131,8 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         style={[s.emptyBtn, { borderColor: colors.accentBorder, backgroundColor: colors.accentMuted }]}
         onPress={onRetry}
         activeOpacity={0.7}
+        accessibilityLabel="Retry loading sessions"
+        accessibilityRole="button"
       >
         <Text style={[s.emptyBtnText, { color: colors.accent }]}>↻  RETRY</Text>
       </TouchableOpacity>
@@ -168,13 +143,16 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 // ── Swipe hint ─────────────────────────────────────────────────────────────
 function SwipeHint() {
   const op = useRef(new Animated.Value(0.3)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
   React.useEffect(() => {
-    Animated.loop(
+    loopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(op, { toValue: 0.9, duration: 900, useNativeDriver: true }),
         Animated.timing(op, { toValue: 0.3, duration: 900, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    loopRef.current.start();
+    return () => { loopRef.current?.stop(); };
   }, []);
   return (
     <Animated.View style={[s.swipeHint, { opacity: op }]}>
@@ -196,15 +174,12 @@ export default function SessionsScreen() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(false);
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 10_000);
     try {
       const data = await apiClient.getSessions();
       setSessions(data.sessions || []);
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") setError(true);
     } finally {
-      clearTimeout(timer);
       setLoading(false);
       setRefreshing(false);
     }
@@ -231,7 +206,7 @@ export default function SessionsScreen() {
               <Text style={s.activeText}>{activeCount} LIVE</Text>
             </View>
           )}
-          <TouchableOpacity style={s.newBtn} onPress={() => router.push("/new-session")} activeOpacity={0.7}>
+          <TouchableOpacity style={s.newBtn} onPress={() => router.push("/new-session")} activeOpacity={0.7} accessibilityLabel="New session" accessibilityRole="button">
             <Text style={s.newBtnText}>＋</Text>
           </TouchableOpacity>
         </View>
@@ -254,6 +229,12 @@ export default function SessionsScreen() {
           )}
           ItemSeparatorComponent={() => <View style={s.divider} />}
           ListEmptyComponent={<EmptyState onNew={() => router.push("/new-session")} />}
+          ListHeaderComponent={activeCount === 0 && sessions.length > 0 ? (
+            <View style={s.sectionRow}>
+              <Text style={s.sectionLabel}>RECENT</Text>
+              <View style={s.sectionLine} />
+            </View>
+          ) : null}
           ListFooterComponent={sessions.length > 0 ? <SwipeHint /> : null}
           refreshControl={
             <RefreshControl
@@ -337,6 +318,14 @@ const s = StyleSheet.create({
   swipeHint: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 18 },
   swipeArrow: { fontFamily: fonts.mono, fontSize: 14, color: colors.textTertiary },
   swipeText: { fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 2.2, color: colors.textTertiary, textTransform: "uppercase" },
+
+  // Section header
+  sectionRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: space.lg, paddingVertical: 10, gap: 10 },
+  sectionLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  sectionLabel: {
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 2.0,
+    color: colors.textTertiary, textTransform: "uppercase", flexShrink: 0,
+  },
 
   // Empty / error
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: space.xl },

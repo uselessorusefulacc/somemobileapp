@@ -23,8 +23,8 @@ export class CommandExecutor {
       case "resume":   this.resume();                                   break;
       case "kill":     this.kill();                                     break;
       case "compact":  this.compact();                                  break;
-      case "inject":   this.inject(cmd.params?.text as string);         break;
-      case "switch_model": this.switchModel(cmd.params?.model as string); break;
+      case "inject":   this.inject(String(cmd.params?.text ?? ""));     break;
+      case "switch_model": this.switchModel(String(cmd.params?.model ?? "")); break;
       case "status":   this.sendStatus();                               break;
       default: console.warn(`[Daemon] Unknown command: ${cmd.action}`);
     }
@@ -89,7 +89,9 @@ export class CommandExecutor {
     console.log("[Daemon] Sent /compact to agent stdin");
   }
 
-  private inject(text?: string) {
+  private inject(text: string) {
+    if (!text) return;
+    text = text.replace(/[^\x20-\x7E\n]/g, "").slice(0, 2000);
     if (!text) return;
     const stdin = this.child?.stdin;
     if (!stdin || !stdin.writable) {
@@ -103,7 +105,7 @@ export class CommandExecutor {
     });
   }
 
-  private switchModel(model?: string) {
+  private switchModel(model: string) {
     if (!model) return;
     console.log(`[Daemon] Model switch requested: ${model} (agent must support hot-switch)`);
     // Claude Code supports: /model <name>

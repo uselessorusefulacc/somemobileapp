@@ -2,6 +2,16 @@ import type { RelayClient } from "./relay-client";
 import { calculateCost, normalizeModel } from "./pricing";
 import type { TokenUsage } from "./types";
 
+function formatCost(c: number): string {
+  if (!Number.isFinite(c) || isNaN(c)) return "$0.00";
+  if (c <= 0) return "$0.00";
+  if (c < 0.0001) return `${(c * 1_000_000).toFixed(1)}μ`;
+  if (c < 0.001) return `${(c * 1_000).toFixed(2)}m`;
+  if (c < 1) return `$${c.toFixed(4)}`;
+  if (c < 100) return `$${c.toFixed(2)}`;
+  return `$${c.toFixed(0)}`;
+}
+
 const LLM_HOSTS = [
   "api.anthropic.com",
   "api.openai.com",
@@ -14,6 +24,15 @@ const LLM_HOSTS = [
   "api.perplexity.ai",
   "bedrock-runtime",
   "vertexai",
+  "api.x.ai",
+  "api.deepseek.com",
+  "api.github.com",
+  "api.copilot.microsoft.com",
+  "api.cerebras.ai",
+  "api.fireworks.ai",
+  "api.cloudflare.com",
+  "api.huggingface.co",
+  "inference.ai.azure.com",
 ];
 
 function isLLMHost(url: string): boolean {
@@ -30,7 +49,17 @@ function getUrl(input: RequestInfo | URL): string {
 function extractModelFromRequest(init?: RequestInit): string {
   try {
     if (!init?.body) return "unknown";
-    const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+    let bodyStr: string;
+    if (typeof init.body === "string") {
+      bodyStr = init.body;
+    } else if (init.body instanceof Buffer || init.body instanceof Uint8Array) {
+      bodyStr = Buffer.from(init.body).toString("utf-8");
+    } else if (typeof init.body === "object" && "toString" in init.body) {
+      bodyStr = init.body.toString();
+    } else {
+      return "unknown";
+    }
+    const body = JSON.parse(bodyStr);
     if (body?.model) return normalizeModel(body.model);
   } catch {}
   return "unknown";
@@ -45,28 +74,28 @@ function extractUsage(
 
   // Anthropic
   if (b.type === "message" && b.usage && typeof b.usage === "object") {
+    const model = normalizeModel(typeof b.model === "string" ? b.model : extractModelFromRequest(init));
     const u = b.usage as Record<string, unknown>;
-    const model = normalizeModel((b.model as string) || extractModelFromRequest(init));
-    const inputTokens = (u.input_tokens as number) || 0;
-    const outputTokens = (u.output_tokens as number) || 0;
+    const inputTokens = typeof u.input_tokens === "number" ? u.input_tokens : 0;
+    const outputTokens = typeof u.output_tokens === "number" ? u.output_tokens : 0;
     return {
       model,
       inputTokens,
       outputTokens,
       totalTokens: inputTokens + outputTokens,
-      cacheReadTokens: (u.cache_read_input_tokens as number) || 0,
-      cacheWriteTokens: (u.cache_creation_input_tokens as number) || 0,
+      cacheReadTokens: typeof u.cache_read_input_tokens === "number" ? u.cache_read_input_tokens : 0,
+      cacheWriteTokens: typeof u.cache_creation_input_tokens === "number" ? u.cache_creation_input_tokens : 0,
     };
   }
 
   // OpenAI / compatible
   if (b.usage && typeof b.usage === "object" && !("type" in b && b.type === "message")) {
+    const model = normalizeModel(typeof b.model === "string" ? b.model : extractModelFromRequest(init));
     const u = b.usage as Record<string, unknown>;
-    const model = normalizeModel((b.model as string) || extractModelFromRequest(init));
-    const inputTokens = (u.prompt_tokens as number) || 0;
-    const outputTokens = (u.completion_tokens as number) || 0;
+    const inputTokens = typeof u.prompt_tokens === "number" ? u.prompt_tokens : 0;
+    const outputTokens = typeof u.completion_tokens === "number" ? u.completion_tokens : 0;
     const details = u.prompt_tokens_details as Record<string, unknown> | undefined;
-    const cacheRead = (details?.cached_tokens as number) || 0;
+    const cacheRead = typeof details?.cached_tokens === "number" ? details.cached_tokens : 0;
     return {
       model,
       inputTokens,
@@ -80,9 +109,9 @@ function extractUsage(
   // Google Gemini
   if (b.usageMetadata && typeof b.usageMetadata === "object") {
     const u = b.usageMetadata as Record<string, unknown>;
-    const inputTokens = (u.promptTokenCount as number) || 0;
-    const outputTokens = (u.candidatesTokenCount as number) || 0;
-    const modelRaw = (b.modelVersion as string) || extractModelFromRequest(init) || "gemini-2-5-pro";
+    const inputTokens = typeof u.promptTokenCount === "number" ? u.promptTokenCount : 0;
+    const outputTokens = typeof u.candidatesTokenCount === "number" ? u.candidatesTokenCount : 0;
+    const modelRaw = typeof b.modelVersion === "string" ? b.modelVersion : extractModelFromRequest(init) || "gemini-2-5-pro";
     return {
       model: normalizeModel(modelRaw),
       inputTokens,
@@ -131,12 +160,12 @@ export function installInterceptors(relay: RelayClient, verbose = false) {
         relay.sendTokens(token);
         if (verbose) {
           console.log(
-            `[Daemon] tokens: ${usage.model} in=${usage.inputTokens} out=${usage.outputTokens} $${costUsd.toFixed(5)}`
+            `[Daemon] tokens: ${usage.model} in=${usage.inputTokens} out=${usage.outputTokens} ${formatCost(costUsd)}`
           );
         }
       }
-    } catch {
-      // Not an LLM JSON response — ignore
+    } catch (err) {
+      console.warn("[Interceptor] Response clone/parse error:", err);
     }
 
     return response;

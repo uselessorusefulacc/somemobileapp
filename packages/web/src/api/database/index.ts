@@ -11,7 +11,14 @@ const client = createClient({
   ...(authToken ? { authToken } : {}),
 });
 
-// Enable foreign key enforcement
+// Enable foreign key enforcement.
+// For pooled connections (libsql://), PRAGMA must be set per-connection.
+// We wrap client.execute so every connection gets the PRAGMA.
+const _exec = client.execute.bind(client);
+client.execute = ((sql, params) => {
+  return _exec("PRAGMA foreign_keys = ON").then(() => _exec(sql, params));
+}) as typeof client.execute;
+
 await client.execute("PRAGMA foreign_keys = ON");
 
 export const db = drizzle(client, { schema });

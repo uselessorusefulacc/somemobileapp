@@ -43,14 +43,24 @@ export const colors = {
   accentBorder: "rgba(255,136,0,0.28)",
 } as const;
 
-// ── Font families (loaded from assets/fonts/) ─────────────────────────────
+// ── Font families ─────────────────────────────────────────────────────────
+// Brand: Geist (Vercel) — futuristic terminal-grade sans
+// UI:     Inter    — optical-size-optimized for small UI labels/body
+// Code:   JetBrains Mono — terminal/IDE-grade monospace for code blocks
 export const fonts = {
+  // Primary — Geist
   sans: "Geist-Regular",
   sansMedium: "Geist-Medium",
   sansSemiBold: "Geist-SemiBold",
   sansBold: "Geist-Bold",
   mono: "GeistMono-Regular",
   monoMedium: "GeistMono-Medium",
+  // Secondary — Inter (better small-size readability for body UI)
+  ui: "Inter_400Regular",
+  uiMedium: "Inter_500Medium",
+  uiSemiBold: "Inter_600SemiBold",
+  // Code — JetBrains Mono (optimised for terminal/editor display)
+  code: "JetBrainsMono_400Regular",
 } as const;
 
 export const type = {
@@ -131,6 +141,32 @@ export const type = {
     lineHeight: 13,
     color: colors.accent,
     textTransform: "uppercase" as const,
+  },
+  // ── UI / body — Inter, tighter for small UI labels ───────────────────────
+  ui: {
+    fontFamily: fonts.ui,
+    fontSize: 12,
+    fontWeight: "400" as const,
+    letterSpacing: -0.05,
+    lineHeight: 17,
+    color: colors.text,
+  },
+  uiSmall: {
+    fontFamily: fonts.ui,
+    fontSize: 11,
+    fontWeight: "400" as const,
+    letterSpacing: 0,
+    lineHeight: 15,
+    color: colors.textSecondary,
+  },
+  // ── Code — JetBrains Mono for terminal output / code blocks ──────────────
+  code: {
+    fontFamily: fonts.code,
+    fontSize: 12,
+    fontWeight: "400" as const,
+    letterSpacing: 0,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   // ── Caption / micro ──────────────────────────────────────────────────────
   caption: {

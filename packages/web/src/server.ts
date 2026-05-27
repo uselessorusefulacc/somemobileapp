@@ -1,5 +1,8 @@
+import path from "path";
 import app from "./api";
+// WARN: monorepo-internal relative import — should use workspace protocol
 import { SessionManager } from "../../relay/src/session";
+// WARN: monorepo-internal relative import — should use workspace protocol
 import type { PeerRole } from "../../relay/src/types";
 
 const port = Number(process.env.PORT ?? 3000);
@@ -102,10 +105,15 @@ const server = Bun.serve<{ sessionId: string; role: PeerRole }>({
 console.log(`Web server listening on http://localhost:${server.port}`);
 console.log(`Relay WebSocket on ws://localhost:${server.port}/ws`);
 
-function getStaticFilePath(pathname: string) {
-  const cleanPath = decodeURIComponent(pathname)
-    .replace(/^\/+/, "")
-    .replaceAll("..", "");
+// Graceful shutdown
+process.on("SIGTERM", () => { console.log("SIGTERM received, shutting down…"); server.stop(); process.exit(0); });
+process.on("SIGINT", () => { console.log("SIGINT received, shutting down…"); server.stop(); process.exit(0); });
 
+function getStaticFilePath(pathname: string) {
+  const decoded = decodeURIComponent(pathname);
+  const cleanPath = path.normalize(decoded).replace(/^[/\\]+/, "");
+  if (cleanPath.startsWith("..") || cleanPath.includes(`..${path.sep}`)) {
+    return indexPath;
+  }
   return cleanPath ? `${distDir}/${cleanPath}` : indexPath;
 }

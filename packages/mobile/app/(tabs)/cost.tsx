@@ -9,13 +9,17 @@ import {
   Modal,
   Animated,
   TextInput,
+  Share,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiClient, type Analytics, type BudgetAlert, type BudgetConfig, type OptimizationTip } from "../../lib/api";
 import { colors, fonts, radius, space } from "../../lib/theme";
-import { formatCost, formatTokens } from "../../lib/format";
+import { formatCost, formatTokens, toNumber, costColor } from "../../lib/format";
 import { DotGrid } from "../../components/DotGrid";
+import { exportAllData } from "../../lib/export";
 
 // ── Provider colors ─────────────────────────────────────────────────────────
 const PROVIDER_COLORS: Record<string, string> = {
@@ -63,6 +67,10 @@ const PROVIDER_COLORS: Record<string, string> = {
 };
 
 // ── Full model pricing data ─────────────────────────────────────────────────
+// WARNING: Duplicated from packages/daemon/src/pricing.ts and
+// packages/web/src/api/index.ts. The daemon is the single source of truth.
+// When updating, update ALL THREE copies.
+// Use syncModels() to pull live pricing from the daemon API on mount.
 interface ModelPrice { in: number; out: number; provider: string; note?: string }
 
 const MODEL_PRICING: Record<string, ModelPrice> = {
@@ -249,6 +257,25 @@ const MODEL_PRICING: Record<string, ModelPrice> = {
   "nvidia/mistral-nemo-12b":    { in: 0.23,   out: 0.23,   provider: "nvidia"     },
 };
 
+// ── Sync from daemon ────────────────────────────────────────────────────────────
+// Fetches the latest pricing table from the daemon API to override the local cache.
+async function syncModels(): Promise<void> {
+  try {
+    const { API_BASE } = await import("../../lib/api");
+    const res = await fetch(`${API_BASE}/api/pricing`);
+    if (!res.ok) return;
+    const remote: { model: string; inputCostPer1M: number; outputCostPer1M: number }[] = await res.json();
+    for (const entry of remote) {
+      if (MODEL_PRICING[entry.model]) {
+        MODEL_PRICING[entry.model]!.in = entry.inputCostPer1M;
+        MODEL_PRICING[entry.model]!.out = entry.outputCostPer1M;
+      }
+    }
+  } catch {
+    console.warn("[CostScreen] syncModels failed");
+  }
+}
+
 // ── Provider display names ──────────────────────────────────────────────────
 const PROVIDER_DISPLAY: Record<string, string> = {
   openai: "OpenAI", anthropic: "Anthropic", google: "Google", groq: "Groq",
@@ -332,7 +359,7 @@ function ModelSheet({ visible, onClose }: { visible: boolean; onClose: () => voi
               <Text style={mo.sheetTitle}>MODEL PRICING</Text>
               <Text style={mo.sheetSub}>{Object.keys(MODEL_PRICING).length} models · {PROVIDER_GROUPS.length} providers</Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={16} activeOpacity={0.7} style={mo.closeBtn}>
+            <TouchableOpacity onPress={onClose} hitSlop={16} activeOpacity={0.7} style={mo.closeBtn} accessibilityLabel="Close pricing sheet" accessibilityRole="button">
               <Text style={mo.closeX}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -413,8 +440,11 @@ function ModelSheet({ visible, onClose }: { visible: boolean; onClose: () => voi
 // ── Animated bar ─────────────────────────────────────────────────────────────
 function AnimatedBar({ pct, color, delay = 0 }: { pct: number; color: string; delay?: number }) {
   const w = useRef(new Animated.Value(0)).current;
+  const barAnim = useRef<Animated.CompositeAnimation | null>(null);
   React.useEffect(() => {
-    Animated.timing(w, { toValue: pct, duration: 750, delay, useNativeDriver: false }).start();
+    barAnim.current = Animated.timing(w, { toValue: pct, duration: 750, delay, useNativeDriver: false });
+    barAnim.current.start();
+    return () => barAnim.current?.stop();
   }, [pct]);
   return (
     <View style={co.barTrack}>
@@ -436,7 +466,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
       <View style={co.errorIcon}><Text style={co.errorIconText}>!</Text></View>
       <Text style={co.errorLabel}>LOAD FAILED</Text>
       <Text style={co.errorSub}>Could not fetch cost data</Text>
-      <TouchableOpacity style={co.retryBtn} onPress={onRetry} activeOpacity={0.7}>
+      <TouchableOpacity style={co.retryBtn} onPress={onRetry} activeOpacity={0.7} accessibilityLabel="Retry loading cost data" accessibilityRole="button">
         <Text style={co.retryText}>↻  RETRY</Text>
       </TouchableOpacity>
     </View>
@@ -449,12 +479,15 @@ function StatChip({ label, value, color, delay = 0 }: { label: string; value: st
   const slideY    = useRef(new Animated.Value(14)).current;
   const chipScale = useRef(new Animated.Value(1)).current;
   const glowOp    = useRef(new Animated.Value(0)).current;
+  const entranceAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   React.useEffect(() => {
-    Animated.parallel([
+    entranceAnim.current = Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 450, delay, useNativeDriver: true }),
       Animated.spring(slideY,  { toValue: 0, delay, useNativeDriver: true, damping: 18, stiffness: 180 }),
-    ]).start();
+    ]);
+    entranceAnim.current.start();
+    return () => entranceAnim.current?.stop();
   }, []);
 
   const pressIn = () => {
@@ -492,13 +525,16 @@ function ModelRow({ model, cost, pct, pColor, isTop, index }: ModelRowProps) {
   const glowOp   = useRef(new Animated.Value(0)).current;
   const entryOp  = useRef(new Animated.Value(0)).current;
   const entryX   = useRef(new Animated.Value(12)).current;
+  const entranceAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   React.useEffect(() => {
     const delay = Math.min(index * 60, 400);
-    Animated.parallel([
+    entranceAnim.current = Animated.parallel([
       Animated.timing(entryOp, { toValue: 1, duration: 350, delay, useNativeDriver: true }),
       Animated.spring(entryX,  { toValue: 0, delay, useNativeDriver: true, damping: 22, stiffness: 200 }),
-    ]).start();
+    ]);
+    entranceAnim.current.start();
+    return () => entranceAnim.current?.stop();
   }, []);
 
   const pressIn = () => {
@@ -564,7 +600,9 @@ function BudgetSheet({ visible, current, onClose, onSaved }: {
       });
       onSaved(result);
       onClose();
-    } catch { /* ignore */ } finally {
+    } catch {
+      console.warn("[CostScreen] BudgetSheet save failed");
+    } finally {
       setSaving(false);
     }
   };
@@ -572,6 +610,7 @@ function BudgetSheet({ visible, current, onClose, onSaved }: {
   if (!visible) return null;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} enabled={Platform.OS === "ios"}>
       <TouchableOpacity style={co.sheetOverlay} activeOpacity={1} onPress={onClose} />
       <View style={co.budgetSheet}>
         <View style={co.sheetHandle} />
@@ -612,13 +651,14 @@ function BudgetSheet({ visible, current, onClose, onSaved }: {
           />
         </View>
 
-        <TouchableOpacity style={[co.sheetSaveBtn, saving && { opacity: 0.5 }]} onPress={save} disabled={saving} activeOpacity={0.8}>
+        <TouchableOpacity style={[co.sheetSaveBtn, saving && { opacity: 0.5 }]} onPress={save} disabled={saving} activeOpacity={0.8} accessibilityLabel="Save budget limits" accessibilityRole="button" accessibilityState={{ disabled: saving }}>
           <Text style={co.sheetSaveText}>{saving ? "SAVING..." : "SAVE LIMITS"}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={co.sheetCancelBtn} onPress={onClose} activeOpacity={0.7}>
+        <TouchableOpacity style={co.sheetCancelBtn} onPress={onClose} activeOpacity={0.7} accessibilityLabel="Cancel budget editing" accessibilityRole="button">
           <Text style={co.sheetCancelText}>CANCEL</Text>
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -636,22 +676,24 @@ export default function CostScreen() {
   const [optimizing, setOptimizing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [showBudget, setShowBudget] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [error, setError]           = useState(false);
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroSlide   = useRef(new Animated.Value(20)).current;
+  const loadId = useRef(0);
 
   const load = useCallback(async (silent = false) => {
+    const id = ++loadId.current;
     setError(false);
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 10_000);
     try {
       const [analyticsResult, alertsResult, sessionsResult] = await Promise.allSettled([
         apiClient.getAnalytics(),
         apiClient.getAlerts(),
         apiClient.getSessions(),
       ]);
+      if (loadId.current !== id) return;
       if (analyticsResult.status === "fulfilled") {
         setStats(analyticsResult.value);
         Animated.parallel([
@@ -684,7 +726,6 @@ export default function CostScreen() {
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") setError(true);
     } finally {
-      clearTimeout(timer);
       setRefreshing(false);
       setLastRefresh(new Date());
     }
@@ -705,7 +746,9 @@ export default function CostScreen() {
     try {
       await apiClient.applyOptimizationTip(tip.sessionId, tip.id);
       setTips(prev => prev.filter(t => t.id !== tip.id));
-    } catch { /* ignore */ } finally {
+    } catch {
+      console.warn("[CostScreen] applyTip failed");
+    } finally {
       setApplyingTip(null);
     }
   }, [applyingTip]);
@@ -726,7 +769,9 @@ export default function CostScreen() {
         );
         setTips([]);
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      console.warn("[CostScreen] applyAllTips failed");
+    } finally {
       setApplyingAll(false);
     }
   }, [applyingAll, tips]);
@@ -741,20 +786,37 @@ export default function CostScreen() {
         .slice(0, 6);
       await Promise.allSettled(active.map(s => apiClient.optimize(s.id)));
       await load(true);
-    } catch { /* ignore */ } finally {
+    } catch {
+      console.warn("[CostScreen] runOptimizeAll failed");
+    } finally {
       setOptimizing(false);
     }
   }, [optimizing, load]);
 
-  const totalCost   = parseFloat(String(stats?.totalCost   || "0"));
-  const todayCost   = parseFloat(String(stats?.dailyCost   || "0"));
-  const monthlyCost = parseFloat(String(stats?.monthlyCost || "0"));
-  const totalTokens = stats?.totalTokens || 0;
+  const handleExport = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const payload = await exportAllData();
+      const json = JSON.stringify(payload, null, 2);
+      if (Platform.OS === "web") {
+        await navigator.clipboard.writeText(json);
+      } else {
+        await Share.share({ message: json });
+      }
+    } catch {
+      console.warn("[CostScreen] handleExport failed");
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting]);
 
-  const heroCostColor =
-    totalCost > 50 ? colors.danger :
-    totalCost > 10 ? colors.warning :
-    colors.success;
+  const totalCost   = toNumber(stats?.totalCost);
+  const todayCost   = toNumber(stats?.dailyCost);
+  const monthlyCost = toNumber(stats?.monthlyCost);
+  const totalTokens = stats?.totalTokens ?? 0;
+
+  const heroCostColor = costColor(totalCost, [10, 50]);
 
   const sorted   = stats?.modelBreakdown
     ? [...stats.modelBreakdown].sort((a, b) => parseFloat(b.totalCost) - parseFloat(a.totalCost))
@@ -776,6 +838,9 @@ export default function CostScreen() {
           )}
         </View>
         <View style={co.topRight}>
+          <TouchableOpacity onPress={handleExport} disabled={exporting} style={co.exportBtn} activeOpacity={0.7}>
+            <Text style={co.exportBtnText}>{exporting ? "..." : "⬇ EXPORT"}</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowBudget(true)} style={co.budgetBtn} activeOpacity={0.7}>
             <Text style={co.budgetBtnText}>⚙ BUDGET</Text>
           </TouchableOpacity>
@@ -829,8 +894,8 @@ export default function CostScreen() {
                 {formatCost(totalCost)}
               </Text>
               <View style={co.heroRow}>
-                <StatChip label="TODAY"      value={formatCost(todayCost)}   color={todayCost > 1 ? colors.warning : colors.text} delay={0} />
-                <StatChip label="THIS MONTH" value={formatCost(monthlyCost)} color={monthlyCost > 10 ? colors.warning : colors.text} delay={80} />
+                <StatChip label="TODAY"      value={formatCost(todayCost)}   color={costColor(todayCost)} delay={0} />
+                <StatChip label="THIS MONTH" value={formatCost(monthlyCost)} color={costColor(monthlyCost, [10, 50])} delay={80} />
                 <StatChip label="TOKENS"     value={formatTokens(totalTokens)} delay={160} />
               </View>
             </Animated.View>
@@ -873,7 +938,7 @@ export default function CostScreen() {
                   </View>
                   <View style={co.effBarTrack}>
                     <View style={[co.effBarFill, {
-                      width: `${Math.round((stats.cacheHitRate ?? 0) * 100)}%` as any,
+                      width: `${Math.round((stats.cacheHitRate ?? 0) * 100)}%` as const,
                       backgroundColor: (stats.cacheHitRate ?? 0) > 0.5 ? colors.success : colors.accent,
                     }]} />
                   </View>
@@ -1001,6 +1066,15 @@ const co = StyleSheet.create({
     borderRadius: 3,
   },
   budgetBtnText: {
+    fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.3,
+    color: colors.textSecondary, textTransform: "uppercase",
+  },
+  exportBtn: {
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 8, paddingVertical: 5,
+    borderRadius: 3,
+  },
+  exportBtnText: {
     fontFamily: fonts.sansMedium, fontSize: 9, letterSpacing: 1.3,
     color: colors.textSecondary, textTransform: "uppercase",
   },

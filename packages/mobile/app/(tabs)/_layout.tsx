@@ -73,6 +73,9 @@ function TabItem({
         onPressIn={() => press(0.92)}
         onPressOut={() => press(1)}
         activeOpacity={1}
+        accessibilityLabel={`${label} tab`}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: focused }}
       >
         <Animated.View
           style={[st.pill, { backgroundColor: bgColor, borderColor }]}
@@ -94,7 +97,7 @@ function ScrubBar({ activeIdx }: { activeIdx: number }) {
   React.useEffect(() => {
     Animated.spring(pos, {
       toValue: activeIdx,
-      useNativeDriver: false,
+      useNativeDriver: true,
       speed: 40,
       bounciness: 6,
     }).start();
@@ -148,12 +151,14 @@ export default function TabLayout() {
     (i: number) => {
       if (i === activeIdx) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.replace(`/(tabs)/${TABS[i].name}` as any);
+      router.replace(`/(tabs)/${TABS[i].name}` as const);
     },
     [activeIdx, router]
   );
 
   // Swipe pan responder
+  const activeIdxRef = useRef(activeIdx);
+  activeIdxRef.current = activeIdx;
   const swipeRef = useRef({ startX: 0 });
   const panResponder = useRef(
     PanResponder.create({
@@ -165,12 +170,12 @@ export default function TabLayout() {
       },
       onPanResponderRelease: (_, g) => {
         if (Math.abs(g.dx) > 40) {
-          // dx < 0 → swipe left → next tab
+          const idx = activeIdxRef.current;
           const dir = g.dx < 0 ? 1 : -1;
-          const next = Math.max(0, Math.min(TABS.length - 1, activeIdx + dir));
-          if (next !== activeIdx) {
+          const next = Math.max(0, Math.min(TABS.length - 1, idx + dir));
+          if (next !== idx) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.replace(`/(tabs)/${TABS[next].name}` as any);
+            router.replace(`/(tabs)/${TABS[next].name}` as const);
           }
         }
       },

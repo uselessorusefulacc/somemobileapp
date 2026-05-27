@@ -2,9 +2,12 @@ node_modules/
 .expo/
 dist/
 build/
+.turbo/
 *.db
 *.db-shm
 *.db-wal
 .env
 .env.local
 .DS_Store
+audit-report.json
+budget.json.tmp

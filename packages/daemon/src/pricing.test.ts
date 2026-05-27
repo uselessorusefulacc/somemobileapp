@@ -1,25 +1,81 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeModel, calculateCost, PRICING_TABLE } from "./pricing";
+import { normalizeModel, calculateCost, PRICING_TABLE, ALIASES, CURSOR_OVERRIDES, getAllPricing } from "./pricing";
 
 describe("Pricing and Model Normalization", () => {
   test("exact matches should return the model name in lowercase", () => {
     expect(normalizeModel("GPT-4o")).toBe("gpt-4o");
     expect(normalizeModel("claude-sonnet-4-5")).toBe("claude-sonnet-4-5");
+    expect(normalizeModel("gpt-4.1-mini")).toBe("gpt-4.1-mini");
   });
 
-  test("fuzzy match stripping date suffixes", () => {
+  test("alias resolution", () => {
+    expect(normalizeModel("claude-opus")).toBe("claude-opus-4-5");
+    expect(normalizeModel("claude-sonnet")).toBe("claude-sonnet-4-5");
+    expect(normalizeModel("gpt4o")).toBe("gpt-4o");
+    expect(normalizeModel("gpt4")).toBe("gpt-4");
+    expect(normalizeModel("deepseek-chat")).toBe("deepseek-v3");
+    expect(normalizeModel("deepseek-reasoner")).toBe("deepseek-r1");
+    expect(normalizeModel("gemini-pro")).toBe("gemini-2-5-pro");
+    expect(normalizeModel("gemini-flash")).toBe("gemini-2-5-flash");
+  });
+
+  test("alias target must be in PRICING_TABLE", () => {
+    for (const [alias, target] of Object.entries(ALIASES)) {
+      expect(PRICING_TABLE[target]).toBeDefined();
+    }
+  });
+
+  test("version normalization (dash to dot)", () => {
+    expect(normalizeModel("claude-3-5-sonnet")).toBe("claude-3-5-sonnet-20241022");
+    expect(normalizeModel("gemini-2-5-pro")).toBe("gemini-2-5-pro");
+    expect(normalizeModel("gemini-2-0-flash")).toBe("gemini-2.0-flash");
+  });
+
+  test("provider prefix stripping", () => {
+    expect(normalizeModel("anthropic/claude-sonnet-4-5")).toBe("claude-sonnet-4-5");
+    expect(normalizeModel("openai/gpt-4o")).toBe("gpt-4o");
+    expect(normalizeModel("google/gemini-2.5-pro")).toBe("gemini-2.5-pro");
+    expect(normalizeModel("bedrock/claude-3-5-sonnet")).toBe("bedrock/claude-3-5-sonnet");
+    expect(normalizeModel("azure/gpt-4o-mini")).toBe("azure/gpt-4o-mini");
+  });
+
+  test("tier suffix stripping", () => {
+    expect(normalizeModel("gpt-4o-thinking")).toBe("gpt-4o");
+    expect(normalizeModel("claude-sonnet-4-5-high")).toBe("claude-sonnet-4-5");
+  });
+
+  test("date suffix stripping", () => {
     expect(normalizeModel("claude-3-5-sonnet-20241022")).toBe("claude-3-5-sonnet-20241022");
     expect(normalizeModel("gpt-4o-2024-11-20")).toBe("gpt-4o-2024-11-20");
   });
 
-  test("prefix matching should resolve to matching key", () => {
-    expect(normalizeModel("gpt-4o-mini-something")).toBe("gpt-4o-mini");
-    expect(normalizeModel("gemini-2-5-pro-latest")).toBe("gemini-2-5-pro");
+  test("dash-to-dot and vice versa", () => {
+    const n1 = normalizeModel("gpt-4o");
+    expect(n1).toBe("gpt-4o");
+    const n2 = normalizeModel("gemini-2.5-pro");
+    expect(n2).toBe("gemini-2.5-pro");
+    const n3 = normalizeModel("gemini-2-5-pro");
+    expect(n3).toBe("gemini-2-5-pro");
+  });
+
+  test("cursor overrides", () => {
+    expect(normalizeModel("gpt-4o-cursor-preview")).toBe("gpt-4o-cursor-preview");
+    expect(normalizeModel("cursor-fast")).toBe("cursor-fast");
+    expect(normalizeModel("claude-sonnet-cursor")).toBe("claude-sonnet-cursor");
   });
 
   test("fuzzy matching with contains fallback", () => {
-    // Should fallback to matching key contains or similar
     expect(normalizeModel("some-random-claude-opus-4-5")).toBe("claude-opus-4-5");
+    expect(normalizeModel("custom-gpt-4o-mini-xyz")).toBe("gpt-4o-mini");
+  });
+
+  test("unknown model returns as-is", () => {
+    expect(normalizeModel("super-expensive-nonexistent-model-xyz")).toBe("super-expensive-nonexistent-model-xyz");
+  });
+
+  test("prefixed slash models still work", () => {
+    expect(normalizeModel("openrouter/anthropic/claude-3.5-sonnet")).toBe("openrouter/anthropic/claude-3.5-sonnet");
+    expect(normalizeModel("vertex/gemini-2.5-pro")).toBe("vertex/gemini-2.5-pro");
   });
 
   test("calculateCost computes accurate pricing based on PRICING_TABLE", () => {
@@ -44,7 +100,7 @@ describe("Pricing and Model Normalization", () => {
     expect(cost2).toBe((2 * 2.5) + (0.5 * 10) + (4 * 1.25)); // 5 + 5 + 5 = 15
   });
 
-  test("calculateCost returns 0 for unknown models that cannot be normalized", () => {
+  test("calculateCost returns 0 for unknown models", () => {
     const cost = calculateCost("super-expensive-nonexistent-model-xyz", {
       inputTokens: 1000,
       outputTokens: 1000,
@@ -52,5 +108,36 @@ describe("Pricing and Model Normalization", () => {
       cacheWriteTokens: 0,
     });
     expect(cost).toBe(0);
+  });
+
+  test("calculateCost works via aliases", () => {
+    const usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 100_000,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    // deepseek-chat aliased to deepseek-v3: input 0.14, output 0.28
+    const cost = calculateCost("deepseek-chat", usage);
+    expect(cost).toBeCloseTo(0.14 + 0.028, 5);
+  });
+
+  test("getAllPricing returns all entries", () => {
+    const all = getAllPricing();
+    expect(all.length).toBe(Object.keys(PRICING_TABLE).length);
+    expect(all[0]).toHaveProperty("model");
+    expect(all[0]).toHaveProperty("inputCostPer1M");
+    expect(all[0]).toHaveProperty("outputCostPer1M");
+  });
+
+  test("PRICING_TABLE has all aliased targets", () => {
+    for (const target of Object.values(ALIASES)) {
+      expect(PRICING_TABLE[target]).toBeDefined();
+    }
+  });
+
+  test("dash variant and dot variant map to each other", () => {
+    expect(normalizeModel("gemini-2-5-flash")).toBe("gemini-2-5-flash");
+    expect(normalizeModel("gemini-2.5-flash")).toBe("gemini-2.5-flash");
   });
 });

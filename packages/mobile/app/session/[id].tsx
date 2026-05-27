@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -16,8 +16,10 @@ import { apiClient, type AgentSession, type TokenEvent } from "../../lib/api";
 import { useRelay } from "../../lib/relay-context";
 import type { TokenPayload, StatusPayload, OutputPayload, ToolCallPayload } from "../../lib/relay";
 import { colors, fonts, radius, space } from "../../lib/theme";
-import { formatCost, getStatusColor } from "../../lib/format";
+import { formatCost, getStatusColor, costColor as sharedCostColor } from "../../lib/format";
 import { useLiveAnalytics } from "../../hooks/use-live-analytics";
+import { PulseDot } from "../../components/PulseDot";
+import { StatCard } from "../../components/StatCard";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveLine {
@@ -25,36 +27,6 @@ interface LiveLine {
   text: string;
   ts: number;
   kind: "output" | "tool" | "status";
-}
-
-// ── Pulsing dot ───────────────────────────────────────────────────────────
-function PulseDot({ color, size = 6 }: { color: string; size?: number }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0.6)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(scale, { toValue: 2.2, duration: 900, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: 900, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.6, duration: 0, useNativeDriver: true }),
-        ]),
-        Animated.delay(500),
-      ])
-    ).start();
-  }, []);
-  return (
-    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View style={{
-        position: "absolute", width: size, height: size, borderRadius: size / 2,
-        backgroundColor: color, opacity, transform: [{ scale }],
-      }} />
-      <View style={{ width: size * 0.55, height: size * 0.55, borderRadius: size * 0.275, backgroundColor: color }} />
-    </View>
-  );
 }
 
 // ── Event row ─────────────────────────────────────────────────────────────
@@ -128,6 +100,9 @@ function CmdBtn({ label, color, onPress, disabled }: { label: string; color: str
       onPress={onPress}
       activeOpacity={0.65}
       disabled={disabled}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
     >
       <Text style={[d.cmdText, { color }]}>{label}</Text>
     </TouchableOpacity>
@@ -140,20 +115,9 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
     <View style={d.center}>
       <View style={d.errorIcon}><Text style={d.errorIconText}>!</Text></View>
       <Text style={d.errText}>LOAD FAILED</Text>
-      <TouchableOpacity onPress={onRetry} style={d.errBackBtn}>
+      <TouchableOpacity onPress={onRetry} style={d.errBackBtn} accessibilityLabel="Retry loading session" accessibilityRole="button">
         <Text style={d.errBackText}>↻  RETRY</Text>
       </TouchableOpacity>
-    </View>
-  );
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────
-function StatCard({ label, value, valueColor, accent }: { label: string; value: string; valueColor?: string; accent?: string }) {
-  return (
-    <View style={[d.statCard, accent && { borderColor: accent + "50" }]}>
-      {accent && <View style={[d.statCardGlow, { backgroundColor: accent + "0A" }]} />}
-      <Text style={d.statCardLabel}>{label}</Text>
-      <Text style={[d.statCardValue, valueColor && { color: valueColor }]}>{value}</Text>
     </View>
   );
 }
@@ -177,14 +141,13 @@ export default function SessionDetailScreen() {
   const [liveCost, setLiveCost] = useState(0);
   const [liveTokenEvents, setLiveTokenEvents] = useState<TokenPayload[]>([]);
   const liveScrollRef = useRef<ScrollView>(null);
+  const scrollThrottleRef = useRef<number | null>(null);
   const headerOpacity = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(async (silent = false) => {
     if (!id || id === "undefined") { setLoading(false); return; }
     if (!silent) setLoading(true);
     setError(false);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 12_000);
     try {
       const [sessionResult, eventsResult] = await Promise.allSettled([
         apiClient.getSession(id),
@@ -204,7 +167,6 @@ export default function SessionDetailScreen() {
         setError(true);
       }
     } finally {
-      clearTimeout(timer);
       setLoading(false);
       setRefreshing(false);
     }
@@ -214,11 +176,17 @@ export default function SessionDetailScreen() {
 
   // ── Wire relay ────────────────────────────────────────────────────────
   const optimizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const optimizeTimerStart = useRef(0);
   const scheduleOptimize = useCallback(() => {
     if (!id) return;
+    const now = Date.now();
+    const elapsed = now - optimizeTimerStart.current;
+    const remaining = 30_000 - elapsed;
+    if (optimizeTimerRef.current && remaining > 5_000) return;
     if (optimizeTimerRef.current) clearTimeout(optimizeTimerRef.current);
+    optimizeTimerStart.current = now;
     optimizeTimerRef.current = setTimeout(() => {
-      apiClient.optimize(id).catch(() => {}); // fire-and-forget
+      apiClient.optimize(id).catch(() => {});
     }, 30_000);
   }, [id]);
 
@@ -230,7 +198,10 @@ export default function SessionDetailScreen() {
         const next = [...prev, line];
         return next.length > 200 ? next.slice(next.length - 200) : next;
       });
-      setTimeout(() => liveScrollRef.current?.scrollToEnd({ animated: true }), 50);
+      scrollThrottleRef.current = requestAnimationFrame(() => {
+        scrollThrottleRef.current = null;
+        liveScrollRef.current?.scrollToEnd({ animated: true });
+      });
     };
     const onOutput = (p: OutputPayload) => addLine({ id: `o-${p.timestamp}-${Math.random()}`, text: p.line, ts: p.timestamp, kind: "output" });
     const onTokens = (p: TokenPayload) => {
@@ -257,6 +228,7 @@ export default function SessionDetailScreen() {
       client.off("status", onStatus);
       client.off("tool_call", onToolCall);
       if (optimizeTimerRef.current) clearTimeout(optimizeTimerRef.current);
+      if (scrollThrottleRef.current != null) cancelAnimationFrame(scrollThrottleRef.current);
     };
   }, [relay.client, scheduleOptimize]);
 
@@ -330,12 +302,9 @@ export default function SessionDetailScreen() {
   const statusColor = getStatusColor(effectiveStatus);
   const reversedEvents = useMemo(() => events.slice().reverse(), [events]);
   const relayConnected = relay.isConnected;
-  const { tips, burnRate, hourlyProjection } = useLiveAnalytics(liveTokenEvents);
+  const { tips, hourlyProjection } = useLiveAnalytics(liveTokenEvents);
 
-  const costColor =
-    totalCost > 1 ? colors.danger :
-    totalCost > 0.1 ? colors.warning :
-    colors.success;
+  const heroCostColor = sharedCostColor(totalCost);
 
   return (
     <View style={[d.root, { paddingBottom: insets.bottom }]}>
@@ -383,8 +352,8 @@ export default function SessionDetailScreen() {
 
           <View style={d.costRow}>
             <Text style={[d.heroCost, {
-              color: costColor,
-              textShadowColor: costColor + "60",
+              color: heroCostColor,
+              textShadowColor: heroCostColor + "60",
               textShadowOffset: { width: 0, height: 0 },
               textShadowRadius: 16,
             }]}>
@@ -624,14 +593,6 @@ const d = StyleSheet.create({
 
   // Stat cards
   statGrid: { flexDirection: "row", gap: 8, paddingHorizontal: space.md, marginBottom: space.sm },
-  statCard: {
-    flex: 1, backgroundColor: colors.surfaceRaised,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
-    padding: 10, minHeight: 58, justifyContent: "space-between", overflow: "hidden",
-  },
-  statCardGlow: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.sm },
-  statCardLabel: { fontFamily: fonts.sansMedium, fontSize: 7, letterSpacing: 1.6, color: colors.textTertiary, textTransform: "uppercase" },
-  statCardValue: { fontFamily: fonts.sans, fontSize: 15, fontWeight: "300", letterSpacing: -0.5, color: colors.text },
 
   // Warn
   warn: {

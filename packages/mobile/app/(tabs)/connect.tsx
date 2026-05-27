@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,50 +8,16 @@ import {
   ActivityIndicator,
   Dimensions,
 } from "react-native";
+import Constants from "expo-constants";
 import { CameraView, Camera } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRelay } from "../../lib/relay-context";
 import { colors, fonts, space, type as t, radius } from "../../lib/theme";
 import { DotGrid } from "../../components/DotGrid";
-
-const RELAY_URL = "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws";
+import { PulseDot } from "../../components/PulseDot";
+import { getRelayUrl, loadSettings } from "../../lib/settings";
 const { width: SW, height: SH } = Dimensions.get("window");
 const FRAME = Math.min(SW * 0.62, 260);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function PulseDot({ color }: { color: string }) {
-  const scale   = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(600),
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 2.4, duration: 800, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0,   duration: 800, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scale,   { toValue: 1, duration: 0, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 1, duration: 0, useNativeDriver: true }),
-        ]),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, []);
-  return (
-    <View style={{ width: 10, height: 10, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View style={{
-        position: "absolute", width: 8, height: 8, borderRadius: 4,
-        backgroundColor: color, transform: [{ scale }], opacity,
-      }} />
-      <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: color }} />
-    </View>
-  );
-}
 
 /** Corner brackets for scanner viewfinder */
 function ScanFrame() {
@@ -176,8 +142,11 @@ export default function ConnectScreen() {
 
   // Keep phase in sync with relay
   useEffect(() => {
-    if (relay.isConnected && phase !== "connected") setPhase("connected");
-    if (!relay.isConnected && phase === "connected") setPhase("idle");
+    setPhase(prev => {
+      if (relay.isConnected && prev !== "connected") return "connected";
+      if (!relay.isConnected && prev === "connected") return "idle";
+      return prev;
+    });
   }, [relay.isConnected]);
 
   // ── fade-in ───────────────────────────────────────────────────────────────
@@ -194,16 +163,17 @@ export default function ConnectScreen() {
     setPhase("scanning");
   }, []);
 
-  const onScanned = useCallback((data: string) => {
+  const onScanned = useCallback(async (data: string) => {
     setPhase("connecting");
     try {
       const url = new URL(data);
       const id  = url.searchParams.get("session");
       if (!id) throw new Error("No session ID in QR");
       const baseRelay = `${url.protocol}//${url.host}${url.pathname}`;
-      relay.connect(id, baseRelay || RELAY_URL);
-    } catch (e: any) {
-      setError(`Invalid QR — ${e.message}`);
+      const settings = await loadSettings();
+      relay.connect(id, baseRelay || getRelayUrl(settings));
+    } catch (e: unknown) {
+      setError(`Invalid QR — ${e instanceof Error ? e.message : String(e)}`);
       setPhase("idle");
     }
   }, [relay]);

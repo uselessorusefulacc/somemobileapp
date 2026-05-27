@@ -43,7 +43,7 @@ export interface CommandPayload {
 type RelayEventMap = {
   connected: () => void;
   disconnected: (reason: string) => void;
-  error: (err: Event) => void;
+  error: (err: Error) => void;
   tokens: (payload: TokenPayload) => void;
   status: (payload: StatusPayload) => void;
   tool_call: (payload: ToolCallPayload) => void;
@@ -64,10 +64,13 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private closed = false;
 
-  constructor(sessionId: string, relayUrl: string = "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws") {
+  private heartbeatIntervalMs: number;
+
+  constructor(sessionId: string, relayUrl?: string, heartbeatIntervalMs: number = 15000) {
     super();
     this.sessionId = sessionId;
-    this.relayUrl = relayUrl;
+    this.relayUrl = relayUrl ?? "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws";
+    this.heartbeatIntervalMs = heartbeatIntervalMs;
   }
 
   get isConnected() {
@@ -76,8 +79,11 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
 
   connect() {
     if (this.closed) return;
-    const url = `${this.relayUrl}?session=${this.sessionId}&role=phone`;
-    console.log(`[RelayClient] Connecting: ${url}`);
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    const url = `${this.relayUrl}?session=${encodeURIComponent(this.sessionId)}&role=phone`;
+    console.log(`[RelayClient] Connecting...`);
 
     this.ws = new WebSocket(url);
 
@@ -89,13 +95,20 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
       this.startHeartbeat();
     };
 
+    const VALID_EVENTS = new Set(["tokens", "status", "tool_call", "agent_info", "output", "peer_connected", "peer_disconnected"]);
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data as string);
         if (msg.type === "pong") return;
-        this.emit(msg.type as keyof RelayEventMap, msg.payload);
-      } catch (e) {
+        if (VALID_EVENTS.has(msg.type)) {
+          this.emit(msg.type as keyof RelayEventMap, msg.payload);
+        } else {
+          console.warn("[RelayClient] Unknown message type:", msg.type);
+        }
+      } catch {
+        const err = new Error("Malformed relay message");
         console.warn("[RelayClient] Malformed message:", event.data);
+        this.emit("error", err);
       }
     };
 
@@ -106,13 +119,15 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
       this.scheduleReconnect();
     };
 
-    this.ws.onerror = (error) => {
-      console.error("[RelayClient] WebSocket error:", error);
-      this.emit("error", error);
+    this.ws.onerror = () => {
+      const err = new Error("WebSocket connection failed");
+      console.error("[RelayClient] WebSocket error:", err.message);
+      this.emit("error", err);
     };
   }
 
   send(type: string, payload: unknown) {
+    if (this.closed) return;
     const msg = JSON.stringify({ type, payload, timestamp: Date.now() });
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(msg);
@@ -127,11 +142,11 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
   }
 
   sendInject(text: string) {
-    this.send("command", { action: "inject", params: { text } });
+    this.sendCommand("inject", { text });
   }
 
   sendKill() {
-    this.send("command", { action: "kill", params: {} });
+    this.sendCommand("kill");
   }
 
   disconnect() {
@@ -156,6 +171,9 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
 
   private scheduleReconnect() {
     if (this.closed) return;
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
     const baseDelay = Math.min(1000 * 2 ** this.reconnectAttempt, 30000);
     const jitter = baseDelay * 0.2 * (Math.random() - 0.5);
     const delay = Math.max(1000, baseDelay + jitter);
@@ -171,7 +189,7 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
       } else {
         this.stopHeartbeat();
       }
-    }, 30000);
+    }, this.heartbeatIntervalMs);
   }
 
   private stopHeartbeat() {

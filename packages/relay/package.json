@@ -1,13 +1,14 @@
 {
   "name": "@agentpilot/relay",
   "version": "1.0.0",
-  "private": true,
+  "publishConfig": { "access": "public" },
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/relay.ts",
     "start": "bun src/relay.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test src/**/*.test.ts"
+    "test": "bun test src/**/*.test.ts --ignore dist",
+    "build": "tsc"
   },
   "dependencies": {
     "uuid": "^9.0.1"

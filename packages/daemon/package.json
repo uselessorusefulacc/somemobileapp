@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "bun --watch src/daemon.ts",
-    "build": "tsc && find dist -name '*.js' -exec perl -i -pe \"s|from '(\\./[^']*?)(?<!\\.js)'|from '\\1.js'|g; s|from \\\"(\\./[^\\\"]*?)(?<!\\.js)\\\"|from \\\"\\1.js\\\"|g; s|from '(\\.\\./[^']*?)(?<!\\.js)'|from '\\1.js'|g\" {} \\;",
+    "build": "tsc && node scripts/fix-extensions.js",
     "prepublishOnly": "bun run build",
     "start": "bun src/daemon.ts",
     "typecheck": "tsc --noEmit",
