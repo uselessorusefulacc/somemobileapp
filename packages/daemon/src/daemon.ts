@@ -10,7 +10,7 @@ import { parseLine } from "./stdout-parser.js";
 import { calculateCost, normalizeModel } from "./pricing.js";
 import { redactSensitive } from "./logger.js";
 import { validateConfig, loadConfig } from "./config.js";
-import { generateInitScript, writeActiveSession, clearActiveSession } from "./shell-integration.js";
+import { generateInitScript, generatePowershellInitScript, writeActiveSession, clearActiveSession } from "./shell-integration.js";
 import type { AgentInfo, TokenUsage } from "./types.js";
 // @ts-ignore
 import qrcode from "qrcode-terminal";
@@ -311,6 +311,13 @@ program
   .description("Print shell integration script — add `eval \"$(mafa init)\"` to ~/.bashrc or ~/.zshrc")
   .action(() => {
     console.log(generateInitScript());
+  });
+
+program
+  .command("init-powershell")
+  .description("Print PowerShell integration script — add `mafa init-powershell | Add-Content $PROFILE`")
+  .action(() => {
+    console.log(generatePowershellInitScript());
   });
 
 program

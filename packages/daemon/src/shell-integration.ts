@@ -32,6 +32,63 @@ export async function clearActiveSession(): Promise<void> {
   }
 }
 
+export function generatePowershellInitScript(): string {
+  const psPath = SESSION_FILE;
+  return `<#
+.SYNOPSIS
+    MAFA PowerShell integration — auto-track agent commands from any terminal
+.DESCRIPTION
+    Add to your PowerShell profile:
+      mafa init-powershell | Add-Content $PROFILE
+    
+    Then just type claude/codex/gemini/opencode normally.
+    No more copying session UUIDs or wrapping every command manually.
+#>
+
+$script:mafaSessionFile = "${psPath}"
+
+# Resolve real command paths once (avoids recursion)
+$script:mafaRealPaths = @{}
+@("claude","codex","gemini","opencode") | ForEach-Object {
+  $cmd = Get-Command $_ -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { $script:mafaRealPaths[$_] = $cmd.Source }
+}
+
+function global:claude {
+  if (Test-Path $script:mafaSessionFile) {
+    $sid = (Get-Content $script:mafaSessionFile -Raw).Trim()
+    if ($sid) { return mafa run -s $sid -- claude @args }
+  }
+  if ($script:mafaRealPaths["claude"]) { & $script:mafaRealPaths["claude"] @args }
+  else { throw "claude not found — install it or add its location to PATH" }
+}
+function global:codex {
+  if (Test-Path $script:mafaSessionFile) {
+    $sid = (Get-Content $script:mafaSessionFile -Raw).Trim()
+    if ($sid) { return mafa run -s $sid -- codex @args }
+  }
+  if ($script:mafaRealPaths["codex"]) { & $script:mafaRealPaths["codex"] @args }
+  else { throw "codex not found" }
+}
+function global:gemini {
+  if (Test-Path $script:mafaSessionFile) {
+    $sid = (Get-Content $script:mafaSessionFile -Raw).Trim()
+    if ($sid) { return mafa run -s $sid -- gemini @args }
+  }
+  if ($script:mafaRealPaths["gemini"]) { & $script:mafaRealPaths["gemini"] @args }
+  else { throw "gemini not found" }
+}
+function global:opencode {
+  if (Test-Path $script:mafaSessionFile) {
+    $sid = (Get-Content $script:mafaSessionFile -Raw).Trim()
+    if ($sid) { return mafa run -s $sid -- opencode @args }
+  }
+  if ($script:mafaRealPaths["opencode"]) { & $script:mafaRealPaths["opencode"] @args }
+  else { throw "opencode not found" }
+}
+`;
+}
+
 export function generateInitScript(): string {
   // Use POSIX-style path for cross-shell compatibility (bash/zsh on any OS)
   const posixPath = SESSION_FILE.replace(/\\/g, "/");

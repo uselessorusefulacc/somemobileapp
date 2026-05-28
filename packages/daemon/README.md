@@ -27,30 +27,40 @@ bun add -g mafa-daemon
 
 ## Usage
 
-### 1. Wrap mode (recommended)
+### 🚀 Shell integration (recommended — zero-friction)
 
-Wrap your agent command — daemon spawns it, intercepts all output:
+Set it up once, then just type agent commands normally:
 
 ```bash
-# Get session ID from MAFA mobile app, then:
-mafa run -s <session-uuid> -- claude "fix my tests"
-mafa run -s <session-uuid> -- aider --model claude-3-5-sonnet-20241022
-mafa run -s <session-uuid> -- codex "refactor this module"
-mafa run -s <session-uuid> -- gemini
-mafa run -s <session-uuid> -- opencode
+# bash/zsh
+echo 'eval "$(mafa init)"' >> ~/.zshrc
+
+# PowerShell
+mafa init-powershell | Add-Content $PROFILE
 ```
 
-### 2. Attach mode
+Then daily:
 
-Attach to an already-running agent by scanning your process tree:
+```bash
+mafa pair          # scan QR from phone — session auto-saves
+claude "fix this"  # just works
+opencode "refactor" # just works
+```
+
+### Manual wrap mode
+
+```bash
+mafa run -s <session-uuid> -- claude "fix my tests"
+mafa run -s <session-uuid> -- aider --model claude-3-5-sonnet-20241022
+```
+
+### Attach mode (already-running agent)
 
 ```bash
 mafa attach -s <session-uuid>
 ```
 
-### 3. Detect only
-
-See what agents are running right now:
+### Detect only
 
 ```bash
 mafa detect
@@ -59,10 +69,9 @@ mafa detect
 ## Options
 
 ```
--s, --session <uuid>   Session ID from MAFA app (required)
 -r, --relay <url>      Relay WebSocket URL (default: ws://localhost:8080)
-                       Set MAFA_RELAY env var to override globally
 -v, --verbose          Verbose logging
+--restart              Auto-restart child on non-zero exit (experimental)
 ```
 
 ## How it works

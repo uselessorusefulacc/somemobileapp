@@ -46,42 +46,40 @@ MAFA gives developers full visibility into what their AI coding agents (Claude C
 
 ## Quick start
 
-### 1. Start the relay server
+### One-time shell setup
 
+**bash/zsh (Linux, macOS):**
 ```bash
-cd packages/relay
-bun install
-bun run dev        # ws://localhost:8082
+echo 'eval "$(mafa init)"' >> ~/.zshrc
 ```
 
-### 2. Start the mobile app
-
-```bash
-cd packages/mobile
-bun install
-bun run dev        # Expo development server
+**PowerShell (Windows):**
+```powershell
+mafa init-powershell | Add-Content $PROFILE
 ```
 
-Open the Expo Go app on your phone and scan the QR code.
+This creates wrapper functions for `claude`, `codex`, `gemini`, `opencode` that auto-track through MAFA whenever you run them.
 
-### 3. Connect your agent
+### Daily use — 2 steps
 
-In the mobile app, go to **Connect** → create a session → copy the daemon command.
-
-On the laptop running your agent:
-
+**Step 1 — Pair your phone:**
 ```bash
-npx mafa-daemon --session <uuid>
+mafa pair
+```
+Prints a QR code — scan it with the MAFA app on your phone. The session auto-saves to `~/.mafa/active-session`.
+
+**Step 2 — Run your agent normally:**
+```bash
+claude "fix my tests"
+# or
+opencode "refactor this"
+# or
+gemini "write a unit test"
 ```
 
-Or run locally:
+That's it. MAFA intercepts every LLM call and streams cost, tokens, and tool usage to your phone live.
 
-```bash
-cd packages/daemon
-bun run dev --session <uuid>
-```
-
-Your phone now receives live token events from every LLM call your agent makes.
+> No `-s <uuid>`, no `--`, no wrapping commands manually. Just type what you'd normally type.
 
 ## Packages
 
@@ -96,15 +94,45 @@ Your phone now receives live token events from every LLM call your agent makes.
 ## Daemon CLI
 
 ```bash
-npx mafa-daemon [options]
+mafa [command]
 
-Options:
-  -s, --session <uuid>  Session ID to pair with mobile
-  -r, --relay <url>     Relay URL (default: ws://localhost:8082)
-  -v, --verbose         Enable verbose logging
+Commands:
+  pair              Create session, print QR, auto-save for shell integration
+  run               Wrap and monitor an agent command (advanced/manual use)
+  attach            Auto-detect a running agent and monitor it
+  init              Print bash/zsh integration script
+  init-powershell   Print PowerShell integration script
+  activate <uuid>   Set active session for auto-tracking
+  deactivate        Clear active session
+  detect            Scan for running agents
 ```
 
-The daemon monkey-patches the global `fetch()` to intercept LLM API responses from OpenAI, Anthropic, and Gemini. No code changes in your agent required.
+**The daemon intercepts every LLM API call your agent makes** — no code changes required.
+
+### Shell integration (recommended)
+
+```bash
+# bash/zsh
+eval "$(mafa init)"    # then add to ~/.bashrc
+
+# PowerShell
+mafa init-powershell | Add-Content $PROFILE   # then reload $PROFILE
+```
+
+Once set up, any `claude`, `codex`, `gemini`, or `opencode` command is automatically wrapped with the active session. Run `mafa pair` → scan QR → then just type agent commands normally.
+
+### Manual usage
+
+```bash
+# With shell integration, just activate a session:
+mafa activate <uuid>
+
+# Or specify inline (no shell integration needed):
+mafa run -s <uuid> -- claude "fix my tests"
+
+# Use a different relay:
+mafa run -s <uuid> -r ws://my-relay.fly.dev -- claude "fix my tests"
+```
 
 ## Relay server
 
@@ -149,14 +177,14 @@ pm2 start src/relay.ts --interpreter bun --name mafa-relay
 # Root install
 bun install
 
-# Start all packages (root)
-bun run dev
-
-# Individual packages
+# Start the relay
 cd packages/relay && bun run dev
-cd packages/daemon && bun run dev --session <uuid>
+
+# Start the mobile app (Expo)
 cd packages/mobile && bun run dev
-cd packages/api && bun run dev
+
+# Build & test the daemon
+cd packages/daemon && bun test && bun run typecheck
 ```
 
 ## Type checking
@@ -166,6 +194,13 @@ cd packages/relay && bun run typecheck   # clean
 cd packages/daemon && bun run typecheck  # clean
 cd packages/mobile && bun run typecheck  # clean
 cd packages/api && bun run typecheck     # known issues
+```
+
+## Running tests
+
+```bash
+cd packages/daemon && bun test     # 54+ tests
+cd packages/web && bun test        # 4+ tests
 ```
 
 ## Why it matters
