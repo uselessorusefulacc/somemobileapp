@@ -10,6 +10,7 @@ import { parseLine } from "./stdout-parser.js";
 import { calculateCost, normalizeModel } from "./pricing.js";
 import { redactSensitive } from "./logger.js";
 import { validateConfig, loadConfig } from "./config.js";
+import { generateInitScript, writeActiveSession, clearActiveSession } from "./shell-integration.js";
 import type { AgentInfo, TokenUsage } from "./types.js";
 // @ts-ignore
 import qrcode from "qrcode-terminal";
@@ -212,9 +213,19 @@ program
     let phoneConnected = false;
 
     relay.onCommand(() => {}); // Required to arm the message handler
-    relay.onPeerConnected(() => {
+    relay.onPeerConnected(async () => {
       phoneConnected = true;
-      console.log("\n  ✓ Phone connected! Pairing complete. Exiting...");
+      console.log("\n  ✓ Phone connected! Pairing complete.\n");
+      await writeActiveSession(id);
+      console.log("  ┌─────────────────────────────────────────────────────────────┐");
+      console.log("  │ 🔗 MAFA is now linked to this session.                      │");
+      console.log("  │                                                             │");
+      console.log("  │  Just type claude/codex/gemini/opencode normally in your    │");
+      console.log("  │  terminal — MAFA will auto-track it on your phone.          │");
+      console.log("  │                                                             │");
+      console.log("  │  Add to your shell for future sessions:                     │");
+      console.log('  │    eval "$(mafa init)"  →  add to ~/.bashrc / ~/.zshrc      │');
+      console.log("  └─────────────────────────────────────────────────────────────┘\n");
       clearTimeout(pairTimeout);
       setTimeout(() => { relay.close(); process.exit(0); }, 500);
     });
@@ -292,6 +303,37 @@ program
       });
     }
     process.exit(0);
+  });
+
+// ── Shell integration ──────────────────────────────────────────────────
+program
+  .command("init")
+  .description("Print shell integration script — add `eval \"$(mafa init)\"` to ~/.bashrc or ~/.zshrc")
+  .action(() => {
+    console.log(generateInitScript());
+  });
+
+program
+  .command("activate")
+  .description("Set the active session for auto-tracking (saved to ~/.mafa/active-session)")
+  .argument("<uuid>", "Session UUID from the mobile app")
+  .action(async (uuid: string) => {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(uuid)) {
+      console.error(`[MAFA] Invalid session UUID: "${uuid}"`);
+      process.exit(1);
+    }
+    await writeActiveSession(uuid);
+    console.log(`[MAFA] Active session set to ${uuid}`);
+    console.log(`[MAFA] Now just type claude/codex/gemini/opencode normally — MAFA will auto-track it.`);
+  });
+
+program
+  .command("deactivate")
+  .description("Clear the active session — stop auto-tracking")
+  .action(async () => {
+    await clearActiveSession();
+    console.log("[MAFA] Active session cleared. Agent commands will run without MAFA tracking.");
   });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
