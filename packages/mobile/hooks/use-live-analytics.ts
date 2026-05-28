@@ -50,9 +50,12 @@ export function useLiveAnalytics(events: TokenPayload[]) {
       });
     }
 
-    // Expensive model overuse — threshold-based ($5+/M input tokens)
-    const expensiveModels = ["claude-opus-4-5", "o3", "gemini-2-5-pro"];
-    const expensiveCount = last5Min.filter((e) => expensiveModels.includes(e.model)).length;
+    // Expensive model overuse — cost-per-token threshold ($5+/M input tokens ≈ ~$0.0025 per 500-token call)
+    const expensiveCount = last5Min.filter((e) => {
+      const total = e.inputTokens + e.outputTokens;
+      if (total === 0) return false;
+      return (e.costUsd / total) * 1_000_000 > 5;
+    }).length;
     if (expensiveCount >= 3) {
       tips.push({
         category: "model",

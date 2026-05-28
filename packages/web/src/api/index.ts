@@ -74,49 +74,78 @@ async function saveBudget(cfg: BudgetConfig): Promise<void> {
 // Fix #70: use canonical model IDs (hyphens) everywhere
 const MODEL_PRICING: Record<string, { provider: string; displayName: string; inputCostPer1M: number; outputCostPer1M: number; cacheReadCostPer1M: number; cacheWriteCostPer1M: number }> = {
   // ── OpenAI ────────────────────────────────────────────────────────────────
-  "gpt-4.1":            { provider: "openai",    displayName: "GPT-4.1",           inputCostPer1M: 2.0,  outputCostPer1M: 8.0,  cacheReadCostPer1M: 1.0,    cacheWriteCostPer1M: 0 },
-  "gpt-4.1-mini":       { provider: "openai",    displayName: "GPT-4.1 mini",      inputCostPer1M: 0.4,  outputCostPer1M: 1.6,  cacheReadCostPer1M: 0.2,    cacheWriteCostPer1M: 0 },
-  "gpt-4.1-nano":       { provider: "openai",    displayName: "GPT-4.1 nano",      inputCostPer1M: 0.1,  outputCostPer1M: 0.4,  cacheReadCostPer1M: 0.05,   cacheWriteCostPer1M: 0 },
+  "gpt-5.5":            { provider: "openai",    displayName: "GPT-5.5",           inputCostPer1M: 5.0,  outputCostPer1M: 30,   cacheReadCostPer1M: 2.5,    cacheWriteCostPer1M: 0 },
+  "gpt-5.4":            { provider: "openai",    displayName: "GPT-5.4",           inputCostPer1M: 2.5,  outputCostPer1M: 15,   cacheReadCostPer1M: 1.25,   cacheWriteCostPer1M: 0 },
   "gpt-4o":             { provider: "openai",    displayName: "GPT-4o",            inputCostPer1M: 2.5,  outputCostPer1M: 10,   cacheReadCostPer1M: 1.25,   cacheWriteCostPer1M: 0 },
   "gpt-4o-mini":        { provider: "openai",    displayName: "GPT-4o mini",       inputCostPer1M: 0.15, outputCostPer1M: 0.6,  cacheReadCostPer1M: 0.075,  cacheWriteCostPer1M: 0 },
-  "gpt-4-turbo":        { provider: "openai",    displayName: "GPT-4 Turbo",       inputCostPer1M: 10,   outputCostPer1M: 30,   cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
-  "gpt-4":              { provider: "openai",    displayName: "GPT-4",             inputCostPer1M: 30,   outputCostPer1M: 60,   cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
   "o1":                 { provider: "openai",    displayName: "o1",                inputCostPer1M: 15,   outputCostPer1M: 60,   cacheReadCostPer1M: 7.5,    cacheWriteCostPer1M: 0 },
   "o1-mini":            { provider: "openai",    displayName: "o1-mini",           inputCostPer1M: 3,    outputCostPer1M: 12,   cacheReadCostPer1M: 1.5,    cacheWriteCostPer1M: 0 },
   "o3":                 { provider: "openai",    displayName: "o3",                inputCostPer1M: 10,   outputCostPer1M: 40,   cacheReadCostPer1M: 2.5,    cacheWriteCostPer1M: 0 },
   "o3-mini":            { provider: "openai",    displayName: "o3-mini",           inputCostPer1M: 1.1,  outputCostPer1M: 4.4,  cacheReadCostPer1M: 0.55,   cacheWriteCostPer1M: 0 },
   "o4-mini":            { provider: "openai",    displayName: "o4-mini",           inputCostPer1M: 1.1,  outputCostPer1M: 4.4,  cacheReadCostPer1M: 0.275,  cacheWriteCostPer1M: 0 },
+  "o3-pro":             { provider: "openai",    displayName: "o3-pro",            inputCostPer1M: 20,   outputCostPer1M: 80,   cacheReadCostPer1M: 5.0,    cacheWriteCostPer1M: 0 },
+  "gpt-5.3-codex":      { provider: "openai",    displayName: "GPT-5.3 Codex",     inputCostPer1M: 1.75, outputCostPer1M: 14,   cacheReadCostPer1M: 0.175,  cacheWriteCostPer1M: 0 },
+  "gpt-5.2-codex":      { provider: "openai",    displayName: "GPT-5.2 Codex",     inputCostPer1M: 1.75, outputCostPer1M: 14,   cacheReadCostPer1M: 0.175,  cacheWriteCostPer1M: 0 },
+  "gpt-5.1-codex":      { provider: "openai",    displayName: "GPT-5.1 Codex",     inputCostPer1M: 1.25, outputCostPer1M: 10,   cacheReadCostPer1M: 0.125,  cacheWriteCostPer1M: 0 },
   // ── Anthropic ─────────────────────────────────────────────────────────────
+  "claude-opus-4-7":    { provider: "anthropic", displayName: "Claude Opus 4.7",   inputCostPer1M: 5,    outputCostPer1M: 25,   cacheReadCostPer1M: 0.5,    cacheWriteCostPer1M: 6.25 },
   "claude-opus-4":      { provider: "anthropic", displayName: "Claude Opus 4",     inputCostPer1M: 15,   outputCostPer1M: 75,   cacheReadCostPer1M: 1.5,    cacheWriteCostPer1M: 18.75 },
   "claude-opus-4-5":    { provider: "anthropic", displayName: "Claude Opus 4.5",  inputCostPer1M: 15,   outputCostPer1M: 75,   cacheReadCostPer1M: 1.5,    cacheWriteCostPer1M: 18.75 },
+  "claude-sonnet-4-6":  { provider: "anthropic", displayName: "Claude Sonnet 4.6", inputCostPer1M: 3,    outputCostPer1M: 15,   cacheReadCostPer1M: 0.3,    cacheWriteCostPer1M: 3.75 },
   "claude-sonnet-4":    { provider: "anthropic", displayName: "Claude Sonnet 4",   inputCostPer1M: 3,    outputCostPer1M: 15,   cacheReadCostPer1M: 0.3,    cacheWriteCostPer1M: 3.75 },
   "claude-sonnet-4-5":  { provider: "anthropic", displayName: "Claude Sonnet 4.5", inputCostPer1M: 3,    outputCostPer1M: 15,   cacheReadCostPer1M: 0.3,    cacheWriteCostPer1M: 3.75 },
-  "claude-3-7-sonnet":  { provider: "anthropic", displayName: "Claude 3.7 Sonnet", inputCostPer1M: 3,    outputCostPer1M: 15,   cacheReadCostPer1M: 0.3,    cacheWriteCostPer1M: 3.75 },
-  "claude-3-5-sonnet-20241022": { provider: "anthropic", displayName: "Claude 3.5 Sonnet", inputCostPer1M: 3, outputCostPer1M: 15, cacheReadCostPer1M: 0.3, cacheWriteCostPer1M: 3.75 },
   "claude-haiku-4.5":   { provider: "anthropic", displayName: "Claude Haiku 4.5",  inputCostPer1M: 1,    outputCostPer1M: 5,    cacheReadCostPer1M: 0.1,    cacheWriteCostPer1M: 1.25 },
-  "claude-haiku-3-5":   { provider: "anthropic", displayName: "Claude Haiku 3.5",  inputCostPer1M: 0.8,  outputCostPer1M: 4,    cacheReadCostPer1M: 0.08,   cacheWriteCostPer1M: 1 },
   // ── Google Gemini ─────────────────────────────────────────────────────────
   "gemini-2-5-pro":     { provider: "google",    displayName: "Gemini 2.5 Pro",    inputCostPer1M: 1.25, outputCostPer1M: 10,   cacheReadCostPer1M: 0.3125, cacheWriteCostPer1M: 4.5 },
   "gemini-2-5-flash":   { provider: "google",    displayName: "Gemini 2.5 Flash",  inputCostPer1M: 0.30, outputCostPer1M: 2.5,  cacheReadCostPer1M: 0.075,  cacheWriteCostPer1M: 1 },
   "gemini-2-5-flash-lite": { provider: "google", displayName: "Gemini 2.5 Flash Lite", inputCostPer1M: 0.1, outputCostPer1M: 0.4, cacheReadCostPer1M: 0.025, cacheWriteCostPer1M: 0 },
   "gemini-2-0-flash":   { provider: "google",    displayName: "Gemini 2.0 Flash",  inputCostPer1M: 0.1,  outputCostPer1M: 0.4,  cacheReadCostPer1M: 0.025,  cacheWriteCostPer1M: 0 },
+  "gemini-3.5-flash":   { provider: "google",    displayName: "Gemini 3.5 Flash",  inputCostPer1M: 1.5,  outputCostPer1M: 9,    cacheReadCostPer1M: 0.15,   cacheWriteCostPer1M: 0 },
+  "gemini-3.1-pro":     { provider: "google",    displayName: "Gemini 3.1 Pro",    inputCostPer1M: 2,    outputCostPer1M: 12,   cacheReadCostPer1M: 0.2,    cacheWriteCostPer1M: 0 },
+  "gemini-3.1-flash-lite": { provider: "google", displayName: "Gemini 3.1 Flash Lite", inputCostPer1M: 0.25, outputCostPer1M: 1.5, cacheReadCostPer1M: 0.025, cacheWriteCostPer1M: 0 },
+  "gemini-3-flash":     { provider: "google",    displayName: "Gemini 3 Flash",    inputCostPer1M: 0.5,  outputCostPer1M: 3,    cacheReadCostPer1M: 0.05,   cacheWriteCostPer1M: 0 },
+  "gemini-3-pro":       { provider: "google",    displayName: "Gemini 3 Pro",      inputCostPer1M: 2,    outputCostPer1M: 12,   cacheReadCostPer1M: 0.2,    cacheWriteCostPer1M: 0 },
   // ── DeepSeek ──────────────────────────────────────────────────────────────
+  "deepseek-v4-flash":  { provider: "deepseek",  displayName: "DeepSeek V4 Flash",  inputCostPer1M: 0.14, outputCostPer1M: 0.28, cacheReadCostPer1M: 0.035,  cacheWriteCostPer1M: 0 },
+  "deepseek-v4-pro":    { provider: "deepseek",  displayName: "DeepSeek V4 Pro",    inputCostPer1M: 1.74, outputCostPer1M: 3.48, cacheReadCostPer1M: 0.435,  cacheWriteCostPer1M: 0 },
   "deepseek-v3":        { provider: "deepseek",  displayName: "DeepSeek V3",       inputCostPer1M: 0.14, outputCostPer1M: 0.28, cacheReadCostPer1M: 0.07,   cacheWriteCostPer1M: 0 },
   "deepseek-r1":        { provider: "deepseek",  displayName: "DeepSeek R1",       inputCostPer1M: 0.55, outputCostPer1M: 2.19, cacheReadCostPer1M: 0.275,  cacheWriteCostPer1M: 0 },
+  "deepseek-v3.1":      { provider: "deepseek",  displayName: "DeepSeek V3.1",     inputCostPer1M: 0.21, outputCostPer1M: 0.79, cacheReadCostPer1M: 0.105,  cacheWriteCostPer1M: 0 },
+  "deepseek-v3.2":      { provider: "deepseek",  displayName: "DeepSeek V3.2",     inputCostPer1M: 0.25, outputCostPer1M: 0.38, cacheReadCostPer1M: 0.125,  cacheWriteCostPer1M: 0 },
+  "deepseek-v3.2-exp":  { provider: "deepseek",  displayName: "DeepSeek V3.2 Exp", inputCostPer1M: 0.27, outputCostPer1M: 0.41, cacheReadCostPer1M: 0.135,  cacheWriteCostPer1M: 0 },
   // ── Grok ──────────────────────────────────────────────────────────────────
+  "grok-4-3":           { provider: "xai",       displayName: "Grok 4.3",          inputCostPer1M: 1.25, outputCostPer1M: 2.5,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "grok-build":         { provider: "xai",       displayName: "Grok Build",        inputCostPer1M: 1,    outputCostPer1M: 2,    cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
   "grok-3":             { provider: "xai",       displayName: "Grok 3",            inputCostPer1M: 3,    outputCostPer1M: 15,   cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
   "grok-3-mini":        { provider: "xai",       displayName: "Grok 3 Mini",       inputCostPer1M: 0.3,  outputCostPer1M: 0.5,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
   // ── Mistral ───────────────────────────────────────────────────────────────
-  "mistral-large-latest": { provider: "mistral", displayName: "Mistral Large",     inputCostPer1M: 2,    outputCostPer1M: 6,    cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
-  "codestral-latest":   { provider: "mistral",   displayName: "Codestral",         inputCostPer1M: 0.2,  outputCostPer1M: 0.6,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "mistral-medium-3-5": { provider: "mistral",   displayName: "Mistral Medium 3.5", inputCostPer1M: 1.5, outputCostPer1M: 7.5, cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "mistral-large-latest": { provider: "mistral", displayName: "Mistral Large 3",   inputCostPer1M: 0.5,  outputCostPer1M: 1.5,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "mistral-small-latest": { provider: "mistral", displayName: "Mistral Small",     inputCostPer1M: 0.1,  outputCostPer1M: 0.3,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "codestral-latest":   { provider: "mistral",   displayName: "Codestral",         inputCostPer1M: 0.3,  outputCostPer1M: 0.9,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "magistral-medium-latest": { provider: "mistral", displayName: "Magistral Medium", inputCostPer1M: 2,   outputCostPer1M: 5,    cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "phi-4":              { provider: "microsoft", displayName: "Phi-4",             inputCostPer1M: 0.065,outputCostPer1M: 0.14, cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
   // ── Groq ──────────────────────────────────────────────────────────────────
   "llama-3.3-70b-versatile": { provider: "groq", displayName: "Llama 3.3 70B",     inputCostPer1M: 0.59, outputCostPer1M: 0.79, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  // ── Meta Llama 4 ───────────────────────────────────────────────────────────
+  "llama-4-scout":      { provider: "meta",      displayName: "Llama 4 Scout",     inputCostPer1M: 0.08, outputCostPer1M: 0.3,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "llama-4-maverick":   { provider: "meta",      displayName: "Llama 4 Maverick",  inputCostPer1M: 0.20, outputCostPer1M: 0.6,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  // ── Xiaomi ─────────────────────────────────────────────────────────────────
+  "mimo-v2.5":          { provider: "xiaomi",    displayName: "MiMo V2.5",          inputCostPer1M: 0.40, outputCostPer1M: 2,    cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  // ── NVIDIA Nemotron ────────────────────────────────────────────────────────
+  "nemotron-3-super":   { provider: "nvidia",    displayName: "Nemotron 3 Super",   inputCostPer1M: 0.30, outputCostPer1M: 0.8,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  // ── Alibaba / Qwen ─────────────────────────────────────────────────────────
+  "qwen3.7-max":        { provider: "alibaba",   displayName: "Qwen 3.7 Max",       inputCostPer1M: 2.50, outputCostPer1M: 7.5,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "qwen3.6-plus":       { provider: "alibaba",   displayName: "Qwen 3.6 Plus",      inputCostPer1M: 0.50, outputCostPer1M: 3,    cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "qwen3.6-flash":      { provider: "alibaba",   displayName: "Qwen 3.6 Flash",     inputCostPer1M: 0.25, outputCostPer1M: 1.5,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "qwen3.5-plus":       { provider: "alibaba",   displayName: "Qwen 3.5 Plus",      inputCostPer1M: 0.40, outputCostPer1M: 2.4,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
+  "qwen3.5-flash":      { provider: "alibaba",   displayName: "Qwen 3.5 Flash",     inputCostPer1M: 0.30, outputCostPer1M: 1.8,  cacheReadCostPer1M: 0,      cacheWriteCostPer1M: 0 },
   // Dot-notation aliases (used by soak test + relay)
   "gemini-2.5-pro":     { provider: "google",    displayName: "Gemini 2.5 Pro",    inputCostPer1M: 1.25, outputCostPer1M: 10,   cacheReadCostPer1M: 0.3125, cacheWriteCostPer1M: 4.5 },
   "gemini-2.5-flash":   { provider: "google",    displayName: "Gemini 2.5 Flash",  inputCostPer1M: 0.30, outputCostPer1M: 2.5,  cacheReadCostPer1M: 0.075,  cacheWriteCostPer1M: 1 },
   "claude-opus-4.5":    { provider: "anthropic", displayName: "Claude Opus 4.5",   inputCostPer1M: 15,   outputCostPer1M: 75,   cacheReadCostPer1M: 1.5,    cacheWriteCostPer1M: 18.75 },
   "claude-sonnet-4.5":  { provider: "anthropic", displayName: "Claude Sonnet 4.5", inputCostPer1M: 3,    outputCostPer1M: 15,   cacheReadCostPer1M: 0.3,    cacheWriteCostPer1M: 3.75 },
-  "claude-haiku-3.5":   { provider: "anthropic", displayName: "Claude Haiku 3.5",  inputCostPer1M: 0.8,  outputCostPer1M: 4,    cacheReadCostPer1M: 0.08,   cacheWriteCostPer1M: 1 },
+
 };
 
 // Fix #13: log unknown models — return null so callers return 400
@@ -289,7 +318,7 @@ const app = new Hono()
       ...s,
       // Fix #20: totalTokens includes cache tokens
       totalTokens: s.totalInputTokens + s.totalOutputTokens + s.totalCacheReadTokens + s.totalCacheWriteTokens,
-      totalCost: s.totalCostUsd.toFixed(6), // Fix #38: consistent precision
+      totalCost: Math.round(s.totalCostUsd * 1_000_000) / 1_000_000,
       sandboxUrl: s.cloudUrl, // Fix #42: expose both names
     }));
     return c.json({ sessions }, 200);
@@ -312,13 +341,13 @@ const app = new Hono()
   .get("/sessions/:id", async (c) => {
     c.header("Cache-Control", "no-store");
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const raw = await db.select().from(schema.agentSessions).where(eq(schema.agentSessions.id, id)).limit(1);
     if (!raw[0]) return c.json({ error: "not found" }, 404);
     const session = {
       ...raw[0],
       totalTokens: raw[0].totalInputTokens + raw[0].totalOutputTokens + raw[0].totalCacheReadTokens + raw[0].totalCacheWriteTokens,
-      totalCost: raw[0].totalCostUsd.toFixed(6),
+      totalCost: Math.round(raw[0].totalCostUsd * 1_000_000) / 1_000_000,
       sandboxUrl: raw[0].cloudUrl,
     };
     return c.json({ session }, 200);
@@ -327,7 +356,7 @@ const app = new Hono()
   // Fix #36: typed status enum, no Record<string,any>
   .patch("/sessions/:id", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const existing = await db.select({ id: schema.agentSessions.id }).from(schema.agentSessions).where(eq(schema.agentSessions.id, id)).limit(1);
     if (!existing[0]) return c.json({ error: "not found" }, 404);
     const body = await c.req.json<{ status?: string; name?: string }>();
@@ -347,7 +376,7 @@ const app = new Hono()
 
   .patch("/sessions/:id/status", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const existing = await db.select({ id: schema.agentSessions.id }).from(schema.agentSessions).where(eq(schema.agentSessions.id, id)).limit(1);
     if (!existing[0]) return c.json({ error: "not found" }, 404);
     const body = await c.req.json<{ status: string }>();
@@ -360,7 +389,7 @@ const app = new Hono()
   // Fix #33: DELETE session
   .delete("/sessions/:id", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const existing = await db.select({ id: schema.agentSessions.id }).from(schema.agentSessions).where(eq(schema.agentSessions.id, id)).limit(1);
     if (!existing[0]) return c.json({ error: "not found" }, 404);
     await db.delete(schema.tokenEvents).where(eq(schema.tokenEvents.sessionId, id));
@@ -373,7 +402,7 @@ const app = new Hono()
   // Fix #19: reject negative token counts; Fix #26: single atomic-ish operation (SQLite best effort)
   .post("/sessions/:id/tokens", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const body = await c.req.json<{
       role?: string;
       inputTokens?: number;
@@ -386,10 +415,11 @@ const app = new Hono()
 
     // Validate
     if (!body.model?.trim()) return c.json({ error: "model is required" }, 400);
-    const inputTokens    = Math.max(0, Math.floor(body.inputTokens    ?? 0));
-    const outputTokens   = Math.max(0, Math.floor(body.outputTokens   ?? 0));
-    const cacheReadTokens  = Math.max(0, Math.floor(body.cacheReadTokens  ?? 0));
-    const cacheWriteTokens = Math.max(0, Math.floor(body.cacheWriteTokens ?? 0));
+    const safeInt = (v: unknown): number => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(0, n) : 0; };
+    const inputTokens    = safeInt(body.inputTokens);
+    const outputTokens   = safeInt(body.outputTokens);
+    const cacheReadTokens  = safeInt(body.cacheReadTokens);
+    const cacheWriteTokens = safeInt(body.cacheWriteTokens);
 
     // Verify session exists
     const sessions = await withTimeout(
@@ -402,19 +432,20 @@ const app = new Hono()
     if (costUsd === null) return c.json({ error: `no pricing for model "${body.model}"` }, 400);
     const eventId = randomUUID();
 
-    await withTimeout(
-      db.insert(schema.tokenEvents).values({
-        id: eventId,
-        sessionId: id,
-        role: body.role?.trim() || "assistant",
-        inputTokens,
-        outputTokens,
-        cacheReadTokens,
-        cacheWriteTokens,
-        costUsd,
-        model: body.model,
-        prompt: body.prompt ? body.prompt.slice(0, 200) : null,
-      }),
+      const validRoles = ["user", "assistant"];
+      await withTimeout(
+        db.insert(schema.tokenEvents).values({
+          id: eventId,
+          sessionId: id,
+          role: validRoles.includes(body.role?.trim() ?? "") ? body.role!.trim() : "assistant",
+          inputTokens,
+          outputTokens,
+          cacheReadTokens,
+          cacheWriteTokens,
+          costUsd,
+          model: body.model,
+          prompt: typeof body.prompt === "string" ? body.prompt.slice(0, 200) : null,
+        }),
       5000, "tokens:insert"
     );
 
@@ -436,7 +467,7 @@ const app = new Hono()
   // Fix #37: consistent sort/limit between /tokens and /events
   .get("/sessions/:id/tokens", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const rawEvents = await db
       .select()
       .from(schema.tokenEvents)
@@ -453,7 +484,7 @@ const app = new Hono()
 
   .get("/sessions/:id/events", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const rawEvents = await db
       .select()
       .from(schema.tokenEvents)
@@ -492,10 +523,11 @@ const app = new Hono()
     const sessions = await db.select({ id: schema.agentSessions.id }).from(schema.agentSessions).where(eq(schema.agentSessions.id, body.sessionId)).limit(1);
     if (!sessions[0]) return c.json({ error: "session not found" }, 404);
 
-    const inputTokens      = Math.max(0, Math.floor(body.inputTokens ?? body.promptTokens ?? 0));
-    const outputTokens     = Math.max(0, Math.floor(body.outputTokens ?? body.completionTokens ?? 0));
-    const cacheReadTokens  = Math.max(0, Math.floor(body.cacheReadTokens ?? 0));
-    const cacheWriteTokens = Math.max(0, Math.floor(body.cacheWriteTokens ?? 0));
+    const safeInt = (v: unknown): number => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(0, n) : 0; };
+    const inputTokens      = safeInt(body.inputTokens ?? body.promptTokens ?? 0);
+    const outputTokens     = safeInt(body.outputTokens ?? body.completionTokens ?? 0);
+    const cacheReadTokens  = safeInt(body.cacheReadTokens ?? 0);
+    const cacheWriteTokens = safeInt(body.cacheWriteTokens ?? 0);
     const pricing = MODEL_PRICING[body.model];
     if (!pricing && (body.cost == null || body.cost < 0)) {
       return c.json({ error: `no pricing for model "${body.model}"` }, 400);
@@ -530,7 +562,7 @@ const app = new Hono()
   // ─── Optimization ────────────────────────────────────────────────────────
   .post("/sessions/:id/optimize", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const sessions = await withTimeout(
       db.select().from(schema.agentSessions).where(eq(schema.agentSessions.id, id)).limit(1),
       5000, "optimize:fetch"
@@ -571,7 +603,7 @@ const app = new Hono()
 
   .get("/sessions/:id/tips", async (c) => {
     const { id } = c.req.param();
-    if (!id?.match(/^[0-9a-f-]{36}$/)) return c.json({ error: "invalid id" }, 400);
+    if (!id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) return c.json({ error: "invalid id" }, 400);
     const tips = await withTimeout(
       db.select()
         .from(schema.optimizationTips)
@@ -620,7 +652,7 @@ const app = new Hono()
       modelMap[s.model].sessionCount += 1;
     }
     const modelBreakdown = Object.entries(modelMap)
-      .map(([model, stats]) => ({ model, ...stats, totalCost: stats.totalCost.toFixed(6) }))
+      .map(([model, stats]) => ({ model, ...stats, totalCost: Math.round(stats.totalCost * 1_000_000) / 1_000_000 }))
       .sort((a, b) => b.totalCost - a.totalCost);
 
     const topModel = modelBreakdown[0]?.model || "";
@@ -640,25 +672,27 @@ const app = new Hono()
     // Fix #9: daily/monthly spend from tokenEvents.createdAt (not sessions.updatedAt)
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
     const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
-    const dailySpend = sessions
-      .filter(s => new Date(s.updatedAt) >= startOfDay)
-      .reduce((sum, s) => sum + s.totalCostUsd, 0);
-    const monthlySpend = sessions
-      .filter(s => new Date(s.updatedAt) >= startOfMonth)
-      .reduce((sum, s) => sum + s.totalCostUsd, 0);
+    const tokenEventsAll = await withTimeout(
+      db.select({ costUsd: schema.tokenEvents.costUsd, createdAt: schema.tokenEvents.createdAt })
+        .from(schema.tokenEvents)
+        .where(gte(schema.tokenEvents.createdAt, startOfMonth)),
+      5000, "analytics:events"
+    );
+    const dailySpend = tokenEventsAll.filter(e => e.createdAt >= startOfDay).reduce((sum, e) => sum + e.costUsd, 0);
+    const monthlySpend = tokenEventsAll.reduce((sum, e) => sum + e.costUsd, 0);
 
     return c.json({
       totalSessions,
       activeSessions,
-      totalCost: totalCostRaw.toFixed(6),
-      dailyCost: dailySpend.toFixed(6),
-      monthlyCost: monthlySpend.toFixed(6),
+      totalCost: Math.round(totalCostRaw * 1_000_000) / 1_000_000,
+      dailyCost: Math.round(dailySpend * 1_000_000) / 1_000_000,
+      monthlyCost: Math.round(monthlySpend * 1_000_000) / 1_000_000,
       totalTokens,
       totalInputTokens,
       totalOutputTokens,
       totalCacheReadTokens,
       totalCacheWriteTokens,
-      avgCostPerSession: avgCostPerSession.toFixed(6),
+      avgCostPerSession: Math.round(avgCostPerSession * 1_000_000) / 1_000_000,
       topModel,
       modelBreakdown,
       cacheHitRate: totalInputTokens > 0

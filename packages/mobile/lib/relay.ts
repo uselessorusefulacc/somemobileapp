@@ -69,7 +69,7 @@ export class RelayClient extends EventEmitter<RelayEventMap> {
   constructor(sessionId: string, relayUrl?: string, heartbeatIntervalMs: number = 15000) {
     super();
     this.sessionId = sessionId;
-    this.relayUrl = relayUrl ?? "wss://81ylvadrgdbxmql33216v-preview-4200.runable.site/ws";
+    this.relayUrl = relayUrl ?? "ws://localhost:4200/ws";
     this.heartbeatIntervalMs = heartbeatIntervalMs;
   }
 

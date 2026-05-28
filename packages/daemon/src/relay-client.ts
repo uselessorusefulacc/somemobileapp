@@ -3,6 +3,7 @@ import type { TokenUsage, CommandMessage, RelayMessage, ToolCall, AgentInfo } fr
 import { redactSensitive } from "./logger.js";
 
 type MessageHandler = (cmd: CommandMessage) => void;
+type PeerHandler = () => void;
 
 const MAX_RECONNECT_ATTEMPTS = 20;
 
@@ -15,6 +16,8 @@ export class RelayClient {
   private messageQueue: string[] = [];
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private onCommandCallback: MessageHandler | null = null;
+  private onPeerConnectedCallback: PeerHandler | null = null;
+  private onPeerDisconnectedCallback: PeerHandler | null = null;
   private closed = false;
   private verbose: boolean;
   private connectionsEstablished = 0;
@@ -27,10 +30,13 @@ export class RelayClient {
 
   connect() {
     if (this.closed) return;
-    const url = `${this.relayUrl}?session=${this.sessionId}&role=daemon`;
-    console.log(`[Daemon] Connecting to relay: ${redactSensitive(url)}`);
+    const url = new URL(this.relayUrl);
+    url.searchParams.set("session", this.sessionId);
+    url.searchParams.set("role", "daemon");
+    const wsUrl = url.toString();
+    console.log(`[Daemon] Connecting to relay: ${redactSensitive(wsUrl)}`);
 
-    this.ws = new WebSocket(url);
+    this.ws = new WebSocket(wsUrl);
 
     this.ws.on("open", () => {
       this.connectionsEstablished++;
@@ -42,18 +48,25 @@ export class RelayClient {
 
     this.ws.on("message", (data) => {
       try {
-        const msg = JSON.parse(data.toString()) as RelayMessage;
+        const raw = typeof data === "string" ? data : Buffer.isBuffer(data) ? data.toString("utf-8") : Buffer.from(data as ArrayBuffer).toString("utf-8");
+        const msg = JSON.parse(raw) as RelayMessage;
         if (msg.type === "pong") return;
         if (this.verbose) console.log("[Daemon] ← relay:", msg.type, redactSensitive(JSON.stringify(msg.payload)).slice(0, 120));
 
         if (msg.type === "command" && this.onCommandCallback) {
-          this.onCommandCallback(msg.payload as CommandMessage);
+          if (msg.payload && typeof msg.payload === "object" && "action" in (msg.payload as Record<string, unknown>)) {
+            this.onCommandCallback(msg.payload as CommandMessage);
+          } else {
+            console.warn("[RelayClient] Invalid command payload, dropping");
+          }
         }
         if (msg.type === "peer_connected") {
           console.log("[Daemon] 📱 Phone connected");
+          this.onPeerConnectedCallback?.();
         }
         if (msg.type === "peer_disconnected") {
           console.log("[Daemon] 📱 Phone disconnected");
+          this.onPeerDisconnectedCallback?.();
         }
       } catch (err) {
         console.error("[RelayClient] Message parse error:", err);
@@ -76,11 +89,11 @@ export class RelayClient {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(msg);
     } else {
+      if (this.messageQueue.length >= 100) {
+        console.warn(`[Daemon] Relay message queue full (100), dropping oldest message`);
+        this.messageQueue.shift();
+      }
       this.messageQueue.push(msg);
-      if (this.messageQueue.length > 100) {
-      console.warn(`[Daemon] Relay message queue full (100), dropping oldest message`);
-      this.messageQueue.shift();
-    }
     }
   }
 
@@ -106,6 +119,14 @@ export class RelayClient {
 
   onCommand(cb: MessageHandler) {
     this.onCommandCallback = cb;
+  }
+
+  onPeerConnected(cb: PeerHandler) {
+    this.onPeerConnectedCallback = cb;
+  }
+
+  onPeerDisconnected(cb: PeerHandler) {
+    this.onPeerDisconnectedCallback = cb;
   }
 
   get isOpen() {

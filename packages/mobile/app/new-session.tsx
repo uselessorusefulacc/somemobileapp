@@ -22,7 +22,7 @@ const AGENTS = [
   { id: "opencode", name: "OpenCode",     model: "claude-sonnet-4-5" },
   { id: "codex",    name: "Codex CLI",    model: "o3"                },
   { id: "gemini",   name: "Gemini CLI",   model: "gemini-2-5-pro"    },
-  { id: "aider",    name: "Aider",        model: "claude-sonnet-4-5" },
+
 ];
 
 export default function NewSessionModal() {

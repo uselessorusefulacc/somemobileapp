@@ -186,7 +186,7 @@ export default function SessionDetailScreen() {
     if (optimizeTimerRef.current) clearTimeout(optimizeTimerRef.current);
     optimizeTimerStart.current = now;
     optimizeTimerRef.current = setTimeout(() => {
-      apiClient.optimize(id).catch(() => {});
+      apiClient.optimize(id).catch((err) => console.warn("[Session] optimize error:", err));
     }, 30_000);
   }, [id]);
 

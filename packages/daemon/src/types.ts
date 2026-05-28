@@ -18,7 +18,7 @@ export interface ToolCall {
 }
 
 export interface AgentInfo {
-  type: string;       // "claude" | "codex" | "aider" | "gemini" | "opencode" | "copilot" | "cline" | "unknown"
+  type: string;       // "claude" | "codex" | "gemini" | "opencode" | "copilot" | "cline" | "unknown"
   model: string;
   pid?: number;
   configSource?: string;

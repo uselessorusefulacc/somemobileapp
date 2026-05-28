@@ -7,12 +7,8 @@ import { getCacheDir, PRICING_CACHE_TTL_MS, PRICING_CACHE_FILE } from "./config"
 export const ALIASES: Record<string, string> = {
   "claude-opus": "claude-opus-4-5",
   "claude-sonnet": "claude-sonnet-4-5",
-  "claude-haiku": "claude-haiku-3.5",
-  "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
-  "claude-3-5-haiku": "claude-3-5-haiku-20241022",
-  "gpt-4.1": "gpt-4.1",
+  "claude-haiku": "claude-haiku-4.5",
   "gpt4o": "gpt-4o",
-  "gpt4": "gpt-4",
   "gemini-pro": "gemini-2-5-pro",
   "gemini-flash": "gemini-2-5-flash",
   "deepseek-chat": "deepseek-v3",
@@ -39,35 +35,33 @@ export const PRICING_TABLE: Record<
   }
 > = {
   // ── OpenAI ──────────────────────────────────────────────────────────────────
-  "gpt-4.1":                     { inputCostPer1M: 2.00,  outputCostPer1M: 8.00,  cacheReadCostPer1M: 1.00,  cacheWriteCostPer1M: 0 },
-  "gpt-4.1-mini":                { inputCostPer1M: 0.40,  outputCostPer1M: 1.60,  cacheReadCostPer1M: 0.20,  cacheWriteCostPer1M: 0 },
-  "gpt-4.1-nano":                { inputCostPer1M: 0.10,  outputCostPer1M: 0.40,  cacheReadCostPer1M: 0.05,  cacheWriteCostPer1M: 0 },
+  "gpt-5.5":                     { inputCostPer1M: 5.00,  outputCostPer1M: 30.00, cacheReadCostPer1M: 2.50,  cacheWriteCostPer1M: 0 },
+  "gpt-5.4":                     { inputCostPer1M: 2.50,  outputCostPer1M: 15.00, cacheReadCostPer1M: 1.25,  cacheWriteCostPer1M: 0 },
+
   "gpt-4o":                      { inputCostPer1M: 2.50,  outputCostPer1M: 10.00, cacheReadCostPer1M: 1.25,  cacheWriteCostPer1M: 0 },
   "gpt-4o-2024-11-20":           { inputCostPer1M: 2.50,  outputCostPer1M: 10.00, cacheReadCostPer1M: 1.25,  cacheWriteCostPer1M: 0 },
   "gpt-4o-mini":                 { inputCostPer1M: 0.15,  outputCostPer1M: 0.60,  cacheReadCostPer1M: 0.075, cacheWriteCostPer1M: 0 },
-  "gpt-4-turbo":                 { inputCostPer1M: 10.00, outputCostPer1M: 30.00, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "gpt-4":                       { inputCostPer1M: 30.00, outputCostPer1M: 60.00, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "gpt-3.5-turbo":               { inputCostPer1M: 0.50,  outputCostPer1M: 1.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+
   "o1":                          { inputCostPer1M: 15.00, outputCostPer1M: 60.00, cacheReadCostPer1M: 7.50,  cacheWriteCostPer1M: 0 },
   "o1-mini":                     { inputCostPer1M: 3.00,  outputCostPer1M: 12.00, cacheReadCostPer1M: 1.50,  cacheWriteCostPer1M: 0 },
   "o1-pro":                      { inputCostPer1M: 150.00,outputCostPer1M: 600.00,cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "o3":                          { inputCostPer1M: 10.00, outputCostPer1M: 40.00, cacheReadCostPer1M: 2.50,  cacheWriteCostPer1M: 0 },
   "o3-mini":                     { inputCostPer1M: 1.10,  outputCostPer1M: 4.40,  cacheReadCostPer1M: 0.55,  cacheWriteCostPer1M: 0 },
   "o4-mini":                     { inputCostPer1M: 1.10,  outputCostPer1M: 4.40,  cacheReadCostPer1M: 0.275, cacheWriteCostPer1M: 0 },
+  "o3-pro":                      { inputCostPer1M: 20.00, outputCostPer1M: 80.00, cacheReadCostPer1M: 5.00,  cacheWriteCostPer1M: 0 },
+  "gpt-5.3-codex":                { inputCostPer1M: 1.75,  outputCostPer1M: 14.00, cacheReadCostPer1M: 0.175, cacheWriteCostPer1M: 0 },
+  "gpt-5.2-codex":                { inputCostPer1M: 1.75,  outputCostPer1M: 14.00, cacheReadCostPer1M: 0.175, cacheWriteCostPer1M: 0 },
+  "gpt-5.1-codex":                { inputCostPer1M: 1.25,  outputCostPer1M: 10.00, cacheReadCostPer1M: 0.125, cacheWriteCostPer1M: 0 },
   // ── Anthropic ───────────────────────────────────────────────────────────────
+  "claude-opus-4-7":             { inputCostPer1M: 5.00,  outputCostPer1M: 25.00, cacheReadCostPer1M: 0.50,  cacheWriteCostPer1M: 6.25 },
   "claude-opus-4":               { inputCostPer1M: 15.00, outputCostPer1M: 75.00, cacheReadCostPer1M: 1.50,  cacheWriteCostPer1M: 18.75 },
   "claude-opus-4-5":             { inputCostPer1M: 15.00, outputCostPer1M: 75.00, cacheReadCostPer1M: 1.50,  cacheWriteCostPer1M: 18.75 },
+  "claude-sonnet-4-6":           { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
   "claude-sonnet-4":             { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
   "claude-sonnet-4-5":           { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
   "claude-sonnet-4-5-20251101":  { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
-  "claude-3-7-sonnet":           { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
-  "claude-3-5-sonnet-20241022":  { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
-  "claude-3-5-haiku-20241022":   { inputCostPer1M: 0.80,  outputCostPer1M: 4.00,  cacheReadCostPer1M: 0.08,  cacheWriteCostPer1M: 1.00 },
   "claude-haiku-4.5":            { inputCostPer1M: 1.00,  outputCostPer1M: 5.00,  cacheReadCostPer1M: 0.10,  cacheWriteCostPer1M: 1.25 },
-  "claude-haiku-3.5":            { inputCostPer1M: 0.80,  outputCostPer1M: 4.00,  cacheReadCostPer1M: 0.08,  cacheWriteCostPer1M: 1.00 },
-  "claude-haiku-3":              { inputCostPer1M: 0.25,  outputCostPer1M: 1.25,  cacheReadCostPer1M: 0.025, cacheWriteCostPer1M: 0.3125 },
-  "claude-3-opus":               { inputCostPer1M: 15.00, outputCostPer1M: 75.00, cacheReadCostPer1M: 1.50,  cacheWriteCostPer1M: 18.75 },
-  "claude-3-opus-20240229":      { inputCostPer1M: 15.00, outputCostPer1M: 75.00, cacheReadCostPer1M: 1.50,  cacheWriteCostPer1M: 18.75 },
+
   // ── Google Gemini ───────────────────────────────────────────────────────────
   "gemini-2-5-pro":              { inputCostPer1M: 1.25,  outputCostPer1M: 10.00, cacheReadCostPer1M: 0.3125, cacheWriteCostPer1M: 4.50 },
   "gemini-2.5-pro":              { inputCostPer1M: 1.25,  outputCostPer1M: 10.00, cacheReadCostPer1M: 0.3125, cacheWriteCostPer1M: 4.50 },
@@ -77,9 +71,12 @@ export const PRICING_TABLE: Record<
   "gemini-2.5-flash-lite":       { inputCostPer1M: 0.10,  outputCostPer1M: 0.40,  cacheReadCostPer1M: 0.025, cacheWriteCostPer1M: 0 },
   "gemini-2.0-flash":            { inputCostPer1M: 0.10,  outputCostPer1M: 0.40,  cacheReadCostPer1M: 0.025, cacheWriteCostPer1M: 0 },
   "gemini-2.0-flash-lite":       { inputCostPer1M: 0.075, outputCostPer1M: 0.30,  cacheReadCostPer1M: 0.01875,cacheWriteCostPer1M: 0 },
-  "gemini-1.5-pro":              { inputCostPer1M: 1.25,  outputCostPer1M: 5.00,  cacheReadCostPer1M: 0.3125, cacheWriteCostPer1M: 0 },
-  "gemini-1.5-flash":            { inputCostPer1M: 0.075, outputCostPer1M: 0.30,  cacheReadCostPer1M: 0.01875,cacheWriteCostPer1M: 0 },
-  "gemini-1.0-pro":              { inputCostPer1M: 0.50,  outputCostPer1M: 1.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "gemini-3.5-flash":             { inputCostPer1M: 1.50,  outputCostPer1M: 9.00,  cacheReadCostPer1M: 0.15,  cacheWriteCostPer1M: 0 },
+  "gemini-3.1-pro":               { inputCostPer1M: 2.00,  outputCostPer1M: 12.00, cacheReadCostPer1M: 0.20,  cacheWriteCostPer1M: 0 },
+  "gemini-3.1-flash-lite":        { inputCostPer1M: 0.25,  outputCostPer1M: 1.50,  cacheReadCostPer1M: 0.025, cacheWriteCostPer1M: 0 },
+  "gemini-3-flash":               { inputCostPer1M: 0.50,  outputCostPer1M: 3.00,  cacheReadCostPer1M: 0.05,  cacheWriteCostPer1M: 0 },
+  "gemini-3-pro":                 { inputCostPer1M: 2.00,  outputCostPer1M: 12.00, cacheReadCostPer1M: 0.20,  cacheWriteCostPer1M: 0 },
+
   // ── Groq ────────────────────────────────────────────────────────────────────
   "llama-3.3-70b-versatile":     { inputCostPer1M: 0.59,  outputCostPer1M: 0.79,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "llama-3.1-8b-instant":        { inputCostPer1M: 0.05,  outputCostPer1M: 0.08,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
@@ -92,23 +89,27 @@ export const PRICING_TABLE: Record<
   "gemma2-9b-it":                { inputCostPer1M: 0.20,  outputCostPer1M: 0.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "deepseek-r1-distill-llama-70b":{ inputCostPer1M: 0.75, outputCostPer1M: 0.99,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── DeepSeek ────────────────────────────────────────────────────────────────
+  "deepseek-v4-flash":           { inputCostPer1M: 0.14,  outputCostPer1M: 0.28,  cacheReadCostPer1M: 0.035, cacheWriteCostPer1M: 0 },
+  "deepseek-v4-pro":             { inputCostPer1M: 1.74,  outputCostPer1M: 3.48,  cacheReadCostPer1M: 0.435, cacheWriteCostPer1M: 0 },
   "deepseek-v3":                 { inputCostPer1M: 0.14,  outputCostPer1M: 0.28,  cacheReadCostPer1M: 0.07,  cacheWriteCostPer1M: 0 },
   "deepseek-v3-0324":            { inputCostPer1M: 0.14,  outputCostPer1M: 0.28,  cacheReadCostPer1M: 0.07,  cacheWriteCostPer1M: 0 },
   "deepseek-r1":                 { inputCostPer1M: 0.55,  outputCostPer1M: 2.19,  cacheReadCostPer1M: 0.275, cacheWriteCostPer1M: 0 },
   "deepseek-r1-0528":            { inputCostPer1M: 0.55,  outputCostPer1M: 2.19,  cacheReadCostPer1M: 0.275, cacheWriteCostPer1M: 0 },
   "deepseek-coder-v2":           { inputCostPer1M: 0.14,  outputCostPer1M: 0.28,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "deepseek-v2.5":               { inputCostPer1M: 0.14,  outputCostPer1M: 0.28,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "deepseek-v3.1":                { inputCostPer1M: 0.21,  outputCostPer1M: 0.79,  cacheReadCostPer1M: 0.105, cacheWriteCostPer1M: 0 },
+  "deepseek-v3.2":                { inputCostPer1M: 0.25,  outputCostPer1M: 0.38,  cacheReadCostPer1M: 0.125, cacheWriteCostPer1M: 0 },
+  "deepseek-v3.2-exp":            { inputCostPer1M: 0.27,  outputCostPer1M: 0.41,  cacheReadCostPer1M: 0.135, cacheWriteCostPer1M: 0 },
   // ── Mistral ─────────────────────────────────────────────────────────────────
-  "mistral-large-latest":        { inputCostPer1M: 2.00,  outputCostPer1M: 6.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "mistral-large-2411":          { inputCostPer1M: 2.00,  outputCostPer1M: 6.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "mistral-medium":              { inputCostPer1M: 0.40,  outputCostPer1M: 1.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "mistral-medium-3-5":          { inputCostPer1M: 1.50,  outputCostPer1M: 7.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "mistral-large-latest":        { inputCostPer1M: 0.50,  outputCostPer1M: 1.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "mistral-medium-latest":       { inputCostPer1M: 0.40,  outputCostPer1M: 2.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "mistral-small-latest":        { inputCostPer1M: 0.10,  outputCostPer1M: 0.30,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "mistral-small-2503":          { inputCostPer1M: 0.10,  outputCostPer1M: 0.30,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "codestral-latest":            { inputCostPer1M: 0.20,  outputCostPer1M: 0.60,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "codestral-2501":              { inputCostPer1M: 0.30,  outputCostPer1M: 0.90,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "mistral-7b-instruct":         { inputCostPer1M: 0.025, outputCostPer1M: 0.025, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "mixtral-8x22b":               { inputCostPer1M: 1.20,  outputCostPer1M: 1.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "pixtral-large-latest":        { inputCostPer1M: 2.00,  outputCostPer1M: 6.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "mistral-small-2603":          { inputCostPer1M: 0.15,  outputCostPer1M: 0.60,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "codestral-latest":            { inputCostPer1M: 0.30,  outputCostPer1M: 0.90,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "magistral-medium-latest":     { inputCostPer1M: 2.00,  outputCostPer1M: 5.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "ministral-14b-latest":        { inputCostPer1M: 0.20,  outputCostPer1M: 0.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "phi-4":                        { inputCostPer1M: 0.065, outputCostPer1M: 0.140, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── Perplexity ──────────────────────────────────────────────────────────────
   "sonar-pro":                   { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "sonar":                       { inputCostPer1M: 1.00,  outputCostPer1M: 1.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
@@ -117,17 +118,17 @@ export const PRICING_TABLE: Record<
   "sonar-deep-research":         { inputCostPer1M: 2.00,  outputCostPer1M: 8.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── OpenRouter ──────────────────────────────────────────────────────────────
   "openrouter/auto":             { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "openrouter/anthropic/claude-3.5-sonnet": { inputCostPer1M: 3.00, outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30, cacheWriteCostPer1M: 3.75 },
   "openrouter/openai/gpt-4o":    { inputCostPer1M: 2.50,  outputCostPer1M: 10.00, cacheReadCostPer1M: 1.25,  cacheWriteCostPer1M: 0 },
   "openrouter/google/gemini-2.5-pro": { inputCostPer1M: 1.25, outputCostPer1M: 10.00, cacheReadCostPer1M: 0.3125, cacheWriteCostPer1M: 4.50 },
   // ── GitHub Copilot / Models ─────────────────────────────────────────────────
   "copilot-gpt-4o":              { inputCostPer1M: 2.50,  outputCostPer1M: 10.00, cacheReadCostPer1M: 1.25,  cacheWriteCostPer1M: 0 },
   "copilot/gpt-4o":              { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "copilot/claude-3.5-sonnet":   { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "copilot/o3-mini":             { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "github/gpt-4o":               { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "github/phi-4":                { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── xAI / Grok ──────────────────────────────────────────────────────────────
+  "grok-4-3":                    { inputCostPer1M: 1.25,  outputCostPer1M: 2.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "grok-build":                  { inputCostPer1M: 1.00,  outputCostPer1M: 2.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "grok-3":                      { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "grok-3-mini":                 { inputCostPer1M: 0.30,  outputCostPer1M: 0.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "grok-3-fast":                 { inputCostPer1M: 5.00,  outputCostPer1M: 25.00, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
@@ -154,13 +155,12 @@ export const PRICING_TABLE: Record<
   "azure/gpt-4-turbo":           { inputCostPer1M: 10.00, outputCostPer1M: 30.00, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "azure/o3-mini":               { inputCostPer1M: 1.10,  outputCostPer1M: 4.40,  cacheReadCostPer1M: 0.55,  cacheWriteCostPer1M: 0 },
   // ── Amazon Bedrock ──────────────────────────────────────────────────────────
-  "bedrock/claude-3-5-sonnet":   { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
   "bedrock/claude-3-haiku":      { inputCostPer1M: 0.25,  outputCostPer1M: 1.25,  cacheReadCostPer1M: 0.025, cacheWriteCostPer1M: 0.3125 },
   "bedrock/llama-3-70b":         { inputCostPer1M: 0.72,  outputCostPer1M: 0.72,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "bedrock/titan-text-lite":     { inputCostPer1M: 0.30,  outputCostPer1M: 0.40,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── Vertex AI ───────────────────────────────────────────────────────────────
   "vertex/gemini-2.5-pro":       { inputCostPer1M: 1.25,  outputCostPer1M: 10.00, cacheReadCostPer1M: 0.3125, cacheWriteCostPer1M: 4.50 },
-  "vertex/claude-3-5-sonnet":    { inputCostPer1M: 3.00,  outputCostPer1M: 15.00, cacheReadCostPer1M: 0.30,  cacheWriteCostPer1M: 3.75 },
+
   "vertex/llama-3.1-405b":       { inputCostPer1M: 4.00,  outputCostPer1M: 16.00, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── Cloudflare Workers AI ────────────────────────────────────────────────────
   "cf/llama-3.1-8b":             { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
@@ -178,22 +178,33 @@ export const PRICING_TABLE: Record<
   // ── Hugging Face ────────────────────────────────────────────────────────────
   "hf/meta-llama-3.1-70b":       { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "hf/mistral-7b":               { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  // ── Moonshot AI ─────────────────────────────────────────────────────────────
+  // ── Moonshot / Kimi ─────────────────────────────────────────────────────────
+  "kimi-k2-6":                   { inputCostPer1M: 0.73,  outputCostPer1M: 3.49,  cacheReadCostPer1M: 0.16,  cacheWriteCostPer1M: 0 },
+  "kimi-k2-5":                   { inputCostPer1M: 0.60,  outputCostPer1M: 3.00,  cacheReadCostPer1M: 0.10,  cacheWriteCostPer1M: 0 },
   "moonshot-v1-8k":              { inputCostPer1M: 0.17,  outputCostPer1M: 0.17,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "moonshot-v1-32k":             { inputCostPer1M: 0.35,  outputCostPer1M: 0.35,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "moonshot-v1-128k":            { inputCostPer1M: 0.87,  outputCostPer1M: 0.87,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  // ── Zhipu AI ────────────────────────────────────────────────────────────────
-  "glm-4-plus":                  { inputCostPer1M: 0.14,  outputCostPer1M: 0.14,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "glm-4-air":                   { inputCostPer1M: 0.014, outputCostPer1M: 0.014, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "glm-4-flash":                 { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  // ── Zhipu AI / GLM ──────────────────────────────────────────────────────────
+  "glm-5-1":                     { inputCostPer1M: 1.40,  outputCostPer1M: 4.40,  cacheReadCostPer1M: 0.26,  cacheWriteCostPer1M: 0 },
+  "glm-5":                       { inputCostPer1M: 1.00,  outputCostPer1M: 3.20,  cacheReadCostPer1M: 0.20,  cacheWriteCostPer1M: 0 },
+  "glm-5-turbo":                 { inputCostPer1M: 1.20,  outputCostPer1M: 4.00,  cacheReadCostPer1M: 0.24,  cacheWriteCostPer1M: 0 },
+  "glm-4-7":                     { inputCostPer1M: 0.60,  outputCostPer1M: 2.20,  cacheReadCostPer1M: 0.11,  cacheWriteCostPer1M: 0 },
+  "glm-4-7-flashx":              { inputCostPer1M: 0.07,  outputCostPer1M: 0.40,  cacheReadCostPer1M: 0.01,  cacheWriteCostPer1M: 0 },
+  "glm-4-7-flash":               { inputCostPer1M: 0,     outputCostPer1M: 0,     cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── MiniMax ─────────────────────────────────────────────────────────────────
-  "minimax/abab7-chat":          { inputCostPer1M: 0.24,  outputCostPer1M: 0.24,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
-  "minimax/abab6.5s":            { inputCostPer1M: 0.11,  outputCostPer1M: 0.11,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "minimax-m2-7":                { inputCostPer1M: 0.30,  outputCostPer1M: 1.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "minimax-m2-5":                { inputCostPer1M: 0.15,  outputCostPer1M: 1.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "minimax-m2":                  { inputCostPer1M: 0.30,  outputCostPer1M: 1.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── Alibaba / Qwen ──────────────────────────────────────────────────────────
   "qwen-max":                    { inputCostPer1M: 0.40,  outputCostPer1M: 1.20,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "qwen-plus":                   { inputCostPer1M: 0.07,  outputCostPer1M: 0.21,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "qwen-turbo":                  { inputCostPer1M: 0.02,  outputCostPer1M: 0.06,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "qwen-long":                   { inputCostPer1M: 0.007, outputCostPer1M: 0.007, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "qwen3.7-max":                  { inputCostPer1M: 2.50,  outputCostPer1M: 7.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "qwen3.6-plus":                 { inputCostPer1M: 0.50,  outputCostPer1M: 3.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "qwen3.6-flash":                { inputCostPer1M: 0.25,  outputCostPer1M: 1.50,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "qwen3.5-plus":                 { inputCostPer1M: 0.40,  outputCostPer1M: 2.40,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "qwen3.5-flash":                { inputCostPer1M: 0.30,  outputCostPer1M: 1.80,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   // ── SiliconFlow ─────────────────────────────────────────────────────────────
   "sf/deepseek-v3":              { inputCostPer1M: 0.14,  outputCostPer1M: 0.28,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "sf/qwen2.5-72b":              { inputCostPer1M: 0.63,  outputCostPer1M: 0.63,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
@@ -225,6 +236,13 @@ export const PRICING_TABLE: Record<
   // ── NVIDIA NIM ──────────────────────────────────────────────────────────────
   "nvidia/llama-3.1-nemotron-70b": { inputCostPer1M: 0.35, outputCostPer1M: 0.40, cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
   "nvidia/mistral-nemo-12b":     { inputCostPer1M: 0.23,  outputCostPer1M: 0.23,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  // ── Meta Llama 4 ───────────────────────────────────────────────────────────
+  "llama-4-scout":               { inputCostPer1M: 0.08,  outputCostPer1M: 0.30,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  "llama-4-maverick":            { inputCostPer1M: 0.20,  outputCostPer1M: 0.60,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  // ── Xiaomi ─────────────────────────────────────────────────────────────────
+  "mimo-v2.5":                   { inputCostPer1M: 0.40,  outputCostPer1M: 2.00,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
+  // ── NVIDIA Nemotron ─────────────────────────────────────────────────────────
+  "nemotron-3-super":             { inputCostPer1M: 0.30,  outputCostPer1M: 0.80,  cacheReadCostPer1M: 0,     cacheWriteCostPer1M: 0 },
 };
 
 // ── Model name normalizer (multi-step resolution) ──────────────────────────────

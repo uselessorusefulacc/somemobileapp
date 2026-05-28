@@ -1,4 +1,3 @@
-import { readFileSync, existsSync } from "fs";
 import { readFile } from "fs/promises";
 import { join, resolve } from "path";
 import { homedir } from "os";
@@ -42,7 +41,7 @@ const AGENT_SIGNATURES: AgentSignature[] = [
         return null;
       }
     },
-    defaultModel: "claude-sonnet-4-5",
+    defaultModel: "claude-sonnet-4-6",
   },
   {
     type: "codex",
@@ -54,25 +53,15 @@ const AGENT_SIGNATURES: AgentSignature[] = [
       join(homedir(), ".codex", "config.yml"),
     ],
     parseConfig: parseYamlModel,
-    defaultModel: "o3",
-  },
-  {
-    type: "aider",
-    processNames: ["aider"],
-    configPaths: (cwd) => [
-      join(cwd, ".aider.conf.yml"),
-      join(cwd, ".aider.conf.yaml"),
-      join(homedir(), ".aider.conf.yml"),
-      join(homedir(), ".aider.conf.yaml"),
-    ],
-    parseConfig: parseYamlModel,
-    defaultModel: "claude-sonnet-4-5",
+    defaultModel: "gpt-5.4",
   },
   {
     type: "gemini",
-    processNames: ["gemini", "gemini-cli", "@google/gemini-cli"],
+    processNames: ["gemini", "antigravity", "antigravity-cli", "@antigravity/cli"],
     configPaths: (cwd) => [
+      join(cwd, ".antigravity", "settings.json"),
       join(cwd, ".gemini", "settings.json"),
+      join(homedir(), ".antigravity", "settings.json"),
       join(homedir(), ".gemini", "settings.json"),
     ],
     parseConfig: (raw) => {
@@ -103,7 +92,7 @@ const AGENT_SIGNATURES: AgentSignature[] = [
         return match?.[1] ?? null;
       }
     },
-    defaultModel: "claude-sonnet-4-5",
+    defaultModel: "claude-sonnet-4-6",
   },
   {
     type: "copilot",
@@ -111,7 +100,7 @@ const AGENT_SIGNATURES: AgentSignature[] = [
     configPaths: (cwd) => [
       join(homedir(), ".config", "gh", "config.yml"),
     ],
-    defaultModel: "gpt-4o",
+    defaultModel: "gpt-5.4",
   },
   {
     type: "cline",
@@ -119,40 +108,38 @@ const AGENT_SIGNATURES: AgentSignature[] = [
     configPaths: (cwd) => [
       join(homedir(), ".vscode", "extensions"),
     ],
-    defaultModel: "claude-sonnet-4-5",
+    defaultModel: "claude-sonnet-4-6",
   },
   {
     type: "hermes",
     processNames: ["hermes", "hermes-agent"],
     configPaths: () => [],
-    defaultModel: "claude-sonnet-4-5",
+    defaultModel: "claude-sonnet-4-6",
   },
   {
     type: "openclaw",
     processNames: ["openclaw"],
     configPaths: () => [],
-    defaultModel: "claude-sonnet-4-5",
+    defaultModel: "claude-sonnet-4-6",
   },
 ];
 
 // ── Config file readers ────────────────────────────────────────────────────
 
-function readFirstExisting(paths: string[]): { content: string; path: string } | null {
+async function readFirstExisting(paths: string[]): Promise<{ content: string; path: string } | null> {
   for (const p of paths) {
-    if (existsSync(p)) {
-      try {
-        return { content: readFileSync(p, "utf8"), path: p };
-      } catch {
-        continue;
-      }
+    try {
+      return { content: await readFile(p, "utf8"), path: p };
+    } catch {
+      continue;
     }
   }
   return null;
 }
 
-function detectModelFromConfig(sig: AgentSignature, cwd: string): { model: string; configSource: string } {
+async function detectModelFromConfig(sig: AgentSignature, cwd: string): Promise<{ model: string; configSource: string }> {
   const paths = sig.configPaths(cwd);
-  const file = readFirstExisting(paths);
+  const file = await readFirstExisting(paths);
   if (!file || !sig.parseConfig) return { model: sig.defaultModel, configSource: "" };
 
   const model = sig.parseConfig(file.content, file.path);
@@ -201,7 +188,7 @@ function scanProcesses(): RunningProcess[] {
 
 // ── Main detector ─────────────────────────────────────────────────────────
 
-export function detectRunningAgents(cwd = process.cwd()): AgentInfo[] {
+export async function detectRunningAgents(cwd = process.cwd()): Promise<AgentInfo[]> {
   const procs = scanProcesses();
   const found: AgentInfo[] = [];
 
@@ -211,11 +198,11 @@ export function detectRunningAgents(cwd = process.cwd()): AgentInfo[] {
         (name) => {
           const lower = name.toLowerCase();
           return proc.name === lower || proc.name.startsWith(lower + " ") || proc.cmd.startsWith(lower + " ") ||
-                 proc.cmd === lower || proc.cmd.includes("/" + lower);
+                 proc.cmd === lower || proc.cmd.includes("/" + lower + " ");
         }
       );
       if (matches) {
-        const { model, configSource } = detectModelFromConfig(sig, cwd);
+        const { model, configSource } = await detectModelFromConfig(sig, cwd);
         found.push({ type: sig.type, model, pid: proc.pid, configSource });
       }
     }
@@ -234,10 +221,10 @@ export function detectAgentFromCommandLine(cmd: string): AgentSignature | null {
   return null;
 }
 
-export function detectAgentInfoForCommand(cmd: string, cwd = process.cwd()): AgentInfo {
+export async function detectAgentInfoForCommand(cmd: string, cwd = process.cwd()): Promise<AgentInfo> {
   const sig = detectAgentFromCommandLine(cmd);
   if (!sig) return { type: "unknown", model: "unknown" };
-  const { model, configSource } = detectModelFromConfig(sig, cwd);
+  const { model, configSource } = await detectModelFromConfig(sig, cwd);
   return { type: sig.type, model, configSource };
 }
 
@@ -248,7 +235,7 @@ export function detectModelFromEnv(): string | null {
     process.env.CLAUDE_MODEL ||
     process.env.OPENAI_DEFAULT_MODEL ||
     process.env.GEMINI_MODEL ||
-    process.env.AIDER_MODEL ||
+
     null
   );
 }

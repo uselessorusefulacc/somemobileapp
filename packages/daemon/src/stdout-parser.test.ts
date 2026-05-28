@@ -15,24 +15,6 @@ describe("stdout-parser", () => {
     expect(r.tokenUsage?.outputTokens).toBe(800);
   });
 
-  // ── Aider ────────────────────────────────────────────────────────────
-  test("Aider model line", () => {
-    const r = parseLine("Model: claude-sonnet-4-5 with diff edit format", "aider");
-    expect(r.model).toBeTruthy();
-    expect(r.model).toContain("sonnet");
-  });
-
-  test("Aider token line", () => {
-    const r = parseLine("Tokens: 5000 sent, 300 received, cost: $0.01", "aider");
-    expect(r.tokenUsage?.inputTokens).toBe(5000);
-    expect(r.tokenUsage?.outputTokens).toBe(300);
-  });
-
-  test("Aider tool — Applied edit", () => {
-    const r = parseLine("Applied edit to src/main.py", "aider");
-    expect(r.toolCall?.tool).toBe("Applied edit");
-  });
-
   // ── JSON / OpenAI ────────────────────────────────────────────────────
   test("JSON token usage (Anthropic API format)", () => {
     const line = `{"input_tokens":8192,"output_tokens":512,"cache_read_input_tokens":1024}`;

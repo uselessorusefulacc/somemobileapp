@@ -5,14 +5,13 @@ describe("Pricing and Model Normalization", () => {
   test("exact matches should return the model name in lowercase", () => {
     expect(normalizeModel("GPT-4o")).toBe("gpt-4o");
     expect(normalizeModel("claude-sonnet-4-5")).toBe("claude-sonnet-4-5");
-    expect(normalizeModel("gpt-4.1-mini")).toBe("gpt-4.1-mini");
+    expect(normalizeModel("gpt-5.4")).toBe("gpt-5.4");
   });
 
   test("alias resolution", () => {
     expect(normalizeModel("claude-opus")).toBe("claude-opus-4-5");
     expect(normalizeModel("claude-sonnet")).toBe("claude-sonnet-4-5");
     expect(normalizeModel("gpt4o")).toBe("gpt-4o");
-    expect(normalizeModel("gpt4")).toBe("gpt-4");
     expect(normalizeModel("deepseek-chat")).toBe("deepseek-v3");
     expect(normalizeModel("deepseek-reasoner")).toBe("deepseek-r1");
     expect(normalizeModel("gemini-pro")).toBe("gemini-2-5-pro");
@@ -26,7 +25,6 @@ describe("Pricing and Model Normalization", () => {
   });
 
   test("version normalization (dash to dot)", () => {
-    expect(normalizeModel("claude-3-5-sonnet")).toBe("claude-3-5-sonnet-20241022");
     expect(normalizeModel("gemini-2-5-pro")).toBe("gemini-2-5-pro");
     expect(normalizeModel("gemini-2-0-flash")).toBe("gemini-2.0-flash");
   });
@@ -35,7 +33,6 @@ describe("Pricing and Model Normalization", () => {
     expect(normalizeModel("anthropic/claude-sonnet-4-5")).toBe("claude-sonnet-4-5");
     expect(normalizeModel("openai/gpt-4o")).toBe("gpt-4o");
     expect(normalizeModel("google/gemini-2.5-pro")).toBe("gemini-2.5-pro");
-    expect(normalizeModel("bedrock/claude-3-5-sonnet")).toBe("bedrock/claude-3-5-sonnet");
     expect(normalizeModel("azure/gpt-4o-mini")).toBe("azure/gpt-4o-mini");
   });
 
@@ -45,7 +42,6 @@ describe("Pricing and Model Normalization", () => {
   });
 
   test("date suffix stripping", () => {
-    expect(normalizeModel("claude-3-5-sonnet-20241022")).toBe("claude-3-5-sonnet-20241022");
     expect(normalizeModel("gpt-4o-2024-11-20")).toBe("gpt-4o-2024-11-20");
   });
 
@@ -74,7 +70,6 @@ describe("Pricing and Model Normalization", () => {
   });
 
   test("prefixed slash models still work", () => {
-    expect(normalizeModel("openrouter/anthropic/claude-3.5-sonnet")).toBe("openrouter/anthropic/claude-3.5-sonnet");
     expect(normalizeModel("vertex/gemini-2.5-pro")).toBe("vertex/gemini-2.5-pro");
   });
 

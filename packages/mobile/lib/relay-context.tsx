@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef, useState, useCallback } from "react";
+import React, { createContext, useContext, useRef, useEffect, useState, useCallback } from "react";
 import { RelayClient } from "./relay";
 
 interface RelayContextValue {
@@ -15,6 +15,17 @@ export function RelayProvider({ children }: { children: React.ReactNode }) {
   // BUG-01 FIX: use state for client so consumers re-render when it changes
   const [client, setClient] = useState<RelayClient | null>(null);
   const clientRef = useRef<RelayClient | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (clientRef.current) {
+        clientRef.current.removeAllListeners();
+        clientRef.current.disconnect();
+        clientRef.current = null;
+      }
+    };
+  }, []);
 
   const connect = useCallback((sessionId: string, relayUrl?: string) => {
     // BUG-02 FIX: clean up old client's listeners before replacing

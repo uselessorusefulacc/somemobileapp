@@ -63,6 +63,8 @@ const PROVIDER_COLORS: Record<string, string> = {
   digitalocean:  "#AAAAAA",   // was #0080FF blue → neutral
   vultr:         "#AAAAAA",   // was #007BFC blue → neutral
   nebius:        "#9B59B6",   // was #6366F1 indigo → purple
+  xiaomi:        "#FF6A00",
+  microsoft:     "#00A4EF",
   other:         "#888888",
 };
 
@@ -75,41 +77,39 @@ interface ModelPrice { in: number; out: number; provider: string; note?: string 
 
 const MODEL_PRICING: Record<string, ModelPrice> = {
   // ── OpenAI ──────────────────────────────────────────────────────────────
-  "gpt-4.1":                    { in: 2.00,   out: 8.00,   provider: "openai"     },
-  "gpt-4.1-mini":               { in: 0.40,   out: 1.60,   provider: "openai"     },
-  "gpt-4.1-nano":               { in: 0.10,   out: 0.40,   provider: "openai"     },
+  "gpt-5.5":                    { in: 5.00,   out: 30.00,  provider: "openai"     },
+  "gpt-5.4":                    { in: 2.50,   out: 15.00,  provider: "openai"     },
   "gpt-4o":                     { in: 2.50,   out: 10.00,  provider: "openai"     },
   "gpt-4o-mini":                { in: 0.15,   out: 0.60,   provider: "openai"     },
-  "gpt-4-turbo":                { in: 10.00,  out: 30.00,  provider: "openai"     },
-  "gpt-4":                      { in: 30.00,  out: 60.00,  provider: "openai"     },
-  "gpt-3.5-turbo":              { in: 0.50,   out: 1.50,   provider: "openai"     },
   "o1":                         { in: 15.00,  out: 60.00,  provider: "openai"     },
   "o1-mini":                    { in: 3.00,   out: 12.00,  provider: "openai"     },
   "o1-pro":                     { in: 150.00, out: 600.00, provider: "openai"     },
   "o3":                         { in: 10.00,  out: 40.00,  provider: "openai"     },
   "o3-mini":                    { in: 1.10,   out: 4.40,   provider: "openai"     },
   "o4-mini":                    { in: 1.10,   out: 4.40,   provider: "openai"     },
+  "o3-pro":                     { in: 20.00,  out: 80.00,  provider: "openai"     },
+  "gpt-5.3-codex":              { in: 1.75,   out: 14.00,  provider: "openai"     },
+  "gpt-5.2-codex":              { in: 1.75,   out: 14.00,  provider: "openai"     },
+  "gpt-5.1-codex":              { in: 1.25,   out: 10.00,  provider: "openai"     },
   // ── Anthropic ────────────────────────────────────────────────────────────
+  "claude-opus-4-7":            { in: 5.00,   out: 25.00,  provider: "anthropic"  },
   "claude-opus-4":              { in: 15.00,  out: 75.00,  provider: "anthropic"  },
   "claude-opus-4-5":            { in: 15.00,  out: 75.00,  provider: "anthropic"  },
+  "claude-sonnet-4-6":          { in: 3.00,   out: 15.00,  provider: "anthropic"  },
   "claude-sonnet-4":            { in: 3.00,   out: 15.00,  provider: "anthropic"  },
   "claude-sonnet-4-5":          { in: 3.00,   out: 15.00,  provider: "anthropic"  },
-  "claude-3-7-sonnet":          { in: 3.00,   out: 15.00,  provider: "anthropic"  },
-  "claude-3-5-sonnet-20241022": { in: 3.00,   out: 15.00,  provider: "anthropic"  },
-  "claude-3-5-haiku-20241022":  { in: 0.80,   out: 4.00,   provider: "anthropic"  },
   "claude-haiku-4.5":           { in: 1.00,   out: 5.00,   provider: "anthropic"  },
-  "claude-haiku-3.5":           { in: 0.80,   out: 4.00,   provider: "anthropic"  },
-  "claude-haiku-3":             { in: 0.25,   out: 1.25,   provider: "anthropic"  },
-  "claude-3-opus":              { in: 15.00,  out: 75.00,  provider: "anthropic"  },
   // ── Google ───────────────────────────────────────────────────────────────
   "gemini-2.5-pro":             { in: 1.25,   out: 10.00,  provider: "google"     },
   "gemini-2.5-flash":           { in: 0.30,   out: 2.50,   provider: "google"     },
   "gemini-2.5-flash-lite":      { in: 0.10,   out: 0.40,   provider: "google"     },
   "gemini-2.0-flash":           { in: 0.10,   out: 0.40,   provider: "google"     },
   "gemini-2.0-flash-lite":      { in: 0.075,  out: 0.30,   provider: "google"     },
-  "gemini-1.5-pro":             { in: 1.25,   out: 5.00,   provider: "google"     },
-  "gemini-1.5-flash":           { in: 0.075,  out: 0.30,   provider: "google"     },
-  "gemini-1.0-pro":             { in: 0.50,   out: 1.50,   provider: "google"     },
+  "gemini-3.5-flash":           { in: 1.50,   out: 9.00,   provider: "google"     },
+  "gemini-3.1-pro":             { in: 2.00,   out: 12.00,  provider: "google"     },
+  "gemini-3.1-flash-lite":      { in: 0.25,   out: 1.50,   provider: "google"     },
+  "gemini-3-flash":             { in: 0.50,   out: 3.00,   provider: "google"     },
+  "gemini-3-pro":               { in: 2.00,   out: 12.00,  provider: "google"     },
   // ── Groq ─────────────────────────────────────────────────────────────────
   "llama-3.3-70b-versatile":    { in: 0.59,   out: 0.79,   provider: "groq"       },
   "llama-3.1-8b-instant":       { in: 0.05,   out: 0.08,   provider: "groq"       },
@@ -122,23 +122,27 @@ const MODEL_PRICING: Record<string, ModelPrice> = {
   "gemma2-9b-it":               { in: 0.20,   out: 0.20,   provider: "groq"       },
   "deepseek-r1-distill-llama-70b": { in: 0.75, out: 0.99, provider: "groq"       },
   // ── DeepSeek ─────────────────────────────────────────────────────────────
+  "deepseek-v4-flash":          { in: 0.14,   out: 0.28,   provider: "deepseek"   },
+  "deepseek-v4-pro":            { in: 1.74,   out: 3.48,   provider: "deepseek"   },
   "deepseek-v3":                { in: 0.14,   out: 0.28,   provider: "deepseek"   },
   "deepseek-v3-0324":           { in: 0.14,   out: 0.28,   provider: "deepseek"   },
   "deepseek-r1":                { in: 0.55,   out: 2.19,   provider: "deepseek"   },
   "deepseek-r1-0528":           { in: 0.55,   out: 2.19,   provider: "deepseek"   },
   "deepseek-coder-v2":          { in: 0.14,   out: 0.28,   provider: "deepseek"   },
   "deepseek-v2.5":              { in: 0.14,   out: 0.28,   provider: "deepseek"   },
+  "deepseek-v3.1":              { in: 0.21,   out: 0.79,   provider: "deepseek"   },
+  "deepseek-v3.2":              { in: 0.25,   out: 0.38,   provider: "deepseek"   },
+  "deepseek-v3.2-exp":          { in: 0.27,   out: 0.41,   provider: "deepseek"   },
   // ── Mistral ──────────────────────────────────────────────────────────────
-  "mistral-large-latest":       { in: 2.00,   out: 6.00,   provider: "mistral"    },
-  "mistral-large-2411":         { in: 2.00,   out: 6.00,   provider: "mistral"    },
-  "mistral-medium":             { in: 0.40,   out: 1.20,   provider: "mistral"    },
+  "mistral-medium-3-5":         { in: 1.50,   out: 7.50,   provider: "mistral"    },
+  "mistral-large-latest":       { in: 0.50,   out: 1.50,   provider: "mistral"    },
+  "mistral-medium-latest":      { in: 0.40,   out: 2.00,   provider: "mistral"    },
   "mistral-small-latest":       { in: 0.10,   out: 0.30,   provider: "mistral"    },
-  "mistral-small-2503":         { in: 0.10,   out: 0.30,   provider: "mistral"    },
-  "codestral-latest":           { in: 0.20,   out: 0.60,   provider: "mistral"    },
-  "codestral-2501":             { in: 0.30,   out: 0.90,   provider: "mistral"    },
-  "mistral-7b-instruct":        { in: 0.025,  out: 0.025,  provider: "mistral"    },
-  "mixtral-8x22b":              { in: 1.20,   out: 1.20,   provider: "mistral"    },
-  "pixtral-large-latest":       { in: 2.00,   out: 6.00,   provider: "mistral"    },
+  "mistral-small-2603":         { in: 0.15,   out: 0.60,   provider: "mistral"    },
+  "codestral-latest":           { in: 0.30,   out: 0.90,   provider: "mistral"    },
+  "magistral-medium-latest":    { in: 2.00,   out: 5.00,   provider: "mistral"    },
+  "ministral-14b-latest":       { in: 0.20,   out: 0.20,   provider: "mistral"    },
+  "phi-4":                      { in: 0.065,  out: 0.140,  provider: "microsoft"  },
   // ── Perplexity ───────────────────────────────────────────────────────────
   "sonar-pro":                  { in: 3.00,   out: 15.00,  provider: "perplexity" },
   "sonar":                      { in: 1.00,   out: 1.00,   provider: "perplexity" },
@@ -147,17 +151,17 @@ const MODEL_PRICING: Record<string, ModelPrice> = {
   "sonar-deep-research":        { in: 2.00,   out: 8.00,   provider: "perplexity" },
   // ── OpenRouter ───────────────────────────────────────────────────────────
   "openrouter/auto":            { in: 0,      out: 0,      provider: "openrouter", note: "varies" },
-  "openrouter/anthropic/claude-3.5-sonnet": { in: 3.00, out: 15.00, provider: "openrouter" },
   "openrouter/openai/gpt-4o":   { in: 2.50,  out: 10.00,  provider: "openrouter" },
   "openrouter/google/gemini-2.5-pro": { in: 1.25, out: 10.00, provider: "openrouter" },
   // ── GitHub Copilot ───────────────────────────────────────────────────────
   "copilot/gpt-4o":             { in: 0,      out: 0,      provider: "github",    note: "subscription" },
-  "copilot/claude-3.5-sonnet":  { in: 0,      out: 0,      provider: "github",    note: "subscription" },
   "copilot/o3-mini":            { in: 0,      out: 0,      provider: "github",    note: "subscription" },
   // ── GitHub Models ────────────────────────────────────────────────────────
   "github/gpt-4o":              { in: 0,      out: 0,      provider: "github",    note: "free tier" },
   "github/phi-4":               { in: 0,      out: 0,      provider: "github",    note: "free tier" },
   // ── xAI / Grok ───────────────────────────────────────────────────────────
+  "grok-4-3":                   { in: 1.25,   out: 2.50,   provider: "xai"        },
+  "grok-build":                 { in: 1.00,   out: 2.00,   provider: "xai"        },
   "grok-3":                     { in: 3.00,   out: 15.00,  provider: "xai"        },
   "grok-3-mini":                { in: 0.30,   out: 0.50,   provider: "xai"        },
   "grok-3-fast":                { in: 5.00,   out: 25.00,  provider: "xai"        },
@@ -208,22 +212,33 @@ const MODEL_PRICING: Record<string, ModelPrice> = {
   // ── Hugging Face ─────────────────────────────────────────────────────────
   "hf/meta-llama-3.1-70b":      { in: 0,      out: 0,      provider: "huggingface", note: "free tier" },
   "hf/mistral-7b":              { in: 0,      out: 0,      provider: "huggingface", note: "free tier" },
-  // ── Moonshot AI ──────────────────────────────────────────────────────────
+  // ── Moonshot / Kimi ──────────────────────────────────────────────────────
+  "kimi-k2-6":                  { in: 0.73,   out: 3.49,   provider: "moonshot"   },
+  "kimi-k2-5":                  { in: 0.60,   out: 3.00,   provider: "moonshot"   },
   "moonshot-v1-8k":             { in: 0.17,   out: 0.17,   provider: "moonshot"   },
   "moonshot-v1-32k":            { in: 0.35,   out: 0.35,   provider: "moonshot"   },
   "moonshot-v1-128k":           { in: 0.87,   out: 0.87,   provider: "moonshot"   },
-  // ── Zhipu AI ─────────────────────────────────────────────────────────────
-  "glm-4-plus":                 { in: 0.14,   out: 0.14,   provider: "zhipu"      },
-  "glm-4-air":                  { in: 0.014,  out: 0.014,  provider: "zhipu"      },
-  "glm-4-flash":                { in: 0,      out: 0,      provider: "zhipu",     note: "free" },
+  // ── Zhipu AI / GLM ───────────────────────────────────────────────────────
+  "glm-5-1":                    { in: 1.40,   out: 4.40,   provider: "zhipu"      },
+  "glm-5":                      { in: 1.00,   out: 3.20,   provider: "zhipu"      },
+  "glm-5-turbo":                { in: 1.20,   out: 4.00,   provider: "zhipu"      },
+  "glm-4-7":                    { in: 0.60,   out: 2.20,   provider: "zhipu"      },
+  "glm-4-7-flashx":             { in: 0.07,   out: 0.40,   provider: "zhipu"      },
+  "glm-4-7-flash":              { in: 0,      out: 0,      provider: "zhipu",     note: "free" },
   // ── MiniMax ──────────────────────────────────────────────────────────────
-  "minimax/abab7-chat":         { in: 0.24,   out: 0.24,   provider: "minimax"    },
-  "minimax/abab6.5s":           { in: 0.11,   out: 0.11,   provider: "minimax"    },
+  "minimax-m2-7":               { in: 0.30,   out: 1.20,   provider: "minimax"    },
+  "minimax-m2-5":               { in: 0.15,   out: 1.20,   provider: "minimax"    },
+  "minimax-m2":                 { in: 0.30,   out: 1.20,   provider: "minimax"    },
   // ── Alibaba / Qwen ───────────────────────────────────────────────────────
   "qwen-max":                   { in: 0.40,   out: 1.20,   provider: "alibaba"    },
   "qwen-plus":                  { in: 0.07,   out: 0.21,   provider: "alibaba"    },
   "qwen-turbo":                 { in: 0.02,   out: 0.06,   provider: "alibaba"    },
   "qwen-long":                  { in: 0.007,  out: 0.007,  provider: "alibaba"    },
+  "qwen3.7-max":                { in: 2.50,   out: 7.50,   provider: "alibaba"    },
+  "qwen3.6-plus":               { in: 0.50,   out: 3.00,   provider: "alibaba"    },
+  "qwen3.6-flash":              { in: 0.25,   out: 1.50,   provider: "alibaba"    },
+  "qwen3.5-plus":               { in: 0.40,   out: 2.40,   provider: "alibaba"    },
+  "qwen3.5-flash":              { in: 0.30,   out: 1.80,   provider: "alibaba"    },
   // ── SiliconFlow ──────────────────────────────────────────────────────────
   "sf/deepseek-v3":             { in: 0.14,   out: 0.28,   provider: "siliconflow" },
   "sf/qwen2.5-72b":             { in: 0.63,   out: 0.63,   provider: "siliconflow" },
@@ -255,6 +270,11 @@ const MODEL_PRICING: Record<string, ModelPrice> = {
   // ── NVIDIA NIM ───────────────────────────────────────────────────────────
   "nvidia/llama-3.1-nemotron-70b": { in: 0.35, out: 0.40,  provider: "nvidia"     },
   "nvidia/mistral-nemo-12b":    { in: 0.23,   out: 0.23,   provider: "nvidia"     },
+  // ── Meta Llama 4 ─────────────────────────────────────────────────────────
+  "llama-4-scout":              { in: 0.08,   out: 0.30,   provider: "meta"       },
+  "llama-4-maverick":           { in: 0.20,   out: 0.60,   provider: "meta"       },
+  "mimo-v2.5":                  { in: 0.40,   out: 2.00,   provider: "xiaomi"     },
+  "nemotron-3-super":           { in: 0.30,   out: 0.80,   provider: "nvidia"     },
 };
 
 // ── Sync from daemon ────────────────────────────────────────────────────────────

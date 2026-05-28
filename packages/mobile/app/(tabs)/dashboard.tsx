@@ -34,7 +34,7 @@ function BudgetAlertBanner() {
         setAlerts(r.alerts);
         Animated.spring(slideY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 200 }).start();
       }
-    }).catch(() => {});
+    }).catch((err) => console.warn("[Dashboard] getAlerts error:", err));
     return () => { alive = false; };
   }, []));
 

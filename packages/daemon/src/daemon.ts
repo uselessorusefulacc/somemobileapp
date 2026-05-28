@@ -34,10 +34,9 @@ program
   .requiredOption("-s, --session <uuid>", "Session ID from the mobile app")
   .option("-r, --relay <url>", "Relay WebSocket URL", loadConfig().relayUrl)
   .option("-v, --verbose", "Verbose logging", false)
-  .option("--restart", "Auto-restart child on non-zero exit (default off)", false)
   .allowUnknownOption(true)
   .argument("[cmd...]", "Agent command to run, e.g: -- claude 'fix my tests'")
-  .action(async (args: string[], opts: { session: string; relay: string; verbose: boolean; restart: boolean }) => {
+  .action(async (args: string[], opts: { session: string; relay: string; verbose: boolean }) => {
     validateConfig();
     validateSession(opts.session);
 
@@ -56,7 +55,7 @@ program
     relay.connect();
 
     // Detect agent type from the command
-    const agentInfo = detectAgentInfoForCommand(agentArgs[0]);
+    const agentInfo = await detectAgentInfoForCommand(agentArgs[0]);
     const envModel = detectModelFromEnv();
     if (envModel) agentInfo.model = envModel;
 
@@ -84,31 +83,35 @@ program
 
     let detectedModel = agentInfo.model;
 
-    const agentParserType = (agentInfo.type === "claude" || agentInfo.type === "aider" || agentInfo.type === "codex" || agentInfo.type === "gemini" || agentInfo.type === "opencode" || agentInfo.type === "auto") ? agentInfo.type : "auto";
+    const agentParserType = (agentInfo.type === "claude" || agentInfo.type === "codex" || agentInfo.type === "gemini" || agentInfo.type === "opencode" || agentInfo.type === "auto") ? agentInfo.type : "auto";
 
     const handleLine = (line: string) => {
-      process.stdout.write(line + "\n");
-      relay.sendOutput(line);
+      try {
+        process.stdout.write(line + "\n");
+        relay.sendOutput(line);
 
-      const parsed = parseLine(line, agentParserType);
-      if (parsed.model) {
-        detectedModel = parsed.model;
-        relay.sendAgentInfo({ ...agentInfo, model: detectedModel });
-      }
-      if (parsed.toolCall) {
-        relay.sendToolCall(parsed.toolCall);
-        if (opts.verbose) console.error(`[Daemon] tool: ${parsed.toolCall.tool}(${redactSensitive(parsed.toolCall.input ?? "")})`);
-      }
-      if (parsed.tokenUsage) {
-        const cost = calculateCost(detectedModel, parsed.tokenUsage);
-        const usage: TokenUsage = {
-          ...parsed.tokenUsage,
-          totalTokens: parsed.tokenUsage.inputTokens + parsed.tokenUsage.outputTokens,
-          model: detectedModel,
-          costUsd: cost,
-          timestamp: Date.now(),
-        };
-        relay.sendTokens(usage);
+        const parsed = parseLine(line, agentParserType);
+        if (parsed.model) {
+          detectedModel = parsed.model;
+          relay.sendAgentInfo({ ...agentInfo, model: detectedModel });
+        }
+        if (parsed.toolCall) {
+          relay.sendToolCall(parsed.toolCall);
+          if (opts.verbose) console.error(`[Daemon] tool: ${parsed.toolCall.tool}(${redactSensitive(parsed.toolCall.input ?? "")})`);
+        }
+        if (parsed.tokenUsage) {
+          const cost = calculateCost(detectedModel, parsed.tokenUsage);
+          const usage: TokenUsage = {
+            ...parsed.tokenUsage,
+            totalTokens: parsed.tokenUsage.inputTokens + parsed.tokenUsage.outputTokens,
+            model: detectedModel,
+            costUsd: cost,
+            timestamp: Date.now(),
+          };
+          relay.sendTokens(usage);
+        }
+      } catch (err) {
+        console.error("[Daemon] handleLine error:", err);
       }
     };
 
@@ -148,7 +151,7 @@ program
 
     const stdinPipe = (d: Buffer) => {
       if (child.stdin?.writable) {
-        child.stdin.write(d);
+        try { child.stdin.write(d); } catch {}
       }
     };
     process.stdin.on("data", stdinPipe);
@@ -158,10 +161,6 @@ program
       const reason = signal !== null ? `signal ${signal}` : `code ${code}`;
       relay.sendStatus("exited", `Agent exited with ${reason}`);
       console.log(`[Daemon] Agent exited with ${reason}`);
-
-      if (opts.restart && code !== 0) {
-        console.warn("[Daemon] --restart not fully implemented. Use pm2 or a shell loop for auto-restart.");
-      }
 
       setTimeout(() => {
         relay.close();
@@ -213,6 +212,12 @@ program
     let phoneConnected = false;
 
     relay.onCommand(() => {}); // Required to arm the message handler
+    relay.onPeerConnected(() => {
+      phoneConnected = true;
+      console.log("\n  ✓ Phone connected! Pairing complete. Exiting...");
+      clearTimeout(pairTimeout);
+      setTimeout(() => { relay.close(); process.exit(0); }, 500);
+    });
 
     const pairTimeout = setTimeout(() => {
       if (!phoneConnected) {
@@ -245,7 +250,7 @@ program
   .requiredOption("-s, --session <uuid>", "Session ID from the mobile app")
   .option("-r, --relay <url>", "Relay WebSocket URL", loadConfig().relayUrl)
   .option("-v, --verbose", "Verbose logging", false)
-  .action((opts: { session: string; relay: string; verbose: boolean }) => {
+  .action(async (opts: { session: string; relay: string; verbose: boolean }) => {
     validateSession(opts.session);
 
     const relay = new RelayClient(opts.session, opts.relay, opts.verbose);
@@ -257,7 +262,7 @@ program
     relay.connect();
 
     console.log("[Daemon] Scanning for running agents...");
-    const found = detectRunningAgents();
+    const found = await detectRunningAgents();
     if (found.length === 0) {
       console.log("[Daemon] No running agents detected. Waiting for fetch() calls...");
       relay.sendStatus("idle", "Waiting — no agent detected yet. Is your agent running in this process?");
@@ -276,8 +281,8 @@ program
 program
   .command("detect")
   .description("Detect running agents without connecting to relay")
-  .action(() => {
-    const found = detectRunningAgents();
+  .action(async () => {
+    const found = await detectRunningAgents();
     if (found.length === 0) {
       console.log("No running agents detected.");
     } else {

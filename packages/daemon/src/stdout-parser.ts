@@ -1,6 +1,12 @@
 import type { ToolCall } from "./types";
 import { normalizeModel } from "./pricing";
 
+function safeParseInt(v: string | undefined, fallback: number = 0): number {
+  if (v === undefined) return fallback;
+  const n = parseInt(v, 10);
+  return isNaN(n) ? fallback : n;
+}
+
 // ── Tool call patterns per agent ───────────────────────────────────────────
 
 interface ParsedLine {
@@ -16,7 +22,7 @@ interface ParsedLine {
 
 // Claude Code output patterns
 // ✓ Read(file.ts)   Write(file.ts)   Bash(ls)   Tool call styles
-const CLAUDE_TOOL_RE = /[✓✗⏎→]\s*(Read|Write|Bash|Edit|MultiEdit|WebFetch|WebSearch|TodoRead|TodoWrite|Glob|Grep|LS|Task|Computer|MCP\w+)\s*\(([^)]{0,120})\)/;
+const CLAUDE_TOOL_RE = /[✓✗⏎→]\s*(Read|Write|Bash|Edit|MultiEdit|WebFetch|WebSearch|TodoRead|TodoWrite|Glob|Grep|LS|Task|Computer|MCP\w+)\s*\(([^)]{0,500})\)/;
 const CLAUDE_MODEL_RE = /model[:\s]+([a-z0-9._-]+)/i;
 const CLAUDE_TOKENS_RE = /^[> ]*(\d+)\s+input\s+tokens.*?(\d+)\s+output\s+tokens/im;
 const CLAUDE_COST_RE = /\$([0-9]+\.[0-9]+)\s*\(/;
@@ -65,8 +71,8 @@ function parseClaude(line: string): ParsedLine {
   const tokensMatch = line.match(CLAUDE_TOKENS_RE);
   if (tokensMatch) {
     result.tokenUsage = {
-      inputTokens: parseInt(tokensMatch[1]),
-      outputTokens: parseInt(tokensMatch[2]),
+      inputTokens: safeParseInt(tokensMatch[1]),
+      outputTokens: safeParseInt(tokensMatch[2]),
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
@@ -89,8 +95,8 @@ function parseAider(line: string): ParsedLine {
   const tokensMatch = line.match(AIDER_TOKENS_RE);
   if (tokensMatch) {
     result.tokenUsage = {
-      inputTokens: parseInt(tokensMatch[1]),
-      outputTokens: parseInt(tokensMatch[2]),
+      inputTokens: safeParseInt(tokensMatch[1]),
+      outputTokens: safeParseInt(tokensMatch[2]),
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
@@ -141,10 +147,10 @@ function parseGenericJson(line: string): ParsedLine {
   const outputMatch = line.match(JSON_OUTPUT_RE);
   if (inputMatch && outputMatch) {
     result.tokenUsage = {
-      inputTokens: parseInt(inputMatch[1]),
-      outputTokens: parseInt(outputMatch[1]),
-      cacheReadTokens: parseInt(line.match(JSON_CACHE_READ_RE)?.[1] ?? "0"),
-      cacheWriteTokens: parseInt(line.match(JSON_CACHE_WRITE_RE)?.[1] ?? "0"),
+      inputTokens: safeParseInt(inputMatch[1]),
+      outputTokens: safeParseInt(outputMatch[1]),
+      cacheReadTokens: safeParseInt(line.match(JSON_CACHE_READ_RE)?.[1]),
+      cacheWriteTokens: safeParseInt(line.match(JSON_CACHE_WRITE_RE)?.[1]),
     };
   }
 
@@ -152,8 +158,8 @@ function parseGenericJson(line: string): ParsedLine {
   const completionMatch = line.match(OAI_COMPLETION_RE);
   if (promptMatch && completionMatch && !result.tokenUsage) {
     result.tokenUsage = {
-      inputTokens: parseInt(promptMatch[1]),
-      outputTokens: parseInt(completionMatch[1]),
+      inputTokens: safeParseInt(promptMatch[1]),
+      outputTokens: safeParseInt(completionMatch[1]),
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
@@ -164,7 +170,7 @@ function parseGenericJson(line: string): ParsedLine {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export type AgentParserType = "claude" | "codex" | "aider" | "gemini" | "opencode" | "auto";
+export type AgentParserType = "claude" | "codex" | "gemini" | "opencode" | "auto";
 
 export function parseLine(line: string, agentType: AgentParserType = "auto"): ParsedLine {
   const trimmed = line.trim();
@@ -178,10 +184,10 @@ export function parseLine(line: string, agentType: AgentParserType = "auto"): Pa
   let specific: ParsedLine = {};
   let tokenFound = false;
   if (agentType === "claude" || agentType === "auto") { const r = parseClaude(trimmed); if (r.tokenUsage) tokenFound = true; specific = { ...specific, ...r }; }
-  if (!tokenFound && (agentType === "aider" || agentType === "auto")) { const r = parseAider(trimmed); if (r.tokenUsage) tokenFound = true; specific = { ...specific, ...r }; }
-  if (agentType === "codex" || agentType === "auto") specific = { ...specific, ...parseCodex(trimmed) };
-  if (agentType === "gemini" || agentType === "auto") specific = { ...specific, ...parseGemini(trimmed) };
-  if (agentType === "opencode" || agentType === "auto") specific = { ...specific, ...parseOpenCode(trimmed) };
+
+    if (agentType === "codex" || (agentType === "auto" && !tokenFound)) specific = { ...specific, ...parseCodex(trimmed) };
+  if (agentType === "gemini" || (agentType === "auto" && !tokenFound)) specific = { ...specific, ...parseGemini(trimmed) };
+  if (agentType === "opencode" || (agentType === "auto" && !tokenFound)) specific = { ...specific, ...parseOpenCode(trimmed) };
 
   return {
     model: specific.model || generic.model,
