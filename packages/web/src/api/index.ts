@@ -415,7 +415,7 @@ const app = new Hono()
 
     // Validate
     if (!body.model?.trim()) return c.json({ error: "model is required" }, 400);
-    const safeInt = (v: unknown): number => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(0, n) : 0; };
+    const safeInt = (v: unknown): number => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.min(1_000_000_000, Math.max(0, n)) : 0; };
     const inputTokens    = safeInt(body.inputTokens);
     const outputTokens   = safeInt(body.outputTokens);
     const cacheReadTokens  = safeInt(body.cacheReadTokens);
@@ -523,7 +523,7 @@ const app = new Hono()
     const sessions = await db.select({ id: schema.agentSessions.id }).from(schema.agentSessions).where(eq(schema.agentSessions.id, body.sessionId)).limit(1);
     if (!sessions[0]) return c.json({ error: "session not found" }, 404);
 
-    const safeInt = (v: unknown): number => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(0, n) : 0; };
+    const safeInt = (v: unknown): number => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.min(1_000_000_000, Math.max(0, n)) : 0; };
     const inputTokens      = safeInt(body.inputTokens ?? body.promptTokens ?? 0);
     const outputTokens     = safeInt(body.outputTokens ?? body.completionTokens ?? 0);
     const cacheReadTokens  = safeInt(body.cacheReadTokens ?? 0);

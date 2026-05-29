@@ -86,6 +86,11 @@ const server = Bun.serve<{ sessionId: string; role: PeerRole }>({
         return;
       }
 
+      if (!parsed || typeof parsed !== "object" || !parsed.type) {
+        console.warn("[Relay] Ignoring non-object message:", message.toString().slice(0, 200));
+        return;
+      }
+
       if (parsed.type === "ping") {
         ws.send(JSON.stringify({ type: "pong", payload: {}, timestamp: Date.now() }));
         return;
